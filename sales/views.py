@@ -12,7 +12,6 @@ from .serializers import (
 )
 from .permissions import IsSalesUser
 
-
 class SalesOrderViewSet(viewsets.ModelViewSet):
     queryset = SalesOrder.objects.all().order_by('-created_at')
     serializer_class = SalesOrderSerializer

@@ -26,6 +26,9 @@ INSTALLED_APPS = [
     'sorting',
     'decolorization',
     'sales',
+    'reports',
+    'audit',
+    'notifications',
 ]
 
 MIDDLEWARE = [
@@ -37,6 +40,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'audit.middleware.AuditMiddleware',
 ]
 
 ROOT_URLCONF = 'ERP_Backend.urls'
@@ -102,3 +107,16 @@ USE_I18N = True
 USE_TZ = True
 STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+#Email configuration (Gmail SMTP) ───────────────────────────────────────
+EMAIL_BACKEND       = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST          = 'smtp.gmail.com'
+EMAIL_PORT          = 587
+EMAIL_USE_TLS       = True
+EMAIL_HOST_USER     = 'faraztariq7563@gmail.com'   # ← your Gmail address
+EMAIL_HOST_PASSWORD = 'hxqo zqne qnnt mybw'              # ← Gmail App Password
+DEFAULT_FROM_EMAIL  = 'Textile ERP <faraztariq7563@gmail.com>'
+
+# Management alert recipient (your email)
+MANAGEMENT_EMAIL    = 'thisismefaraz@gmail.com'

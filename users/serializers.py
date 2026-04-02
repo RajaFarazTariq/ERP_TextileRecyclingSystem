@@ -8,7 +8,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ['id', 'username', 'email', 'password', 'role']
+        fields = ['id', 'username', 'email', 'password', 'role', 'is_active']
 
     def create(self, validated_data):
         user = CustomUser.objects.create_user(
@@ -16,7 +16,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             email=validated_data.get('email', ''),
             password=validated_data['password'],
             role=validated_data.get('role', 'admin'),
-            is_active=True,  # ← add this line
+            is_active=validated_data.get('is_active', True),  # ← respect is_active on create
         )
         return user
 
@@ -37,6 +37,13 @@ class LoginSerializer(serializers.Serializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    last_login_display = serializers.SerializerMethodField()
+
     class Meta:
         model = CustomUser
-        fields = ['id', 'username', 'email', 'role']
+        fields = ['id', 'username', 'email', 'role', 'is_active', 'last_login', 'last_login_display']
+
+    def get_last_login_display(self, obj):
+        if obj.last_login:
+            return obj.last_login.strftime('%d %b %Y, %I:%M %p')
+        return 'Never'
