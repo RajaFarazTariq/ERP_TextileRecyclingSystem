@@ -14,6 +14,6 @@ urlpatterns = [
     path('api/decolorization/', include('decolorization.urls')),
     path('api/sales/', include('sales.urls')),
     path('api/reports/', include('reports.urls')),
-    path('api/', include(router.urls)),
     path('api/audit/logs/summary/', audit_summary, name='audit-summary'),
+    path('api/', include(router.urls)),
 ]
