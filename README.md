@@ -19,14 +19,18 @@ ERP Textile Recycling System is a web-based application designed to streamline a
 
 ##Images of the ERP System
 
-<img width="1366" height="640" alt="image" src="https://github.com/user-attachments/assets/2c13926f-841a-4bd5-b80e-9b85034e3598" />
-<img width="1364" height="572" alt="image" src="https://github.com/user-attachments/assets/53de90b3-e7ec-4f3a-847e-1aa665285fbd" />
-<img width="1363" height="644" alt="image" src="https://github.com/user-attachments/assets/7fe04e05-7610-4f23-a0a1-6467e04c5820" />
-<img width="1366" height="631" alt="image" src="https://github.com/user-attachments/assets/df79e2ab-2461-4a77-81e3-27550e39e5e8" />
-<img width="1366" height="636" alt="image" src="https://github.com/user-attachments/assets/b0dbef5d-e17d-493c-92e2-5559013b0121" />
-<img width="1363" height="636" alt="image" src="https://github.com/user-attachments/assets/86957cd7-cc7d-483c-8f14-a206c29e6b9e" />
-<img width="1363" height="647" alt="image" src="https://github.com/user-attachments/assets/de72ebb4-d1fd-4926-b622-b38a55f7217d" />
-<img width="1363" height="583" alt="image" src="https://github.com/user-attachments/assets/d60a4ae0-1dc8-4274-b3e4-6f0599aa34c3" />
+<img width="1366" height="633" alt="image" src="https://github.com/user-attachments/assets/b22b4b8b-731d-4fe0-90e9-e2aa071c6d1f" />
+<img width="1364" height="639" alt="image" src="https://github.com/user-attachments/assets/6c7d907d-66cf-4d41-86a3-fc0c6fe53bc0" />
+<img width="1366" height="635" alt="image" src="https://github.com/user-attachments/assets/248df3dc-3bbc-40b7-b883-bf88d8643d53" />
+<img width="1366" height="632" alt="image" src="https://github.com/user-attachments/assets/a81c3d4e-f194-485b-8084-750a8b57ba0b" />
+<img width="1366" height="631" alt="image" src="https://github.com/user-attachments/assets/524edb39-37c3-4a71-ae57-9c3eed7a482f" />
+<img width="1365" height="637" alt="image" src="https://github.com/user-attachments/assets/ffc050e8-20bc-4fc3-a857-500cca2bc562" />
+<img width="1365" height="639" alt="image" src="https://github.com/user-attachments/assets/c716ac04-5dab-487e-917b-4117c8b1a2c8" />
+<img width="1364" height="639" alt="image" src="https://github.com/user-attachments/assets/e68fddf3-4f6c-48ce-884a-802fc99fe034" />
+<img width="1366" height="640" alt="image" src="https://github.com/user-attachments/assets/e9421bb2-e780-4ea1-b6ac-ac54c356ae85" />
+<img width="1366" height="639" alt="image" src="https://github.com/user-attachments/assets/2f1191ab-d748-42c3-9b17-d89bed7de0d5" />
+<img width="1366" height="642" alt="image" src="https://github.com/user-attachments/assets/0b606611-4192-44d6-a29c-f647f4e7cd03" />
+<img width="1366" height="614" alt="image" src="https://github.com/user-attachments/assets/12c58121-ce6c-46d0-8136-daf83d721c6a" />
 
 
 ## Installation
