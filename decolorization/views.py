@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
-
+from audit.middleware import AuditedModelMixin
 from .models import ChemicalStock, Tank, ChemicalIssuance, DecolorizationSession
 from .serializers import (
     ChemicalStockSerializer, TankSerializer,
@@ -13,7 +13,7 @@ from .serializers import (
 from core.permissions import IsDecolorizationOrAdmin
 
 
-class ChemicalStockViewSet(viewsets.ModelViewSet):
+class ChemicalStockViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     queryset = ChemicalStock.objects.all().order_by('chemical_name')
     serializer_class = ChemicalStockSerializer
     permission_classes = [IsAuthenticated, IsDecolorizationOrAdmin]
@@ -25,7 +25,7 @@ class ChemicalStockViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class TankViewSet(viewsets.ModelViewSet):
+class TankViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     queryset = Tank.objects.all().order_by('name')
     serializer_class = TankSerializer
     permission_classes = [IsAuthenticated, IsDecolorizationOrAdmin]
@@ -79,7 +79,7 @@ class TankViewSet(viewsets.ModelViewSet):
         )
 
 
-class ChemicalIssuanceViewSet(viewsets.ModelViewSet):
+class ChemicalIssuanceViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     queryset = ChemicalIssuance.objects.all().order_by('-issued_at')
     serializer_class = ChemicalIssuanceSerializer
     permission_classes = [IsAuthenticated, IsDecolorizationOrAdmin]
@@ -93,7 +93,7 @@ class ChemicalIssuanceViewSet(viewsets.ModelViewSet):
         chemical.save()
 
 
-class DecolorizationSessionViewSet(viewsets.ModelViewSet):
+class DecolorizationSessionViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     queryset = DecolorizationSession.objects.all().order_by('-start_date')
     serializer_class = DecolorizationSessionSerializer
     permission_classes = [IsAuthenticated, IsDecolorizationOrAdmin]

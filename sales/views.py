@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from django.db.models import Sum, Count
 from datetime import date, timedelta
-
+from audit.middleware import AuditedModelMixin
 from .models import SalesOrder, DispatchTracking, Payment
 from .serializers import (
     SalesOrderSerializer,
@@ -20,7 +20,7 @@ except ImportError:
     from rest_framework.permissions import IsAuthenticated as IsSalesOrAdmin
 
 
-class SalesOrderViewSet(viewsets.ModelViewSet):
+class SalesOrderViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     queryset = SalesOrder.objects.all().order_by('-created_at')
     serializer_class = SalesOrderSerializer
     permission_classes = [IsAuthenticated, IsSalesOrAdmin]
@@ -167,7 +167,7 @@ class SalesOrderViewSet(viewsets.ModelViewSet):
         })
 
 
-class DispatchTrackingViewSet(viewsets.ModelViewSet):
+class DispatchTrackingViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     queryset = DispatchTracking.objects.all().order_by('-dispatch_date')
     serializer_class = DispatchTrackingSerializer
     permission_classes = [IsAuthenticated, IsSalesOrAdmin]
@@ -237,7 +237,7 @@ class DispatchTrackingViewSet(viewsets.ModelViewSet):
         )
 
 
-class PaymentViewSet(viewsets.ModelViewSet):
+class PaymentViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     queryset = Payment.objects.all().order_by('-payment_date')
     serializer_class = PaymentSerializer
     permission_classes = [IsAuthenticated, IsSalesOrAdmin]

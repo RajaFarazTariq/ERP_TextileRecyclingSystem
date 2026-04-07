@@ -6,6 +6,7 @@ from datetime import date, timedelta
 
 from .models import Vendor, FactoryUnit, Stock
 from .serializers import VendorSerializer, FactoryUnitSerializer, StockSerializer
+from audit.middleware import AuditedModelMixin
 
 try:
     from core.permissions import IsWarehouseOrAdmin
@@ -14,19 +15,19 @@ except ImportError:
     from rest_framework.permissions import IsAuthenticated as IsWarehouseOrAdmin
 
 
-class VendorViewSet(viewsets.ModelViewSet):
+class VendorViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     queryset = Vendor.objects.all().order_by('-created_at')
     serializer_class = VendorSerializer
     permission_classes = [IsAuthenticated, IsWarehouseOrAdmin]
 
 
-class FactoryUnitViewSet(viewsets.ModelViewSet):
+class FactoryUnitViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     queryset = FactoryUnit.objects.all()
     serializer_class = FactoryUnitSerializer
     permission_classes = [IsAuthenticated, IsWarehouseOrAdmin]
 
 
-class StockViewSet(viewsets.ModelViewSet):
+class StockViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     queryset = Stock.objects.all().order_by('-created_at')
     serializer_class = StockSerializer
     permission_classes = [IsAuthenticated, IsWarehouseOrAdmin]

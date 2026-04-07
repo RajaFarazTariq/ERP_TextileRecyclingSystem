@@ -10,9 +10,9 @@ from django.utils import timezone
 from .models import FabricStock, SortingSession
 from .serializers import FabricStockSerializer, SortingSessionSerializer
 from core.permissions import IsSortingOrAdmin          # ← central RBAC
+from audit.middleware import AuditedModelMixin
 
-
-class FabricStockViewSet(viewsets.ModelViewSet):
+class FabricStockViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     queryset = FabricStock.objects.all().order_by('-created_at')
     serializer_class = FabricStockSerializer
     permission_classes = [IsAuthenticated, IsSortingOrAdmin]
@@ -28,7 +28,7 @@ class FabricStockViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class SortingSessionViewSet(viewsets.ModelViewSet):
+class SortingSessionViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     queryset = SortingSession.objects.all().order_by('-start_date')
     serializer_class = SortingSessionSerializer
     permission_classes = [IsAuthenticated, IsSortingOrAdmin]
