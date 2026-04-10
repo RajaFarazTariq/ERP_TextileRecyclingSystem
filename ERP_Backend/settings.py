@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'warehouse',
     'sorting',
     'decolorization',
+    'drying',
     'sales',
     'reports',
     'audit',

@@ -12,6 +12,7 @@ urlpatterns = [
     path('api/warehouse/', include('warehouse.urls')),
     path('api/sorting/', include('sorting.urls')),
     path('api/decolorization/', include('decolorization.urls')),
+    path('api/drying/', include('drying.urls')),
     path('api/sales/', include('sales.urls')),
     path('api/reports/', include('reports.urls')),
     path('api/audit/logs/summary/', audit_summary, name='audit-summary'),

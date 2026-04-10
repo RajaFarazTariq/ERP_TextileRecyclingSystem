@@ -9,6 +9,7 @@ import Dashboard      from './pages/Dashboard';
 import Warehouse      from './pages/warehouse/Warehouse';
 import Sorting        from './pages/sorting/Sorting';
 import Decolorization from './pages/decolorization/Decolorization';
+import Drying         from './pages/drying/Drying';
 import Sales          from './pages/sales/Sales';
 import Users          from './pages/users/Users';
 import Home           from './pages/Home';
@@ -61,6 +62,13 @@ function App() {
             <ProtectedRoute allowedRoles={['admin', 'decolorization_supervisor']}>
               <Decolorization />
             </ProtectedRoute>
+          } />
+
+          {/* Drying — admin + drying_supervisor */}
+          <Route path="/drying" element={
+          <ProtectedRoute allowedRoles={['admin', 'drying_supervisor']}>
+              <Drying />
+          </ProtectedRoute>
           } />
 
           {/* Sales — admin only */}
