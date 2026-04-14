@@ -105,13 +105,12 @@ export default function Sidebar({ onClose }) {
   };
 
   return (
-    // Sidebar is always dark (slate-900) — looks great in both light and dark page mode
-    <div className="w-64 h-full bg-slate-900 flex flex-col shadow-2xl border-r border-slate-700/50">
+    <div className="w-64 h-full bg-white dark:bg-slate-900 flex flex-col shadow-2xl border-r border-slate-200 dark:border-slate-700/50">
 
       {/* Logo */}
       <button
         onClick={handleLogoClick}
-        className="px-6 py-5 border-b border-slate-700/60 flex items-center gap-3 hover:bg-slate-800 transition-colors text-left w-full group"
+        className="px-6 py-5 border-b border-slate-200 dark:border-slate-700/60 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left w-full group"
       >
         <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-blue-500 transition-colors">
           <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -120,12 +119,12 @@ export default function Sidebar({ onClose }) {
           </svg>
         </div>
         <div className="flex-1 text-left">
-          <p className="text-white font-bold text-sm leading-tight group-hover:text-blue-300 transition-colors">
+          <p className="text-slate-800 dark:text-white font-bold text-sm leading-tight group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors">
             Textile ERP
           </p>
-          <p className="text-slate-400 text-xs">Recycling System</p>
+          <p className="text-slate-500 dark:text-slate-400 text-xs">Recycling System</p>
         </div>
-        <svg className="w-3.5 h-3.5 text-slate-600 group-hover:text-blue-400 transition-colors flex-shrink-0"
+        <svg className="w-3.5 h-3.5 text-slate-400 dark:text-slate-600 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors flex-shrink-0"
           fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
             d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -142,8 +141,8 @@ export default function Sidebar({ onClose }) {
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
                 isActive
-                  ? 'bg-blue-600 text-white shadow-sm shadow-blue-900/40'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                  ? 'bg-blue-600 text-white shadow-sm shadow-blue-900/20'
+                  : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
               }`
             }
           >
@@ -154,10 +153,10 @@ export default function Sidebar({ onClose }) {
       </nav>
 
       {/* Logout */}
-      <div className="px-3 py-4 border-t border-slate-700/60">
+      <div className="px-3 py-4 border-t border-slate-200 dark:border-slate-700/60">
         <button
           onClick={logout}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-red-500 hover:text-white transition-all duration-150 w-full"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-500 hover:text-red-600 dark:hover:text-white transition-all duration-150 w-full"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
