@@ -27,7 +27,7 @@ const SESSION_STATUS_COLORS = {
 
 // ── Tank card ─────────────────────────────────────────────────────────────────
 // Reads fabric_quantity as the load (current_load may not exist on all backends)
-function TankCard({ tank }) {
+function TankCard({ tank, onEdit, onDelete }) {
   const capacity = int(tank.capacity);
   // Support both field names: current_load (if serializer exposes it) or fabric_quantity
   const load     = int(tank.current_load ?? tank.fabric_quantity ?? 0);
@@ -49,9 +49,29 @@ function TankCard({ tank }) {
           <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm">{tank.name}</p>
           <p className="text-xs text-slate-400 dark:text-slate-500">{tank.batch_id}</p>
         </div>
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${TANK_STATUS_COLORS[tank.tank_status] || ''}`}>
-          {tank.tank_status}
-        </span>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${TANK_STATUS_COLORS[tank.tank_status] || ''}`}>
+            {tank.tank_status}
+          </span>
+          {(onEdit || onDelete) && (
+            <div className="flex gap-1">
+              {onEdit && (
+                <button
+                  onClick={onEdit}
+                  className="text-blue-600 dark:text-blue-400 text-xs font-medium px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                  Edit
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={onDelete}
+                  className="text-red-500 dark:text-red-400 text-xs font-medium px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                  Del
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Circular fill indicator */}
@@ -402,15 +422,12 @@ export default function Decolorization() {
               {tanks.length === 0
                 ? <p className="text-slate-400 dark:text-slate-500 col-span-3 text-center py-10">No tanks found.</p>
                 : tanks.map(tank => (
-                    <div key={tank.id} className="relative">
-                      <TankCard tank={tank} />
-                      <div className="absolute top-3 right-3 flex gap-1">
-                        <button onClick={() => openModal('tank', tank)}
-                          className="text-blue-600 dark:text-blue-400 text-xs font-medium bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">Edit</button>
-                        <button onClick={() => handleDelete('tank', tank.id)}
-                          className="text-red-500 dark:text-red-400 text-xs font-medium bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">Del</button>
-                      </div>
-                    </div>
+                    <TankCard
+                      key={tank.id}
+                      tank={tank}
+                      onEdit={() => openModal('tank', tank)}
+                      onDelete={() => handleDelete('tank', tank.id)}
+                    />
                   ))}
             </div>
           )}
