@@ -9,6 +9,8 @@ ERP Textile Recycling System is a web-based application designed to streamline a
 - Production Workflow Tracking
 - Reporting and Data Insights
 - User-friendly Interface
+- Advanced analytics dashboard
+- Role-based access control
 
 ## Tech Stack
 
@@ -58,9 +60,6 @@ python manage.py runserver
 - Access admin panel at: http://127.0.0.1:8000/admin/
 
 ## Future Improvements
-- REST API integration
-- Advanced analytics dashboard
-- Role-based access control
 - Cloud deployment
 
 ## Author
