@@ -22,7 +22,6 @@ ERP Textile Recycling System is a web-based application designed to streamline a
 <img width="973" height="602" alt="image" src="https://github.com/user-attachments/assets/7800aa93-0c2c-4721-8c3b-fdd3616ac96a" />
 <img width="1363" height="627" alt="image" src="https://github.com/user-attachments/assets/54d8b728-1f7d-458a-bf1f-569760336ed2" />
 <img width="1366" height="633" alt="image" src="https://github.com/user-attachments/assets/21895139-0289-4f2f-ac8c-1afbe2390173" />
-<img width="1366" height="641" alt="image" src="https://github.com/user-attachments/assets/2651dbc6-1e75-4fa9-a909-8553d30507bf" />
 <img width="369" height="143" alt="image" src="https://github.com/user-attachments/assets/4573e7bf-a825-47a4-9d31-49ddabc667f1" />
 <img width="391" height="139" alt="image" src="https://github.com/user-attachments/assets/08435ea0-31a2-43ff-a497-35d828bd454c" />
 <img width="559" height="156" alt="image" src="https://github.com/user-attachments/assets/bc5a7598-d98d-46d2-bbc6-62126d74a08f" />
