@@ -14,8 +14,8 @@ ERP Textile Recycling System is a web-based application designed to streamline a
 
 ## Tech Stack
 
-- Backend: Python (Django)
-- Frontend: HTML, CSS, JavaScript
+- Backend: Python (Django REST Framework)
+- Frontend: React.js (JavaScript, HTML, CSS, Tailwind CSS)
 - Database: SQLite / MySQL
 - Version Control: Git & GitHub
 
