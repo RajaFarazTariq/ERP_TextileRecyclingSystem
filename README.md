@@ -14,12 +14,12 @@ ERP Textile Recycling System is a web-based application designed to streamline a
 
 ## Tech Stack
 
-- Backend: Python (Django REST Framework)
-- Frontend: React.js (JavaScript, HTML, CSS, Tailwind CSS)
-- Database: SQLite / MySQL
+- Backend: Python, Django 5.2, Django REST Framework, SimpleJWT
+- Frontend: React (JavaScript, Tailwind CSS)
+- Database: PostgreSQL
 - Version Control: Git & GitHub
 
-##Images of the ERP System
+## Images of the ERP System
 
 <img width="973" height="602" alt="image" src="https://github.com/user-attachments/assets/7800aa93-0c2c-4721-8c3b-fdd3616ac96a" />
 <img width="1363" height="627" alt="image" src="https://github.com/user-attachments/assets/54d8b728-1f7d-458a-bf1f-569760336ed2" />
@@ -32,35 +32,84 @@ ERP Textile Recycling System is a web-based application designed to streamline a
 <img width="602" height="237" alt="image" src="https://github.com/user-attachments/assets/b5ff6cb0-1f1a-4f66-8c7a-7c3eece42c7c" />
 <img width="1363" height="229" alt="image" src="https://github.com/user-attachments/assets/8a76f5c5-952c-4ec1-af0c-7ae4d8ea5036" />
 
+## Project Structure
+
+```
+backend/
+  config/                 Django project: settings, root URLs, WSGI/ASGI
+  apps/
+    core/                 Shared permissions (RBAC), filters, seed commands
+    users/                Custom user model, login, user management
+    warehouse/            Vendors, factory units, incoming stock
+    sorting/              Fabric stock and sorting sessions
+    decolorization/       Chemicals, tanks, issuances, sessions
+    drying/               Dryers and drying sessions
+    sales/                Orders, dispatch, payments
+    reports/              Report data and Excel exports
+    audit/                Audit log (model, ViewSet mixin, API)
+    notifications/        Email alerts (signals) and scheduled reports
+  manage.py
+  setup_fresh.py          Creates a fresh database with a Test_User admin
+  requirements.txt
+  .env.example
+frontend/
+  src/
+    config/access.js      Which roles can open which routes (router + sidebar)
+    services/api.js       Axios client (base URL from REACT_APP_API_URL)
+    context/              Auth and dark-mode state
+    routes/               ProtectedRoute
+    components/           layout/ (MainLayout, Sidebar), common/ (shared UI)
+    features/<module>/    One folder per module page
+    utils/, styles/       Shared formatters, form classes, global CSS
+docs/                     Upgrade audit and roadmap
+```
 
 ## Installation
 
-1. Clone the repository:
-git clone https://github.com/RajaFarazTariq/ERP_TextileRecyclingSystem.git
+### Backend
 
-2. Navigate to the project directory:
-cd ERP_TextileRecyclingSystem
-
-3. Create and activate virtual environment:
+```bash
+cd backend
 python -m venv .venv
-.venv\Scripts\activate
-
-4. Install dependencies:
+.venv\Scripts\activate            # Windows  (source .venv/bin/activate on macOS/Linux)
 pip install -r requirements.txt
-
-5. Apply migrations:
-python manage.py makemigrations
+copy .env.example .env            # then fill in SECRET_KEY, DB_PASSWORD, email settings
 python manage.py migrate
-
-6. Run the development server:
 python manage.py runserver
+```
+
+All secrets and environment settings live in `backend/.env` (never committed). Leave `EMAIL_HOST_USER` empty to print alert emails to the console instead of sending them.
+
+Optional:
+
+```bash
+python setup_fresh.py             # fresh database with only Test_User / Test@1234
+python manage.py seed_demo_data   # demo data (alert emails are not sent while seeding)
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+copy .env.example .env            # REACT_APP_API_URL, defaults to http://127.0.0.1:8000/api/
+npm start
+```
+
+### Tests
+
+```bash
+cd backend
+python manage.py test apps
+```
 
 ## Usage
-- Open your browser and go to: http://127.0.0.1:8000/
-- Access admin panel at: http://127.0.0.1:8000/admin/
+- Frontend: http://localhost:3000/
+- API: http://127.0.0.1:8000/api/
+- Admin panel: http://127.0.0.1:8000/admin/
 
 ## Future Improvements
-- Cloud deployment
+- See [docs/UPGRADE_AUDIT.md](docs/UPGRADE_AUDIT.md) for the upgrade roadmap.
 
 ## Author
 Raja Faraz Tariq
