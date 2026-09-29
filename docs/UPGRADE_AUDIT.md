@@ -4,6 +4,10 @@ Audit date: 2026-09-30 · Commit audited: `e075c65`
 
 This is the Phase 1 deliverable from `Upgradation.txt`. No application code was changed during the audit.
 
+> **Note:** File paths below refer to the layout at `e075c65`. Since then, the project has been restructured: Django apps now live in `backend/apps/<app>/`, `ERP_Backend/` became `backend/config/`, and `erp-frontend/` became `frontend/`, with pages in `frontend/src/features/`.
+>
+> **Status:** Phase 0 is done: S1 (moved to env), S2, S3 (partly), S4, S10, F1, F2 (safe handlers only), D9, and duplicate code from F5. One follow-up came out of connecting the signals in F2: the demo seed commands triggered hundreds of alert emails, one per chemical issuance or payment. Seed commands now capture email instead of sending it (`apps/core/management/base.py`). The per-event alerts themselves still need throttling before production.
+
 ---
 
 ## 1. Current architecture

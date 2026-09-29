@@ -2,14 +2,12 @@ import { useEffect, useState } from 'react';
 import FilterBar from '../../components/common/FilterBar';
 import MainLayout from '../../components/layout/MainLayout';
 import PageHeader from '../../components/common/PageHeader';
-import api from '../../api/axios';
+import api from '../../services/api';
+import { inputCls, labelCls } from '../../styles/formClasses';
+import { int, fmt } from '../../utils/format';
 
-const inputCls = 'w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors';
-const labelCls = 'block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1';
 
 // ── Safe integer parser — handles Django DecimalField strings like "4800.00" ─
-const int = v => Math.round(Number(v) || 0);
-const fmt = v => int(v).toLocaleString();
 
 const TANK_STATUS_COLORS = {
   'Empty':      'bg-slate-100  dark:bg-slate-700     text-slate-600  dark:text-slate-300',
@@ -136,7 +134,7 @@ function ChemicalBar({ chemical }) {
   );
 }
 
-export default function Decolorization() {
+export default function DecolorizationPage() {
   const [activeTab, setActiveTab]         = useState('kpi');
   const [tanks, setTanks]                 = useState([]);
   const [chemicals, setChemicals]         = useState([]);
@@ -239,10 +237,6 @@ export default function Decolorization() {
     } finally { setSaving(false); }
   };
 
-  const handleTankAction = async (id, action) => {
-    try { await api.post(`decolorization/tanks/${id}/${action}/`); fetchAll(); }
-    catch { alert('Action failed.'); }
-  };
 
   const handleCompleteSession = async () => {
     try {

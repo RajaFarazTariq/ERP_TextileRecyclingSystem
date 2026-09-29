@@ -1,10 +1,8 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { canAccess } from '../config/access';
 
-// Paths that only admin can visit
-const ADMIN_ONLY_PATHS = ['/dashboard'];
-
-export default function ProtectedRoute({ children, allowedRoles }) {
+export default function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
@@ -19,13 +17,8 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   // Not logged in → login page
   if (!user) return <Navigate to="/login" replace />;
 
-  // Non-admin trying to visit /dashboard directly → home
-  if (ADMIN_ONLY_PATHS.includes(location.pathname) && user.role !== 'admin') {
-    return <Navigate to="/home" replace />;
-  }
-
-  // Role not allowed for this route → home
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  // Role not allowed for this route (see config/access.js) → home
+  if (!canAccess(user.role, location.pathname)) {
     return <Navigate to="/home" replace />;
   }
 

@@ -1,10 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
-import MainLayout from '../components/layout/MainLayout';
-import StatCard from '../components/common/StatCard';
-import PageHeader from '../components/common/PageHeader';
-import DateFilter, { buildDateParams } from '../components/common/DateFilter';
-import { useAuth } from '../context/AuthContext';
-import api from '../api/axios';
+import MainLayout from '../../components/layout/MainLayout';
+import StatCard from '../../components/common/StatCard';
+import PageHeader from '../../components/common/PageHeader';
+import DateFilter, { buildDateParams } from '../../components/common/DateFilter';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 
 // ── Revenue bar chart ──────────────────────────────────────────────────────
 function RevenueChart({ data, filter, onFilterChange }) {
@@ -128,7 +128,7 @@ function RevenueChart({ data, filter, onFilterChange }) {
   );
 }
 
-export default function Dashboard() {
+export default function DashboardPage() {
   const { user } = useAuth();
   const [stats, setStats]             = useState(null);
   const [loading, setLoading]         = useState(true);

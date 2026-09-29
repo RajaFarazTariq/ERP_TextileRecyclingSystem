@@ -1,11 +1,11 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { canAccess } from '../../config/access';
 
 const allNavItems = [
   {
     label: 'Dashboard',
     path: '/dashboard',
-    roles: ['admin'],  // admin only
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -16,7 +16,6 @@ const allNavItems = [
   {
     label: 'Warehouse',
     path: '/warehouse',
-    roles: ['admin', 'warehouse_supervisor'],
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -27,7 +26,6 @@ const allNavItems = [
   {
     label: 'Sorting',
     path: '/sorting',
-    roles: ['admin', 'sorting_supervisor'],
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -38,7 +36,6 @@ const allNavItems = [
   {
     label: 'Decolorization',
     path: '/decolorization',
-    roles: ['admin', 'decolorization_supervisor'],
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -49,7 +46,6 @@ const allNavItems = [
   {
     label: 'Drying',
     path: '/drying',
-    roles: ['admin', 'drying_supervisor'],
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -62,7 +58,6 @@ const allNavItems = [
   {
     label: 'Sales',
     path: '/sales',
-    roles: ['admin'],
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -73,7 +68,6 @@ const allNavItems = [
   {
     label: 'Reports',
     path: '/reports',
-    roles: ['admin'],
     icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -84,7 +78,6 @@ const allNavItems = [
   {
     label: 'Users',
     path: '/users',
-    roles: ['admin'],
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -97,7 +90,7 @@ const allNavItems = [
 export default function Sidebar({ onClose }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const navItems = allNavItems.filter(item => item.roles.includes(user?.role));
+  const navItems = allNavItems.filter(item => canAccess(user?.role, item.path));
 
   const handleLogoClick = () => {
     navigate('/home');

@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
-import MainLayout from '../components/layout/MainLayout';
-import PageHeader from '../components/common/PageHeader';
-import api from '../api/axios';
+import MainLayout from '../../components/layout/MainLayout';
+import PageHeader from '../../components/common/PageHeader';
+import api from '../../services/api';
+import { int, fmt, fmtRs } from '../../utils/format';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-const int = v => Math.round(Number(v) || 0);
-const fmt = v => int(v).toLocaleString();
-const fmtRs = v => `Rs. ${fmt(v)}`;
 const today = () => new Date().toISOString().split('T')[0];
 const monthAgo = () => {
   const d = new Date();
@@ -79,7 +77,7 @@ const inputCls = 'border border-slate-300 dark:border-slate-600 bg-white dark:bg
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
-export default function Reports() {
+export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState('daily');
 
   // ── Daily Production state ──────────────────────────────────────────────────

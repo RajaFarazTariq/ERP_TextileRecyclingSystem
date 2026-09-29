@@ -3,12 +3,10 @@ import MainLayout from '../../components/layout/MainLayout';
 import PageHeader from '../../components/common/PageHeader';
 import FilterBar from '../../components/common/FilterBar';
 // buildDateParams no longer needed — date filtering is client-side
-import api from '../../api/axios';
+import api from '../../services/api';
+import { inputCls, labelCls } from '../../styles/formClasses';
+import { int, fmtRs } from '../../utils/format';
 
-const inputCls = 'w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors';
-const labelCls = 'block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1';
-const int = v => Math.round(Number(v) || 0);
-const fmtRs = v => `Rs. ${int(v).toLocaleString()}`;
 
 const ORDER_STATUS_COLORS = {
   'Draft':      'bg-slate-100  dark:bg-slate-700     text-slate-600  dark:text-slate-300',
@@ -57,7 +55,7 @@ function StatBox({ label, value, icon, color }) {
   );
 }
 
-export default function Sales() {
+export default function SalesPage() {
   const [activeTab, setActiveTab]     = useState('dashboard');
   const [orders, setOrders]           = useState([]);
   const [dispatches, setDispatches]   = useState([]);

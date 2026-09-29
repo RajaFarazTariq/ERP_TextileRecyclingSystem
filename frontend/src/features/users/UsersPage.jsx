@@ -2,11 +2,10 @@ import { useEffect, useState } from 'react';
 import MainLayout from '../../components/layout/MainLayout';
 import PageHeader from '../../components/common/PageHeader';
 import { useAuth } from '../../context/AuthContext';
-import api from '../../api/axios';
+import api from '../../services/api';
+import { inputCls, labelCls } from '../../styles/formClasses';
 
 // ─── Shared input / label classes ─────────────────────────────────────────
-const inputCls = 'w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors';
-const labelCls = 'block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1';
 
 // ─── Role badge colors ─────────────────────────────────────────────────────
 const ROLE_COLORS = {
@@ -17,7 +16,7 @@ const ROLE_COLORS = {
   'drying_supervisor':         'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300',
 };
 
-export default function Users() {
+export default function UsersPage() {
   // ─── State ────────────────────────────────────────────────────────────────
   const { user: currentUser } = useAuth();   // logged-in user from context
   const [users, setUsers]           = useState([]);

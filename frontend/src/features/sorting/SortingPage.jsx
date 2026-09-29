@@ -1,15 +1,13 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import FilterBar from '../../components/common/FilterBar';
 import MainLayout from '../../components/layout/MainLayout';
 import PageHeader from '../../components/common/PageHeader';
-import api from '../../api/axios';
+import api from '../../services/api';
+import { inputCls, labelCls } from '../../styles/formClasses';
+import { int, fmt } from '../../utils/format';
 
-const inputCls = 'w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors';
-const labelCls = 'block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1';
 
 // ── Safe integer parser — handles Django DecimalField strings like "1683.00" ──
-const int = v => Math.round(Number(v) || 0);
-const fmt = v => int(v).toLocaleString();
 
 const STATUS_COLORS = {
   'In Progress':            'bg-blue-100   dark:bg-blue-900/40   text-blue-700   dark:text-blue-300',
@@ -110,7 +108,7 @@ function BarChart({ sessions }) {
   );
 }
 
-export default function Sorting() {
+export default function SortingPage() {
   const [activeTab, setActiveTab]         = useState('kpi');
   const [sessions, setSessions]           = useState([]);
   const [fabric, setFabric]               = useState([]);

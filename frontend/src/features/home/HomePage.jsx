@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { useEffect, useState } from 'react';
-import MainLayout from '../components/layout/MainLayout';
+import MainLayout from '../../components/layout/MainLayout';
 
 // ── Real-time clock hook ──────────────────────────────────────────────────────
 function useLiveClock() {
@@ -496,7 +496,7 @@ const moduleCards = [
 ];
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function Home() {
+export default function HomePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const now = useLiveClock();
