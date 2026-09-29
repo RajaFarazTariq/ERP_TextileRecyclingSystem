@@ -1,11 +1,12 @@
 from pathlib import Path
-from decouple import config
+from decouple import config, Csv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# All secrets and environment-specific values come from .env (see .env.example)
 SECRET_KEY = config('SECRET_KEY')
-DEBUG = config('DEBUG', default=True, cast=bool)
-ALLOWED_HOSTS = ['*']
+DEBUG = config('DEBUG', default=False, cast=bool)
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
 AUTH_USER_MODEL = 'users.CustomUser'
 
@@ -66,16 +67,25 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'ERP_Backend.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'ERP_DB',
-        'USER': 'postgres',
-        'PASSWORD': 'erp12345',
-        'HOST': 'localhost',
-        'PORT': '5432',
+# DB_ENGINE=sqlite is for local tests only; PostgreSQL is the real database.
+if config('DB_ENGINE', default='postgresql') == 'sqlite':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('DB_NAME', default='ERP_DB'),
+            'USER': config('DB_USER', default='postgres'),
+            'PASSWORD': config('DB_PASSWORD'),
+            'HOST': config('DB_HOST', default='localhost'),
+            'PORT': config('DB_PORT', default='5432'),
+        }
+    }
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -92,9 +102,9 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
 }
 
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',
-]
+CORS_ALLOWED_ORIGINS = config(
+    'CORS_ALLOWED_ORIGINS', default='http://localhost:3000', cast=Csv()
+)
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -111,14 +121,22 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-#Email configuration (Gmail SMTP) ───────────────────────────────────────
-EMAIL_BACKEND       = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST          = 'smtp.gmail.com'
-EMAIL_PORT          = 587
-EMAIL_USE_TLS       = True
-EMAIL_HOST_USER     = 'faraztariq7563@gmail.com'   # ← your Gmail address
-EMAIL_HOST_PASSWORD = 'hxqo zqne qnnt mybw'              # ← Gmail App Password
-DEFAULT_FROM_EMAIL  = 'Textile ERP <faraztariq7563@gmail.com>'
+# Email configuration (Gmail SMTP) ───────────────────────────────────────
+# Without EMAIL_HOST_USER set, emails are printed to the console instead of sent.
+EMAIL_HOST_USER     = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+EMAIL_BACKEND       = config(
+    'EMAIL_BACKEND',
+    default='django.core.mail.backends.smtp.EmailBackend' if EMAIL_HOST_USER
+    else 'django.core.mail.backends.console.EmailBackend',
+)
+EMAIL_HOST          = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT          = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS       = config('EMAIL_USE_TLS', default=True, cast=bool)
+DEFAULT_FROM_EMAIL  = config(
+    'DEFAULT_FROM_EMAIL',
+    default=f'Textile ERP <{EMAIL_HOST_USER}>' if EMAIL_HOST_USER else 'Textile ERP <noreply@localhost>',
+)
 
-# Management alert recipient (your email)
-MANAGEMENT_EMAIL    = 'thisismefaraz@gmail.com'
+# Management alert recipient
+MANAGEMENT_EMAIL    = config('MANAGEMENT_EMAIL', default='')

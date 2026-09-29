@@ -1,5 +1,13 @@
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, UserManager
 from django.db import models
+
+
+class CustomUserManager(UserManager):
+    def create_superuser(self, username, email=None, password=None, **extra_fields):
+        # Superusers get the admin role; regular users must be given a role explicitly.
+        extra_fields.setdefault('role', 'admin')
+        return super().create_superuser(username, email, password, **extra_fields)
+
 
 class CustomUser(AbstractUser):
     ROLE_CHOICES = [
@@ -9,7 +17,9 @@ class CustomUser(AbstractUser):
         ('decolorization_supervisor', 'Decolorization Supervisor'),
         ('drying_supervisor', 'Drying Supervisor'),
     ]
-    role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='admin')
+    role = models.CharField(max_length=50, choices=ROLE_CHOICES)
+
+    objects = CustomUserManager()
 
     def __str__(self):
         return f"{self.username} ({self.role})"

@@ -8,7 +8,8 @@ class ChemicalStockSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def validate(self, data):
-        if data['total_stock'] <= 0:
+        total_stock = data.get('total_stock', getattr(self.instance, 'total_stock', None))
+        if total_stock is not None and total_stock <= 0:
             raise serializers.ValidationError(
                 "Total stock must be greater than zero."
             )
@@ -44,8 +45,10 @@ class ChemicalIssuanceSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def validate(self, data):
-        chemical = data['chemical']
-        quantity = data['quantity']
+        chemical = data.get('chemical', getattr(self.instance, 'chemical', None))
+        quantity = data.get('quantity', getattr(self.instance, 'quantity', None))
+        if chemical is None or quantity is None:
+            return data
         if quantity > chemical.remaining_stock:
             raise serializers.ValidationError(
                 f"Not enough stock. Available: {chemical.remaining_stock}"

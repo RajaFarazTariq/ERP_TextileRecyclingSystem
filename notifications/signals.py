@@ -27,8 +27,6 @@ from .tasks import (
     alert_order_dispatched,
     alert_payment_received,
     auto_update_order_payment_status,
-    auto_update_fabric_status,
-    auto_update_tank_status,
     check_chemical_stock_alerts,
 )
 
@@ -131,55 +129,24 @@ def on_dispatch_saved(sender, instance, created, **kwargs):
             logger.error(f"alert_order_dispatched failed: {e}")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# SORTING SESSION signals — auto-update fabric status
-# ─────────────────────────────────────────────────────────────────────────────
-
-@receiver(post_save, sender='sorting.SortingSession')
-def on_sorting_session_saved(sender, instance, **kwargs):
-    if instance.fabric_id:
-        try:
-            auto_update_fabric_status(instance.fabric_id)
-        except Exception as e:
-            logger.error(f"auto_update_fabric_status failed: {e}")
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# DECOLORIZATION SESSION signals — auto-update tank status
-# ─────────────────────────────────────────────────────────────────────────────
-
-@receiver(post_save, sender='decolorization.DecolorizationSession')
-def on_decolor_session_saved(sender, instance, **kwargs):
-    if instance.tank_id:
-        try:
-            auto_update_tank_status(instance.tank_id)
-        except Exception as e:
-            logger.error(f"auto_update_tank_status failed: {e}")
+# Sorting-session → fabric status and decolorization-session → tank status
+# auto-updates (auto_update_fabric_status / auto_update_tank_status in tasks.py)
+# are intentionally NOT connected: they overwrite the statuses that the
+# workflow actions set (e.g. resetting fabric already in decolorization back
+# to "Sorted"). They will be replaced by the status redesign in Phase 3.
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CHEMICAL ISSUANCE signals — check stock levels after every issuance
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Stock deduction itself happens in ChemicalIssuanceViewSet.perform_create.
+# Recalculating from total_stock here would double-deduct and overwrite manual
+# remaining_stock edits; stock accuracy is addressed by the Phase 3 ledger.
+
 @receiver(post_save, sender='decolorization.ChemicalIssuance')
 def on_chemical_issuance_saved(sender, instance, **kwargs):
-    """Check and update remaining stock, then alert if low."""
-    try:
-        chem = instance.chemical
-        if chem:
-            # Recalculate remaining from total – sum of all issuances
-            from django.db.models import Sum
-            issued = (
-                sender.objects.filter(chemical=chem)
-                .aggregate(t=Sum('quantity'))['t'] or 0
-            )
-            new_remaining = float(chem.total_stock or 0) - float(issued)
-            chem.issued_quantity  = issued
-            chem.remaining_stock  = max(0, new_remaining)
-            chem.save(update_fields=['issued_quantity', 'remaining_stock'])
-    except Exception as e:
-        logger.error(f"Chemical stock recalc failed: {e}")
-
+    """Alert management if any chemical is now critically low."""
     try:
         check_chemical_stock_alerts()
     except Exception as e:

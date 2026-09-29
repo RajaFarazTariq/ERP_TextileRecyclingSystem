@@ -40,11 +40,13 @@ class SalesOrderSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def validate(self, data):
-        if data['weight_sold'] <= 0:
+        weight_sold = data.get('weight_sold', getattr(self.instance, 'weight_sold', None))
+        price_per_kg = data.get('price_per_kg', getattr(self.instance, 'price_per_kg', None))
+        if weight_sold is not None and weight_sold <= 0:
             raise serializers.ValidationError(
                 "Weight sold must be greater than zero."
             )
-        if data['price_per_kg'] <= 0:
+        if price_per_kg is not None and price_per_kg <= 0:
             raise serializers.ValidationError(
                 "Price per kg must be greater than zero."
             )

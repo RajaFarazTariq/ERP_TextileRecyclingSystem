@@ -345,7 +345,8 @@ export default function Users() {
               {/* Role */}
               <div>
                 <label className={labelCls}>Role</label>
-                <select name="role" value={form.role || 'admin'} onChange={handleChange} className={inputCls}>
+                <select name="role" value={form.role || ''} onChange={handleChange} className={inputCls}>
+                  <option value="" disabled>Select role</option>
                   <option value="admin">Admin</option>
                   <option value="warehouse_supervisor">Warehouse Supervisor</option>
                   <option value="sorting_supervisor">Sorting Supervisor</option>

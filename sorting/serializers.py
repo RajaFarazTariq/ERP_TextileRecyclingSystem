@@ -15,7 +15,8 @@ class FabricStockSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def validate(self, data):
-        if data['initial_quantity'] <= 0:
+        initial_quantity = data.get('initial_quantity', getattr(self.instance, 'initial_quantity', None))
+        if initial_quantity is not None and initial_quantity <= 0:
             raise serializers.ValidationError(
                 "Initial quantity must be greater than zero."
             )
@@ -35,7 +36,8 @@ class SortingSessionSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def validate(self, data):
-        if data['quantity_taken'] <= 0:
+        quantity_taken = data.get('quantity_taken', getattr(self.instance, 'quantity_taken', None))
+        if quantity_taken is not None and quantity_taken <= 0:
             raise serializers.ValidationError(
                 "Quantity taken must be greater than zero."
             )

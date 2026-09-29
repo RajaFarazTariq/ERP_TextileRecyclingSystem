@@ -27,7 +27,8 @@ class StockSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def validate(self, data):
-        if data['our_weight'] <= 0:
+        our_weight = data.get('our_weight', getattr(self.instance, 'our_weight', None))
+        if our_weight is not None and our_weight <= 0:
             raise serializers.ValidationError(
                 "Weight must be greater than zero."
             )

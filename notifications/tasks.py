@@ -3,15 +3,10 @@
 Email alert system for Textile ERP.
 Scheduled reports send HTML email + Excel file attached.
 ─────────────────────────────────────────────────────────────
-SETTINGS REQUIRED in settings.py:
-  EMAIL_BACKEND       = 'django.core.mail.backends.smtp.EmailBackend'
-  EMAIL_HOST          = 'smtp.gmail.com'
-  EMAIL_PORT          = 587
-  EMAIL_USE_TLS       = True
-  EMAIL_HOST_USER     = 'your-gmail@gmail.com'
-  EMAIL_HOST_PASSWORD = 'xxxx xxxx xxxx xxxx'   # Gmail App Password
-  DEFAULT_FROM_EMAIL  = 'Textile ERP <your-gmail@gmail.com>'
-  MANAGEMENT_EMAIL    = 'thisismefaraz@gmail.com'
+SETTINGS REQUIRED in .env (see .env.example):
+  EMAIL_HOST_USER     = your-gmail@gmail.com
+  EMAIL_HOST_PASSWORD = xxxx xxxx xxxx xxxx   # Gmail App Password
+  MANAGEMENT_EMAIL    = manager@example.com
 ─────────────────────────────────────────────────────────────
 """
 
@@ -31,7 +26,7 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
-MANAGEMENT_EMAIL = getattr(settings, 'MANAGEMENT_EMAIL', 'thisismefaraz@gmail.com')
+MANAGEMENT_EMAIL = getattr(settings, 'MANAGEMENT_EMAIL', '')
 FROM_EMAIL       = getattr(settings, 'DEFAULT_FROM_EMAIL', 'Textile ERP <noreply@textile-erp.com>')
 
 CHEMICAL_LOW_PCT = 0.25
@@ -167,7 +162,10 @@ def _wb_bytes(wb):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _send_alert(subject, text_body, html_body=None):
-    """Send a plain or HTML email to management. Logs errors, does not raise."""
+    """Send a plain or HTML email to management. Logs errors, then re-raises."""
+    if not MANAGEMENT_EMAIL:
+        logger.warning(f"MANAGEMENT_EMAIL not set; skipping alert '{subject}'")
+        return
     try:
         if html_body:
             msg = EmailMultiAlternatives(subject, text_body, FROM_EMAIL, [MANAGEMENT_EMAIL])
@@ -186,6 +184,8 @@ def _send_with_attachment(subject, text_body, html_body, xl_bytes, xl_filename):
     Send an HTML email with an Excel (.xlsx) file attached.
     Used for all scheduled reports (monthly, daily).
     """
+    if not MANAGEMENT_EMAIL:
+        raise ValueError('MANAGEMENT_EMAIL is not set in .env; cannot send report.')
     msg = EmailMultiAlternatives(subject, text_body, FROM_EMAIL, [MANAGEMENT_EMAIL])
     msg.attach_alternative(html_body, "text/html")
     msg.attach(

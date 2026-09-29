@@ -15,7 +15,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             username=validated_data['username'],
             email=validated_data.get('email', ''),
             password=validated_data['password'],
-            role=validated_data.get('role', 'admin'),
+            role=validated_data['role'],
             is_active=validated_data.get('is_active', True),  # ← respect is_active on create
         )
         return user
