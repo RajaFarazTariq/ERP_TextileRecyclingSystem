@@ -13,7 +13,7 @@ To wipe and re-seed:
     python manage.py seed_demo_2days --flush
 """
 
-from django.core.management.base import BaseCommand
+from apps.core.management.base import SeedCommand
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from datetime import timedelta, date
@@ -22,7 +22,7 @@ from decimal import Decimal
 User = get_user_model()
 
 
-class Command(BaseCommand):
+class Command(SeedCommand):
     help = 'Seed realistic 2-day demo data (yesterday + today) across all modules'
 
     def add_arguments(self, parser):

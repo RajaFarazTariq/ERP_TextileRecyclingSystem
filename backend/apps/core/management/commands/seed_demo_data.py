@@ -15,7 +15,7 @@ ALL numeric operations use Decimal to avoid TypeError with Django DecimalField.
 ─────────────────────────────────────────────────────────────────────────────
 """
 
-from django.core.management.base import BaseCommand
+from apps.core.management.base import SeedCommand
 from django.utils import timezone
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -93,7 +93,7 @@ def months_back(n):
 # Management command
 # ─────────────────────────────────────────────────────────────────────────────
 
-class Command(BaseCommand):
+class Command(SeedCommand):
     help = 'Seed 2 years of historical demo data (Apr 2024 to today).'
 
     def add_arguments(self, parser):

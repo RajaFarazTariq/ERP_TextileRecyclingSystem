@@ -12,7 +12,7 @@ Usage:
 """
 
 import random
-from django.core.management.base import BaseCommand
+from apps.core.management.base import SeedCommand
 from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal
@@ -23,7 +23,7 @@ from apps.decolorization.models import DecolorizationSession
 from apps.drying.models import Dryer, DryingSession
 
 
-class Command(BaseCommand):
+class Command(SeedCommand):
     help = 'Seeds Drying module with data linked to existing decolorization sessions'
 
     def handle(self, *args, **options):
