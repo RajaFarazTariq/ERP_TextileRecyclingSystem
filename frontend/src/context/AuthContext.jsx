@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import api from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -40,6 +41,9 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
+    // Revoke the refresh token server-side; don't block logout on the result
+    const refresh = localStorage.getItem('refresh_token');
+    if (refresh) api.post('users/logout/', { refresh }).catch(() => {});
     localStorage.clear();
     // Re-apply dark mode pref after clear
     if (darkMode) localStorage.setItem('darkMode', 'true');

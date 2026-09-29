@@ -28,7 +28,7 @@ class StockViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsWarehouseOrAdmin]
 
     def get_queryset(self):
-        qs = Stock.objects.all().order_by('-created_at')
+        qs = Stock.objects.select_related('vendor', 'unit').order_by('-created_at')
 
         # ── Existing filters (your original code) ────────────────────────────
         status_filter = self.request.query_params.get('status')
@@ -49,7 +49,7 @@ class StockViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            self.perform_create(serializer)
             return Response(
                 {'message': 'Stock added successfully!', 'data': serializer.data},
                 status=status.HTTP_201_CREATED,

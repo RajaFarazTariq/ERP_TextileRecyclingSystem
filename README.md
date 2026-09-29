@@ -64,7 +64,20 @@ frontend/
 docs/                     Upgrade audit and roadmap
 ```
 
-## Installation
+## Run with Docker (recommended)
+
+Runs PostgreSQL, the API and the web app together. Requires Docker Desktop.
+
+```bash
+copy backend\.env.example backend\.env        # set SECRET_KEY (and email settings if wanted)
+copy .env.docker.example .env                  # set POSTGRES_PASSWORD
+docker compose up -d --build
+docker compose exec backend python setup_fresh.py   # first time: creates Test_User / Test@1234
+```
+
+Open http://localhost:8080. Database data is kept in the `pgdata` Docker volume.
+
+## Installation (without Docker)
 
 ### Backend
 
@@ -106,9 +119,13 @@ python manage.py test apps
 GitHub Actions (`.github/workflows/ci.yml`) runs the backend tests against PostgreSQL and builds the frontend on every push to `main` or `upgrade/**` and on every pull request.
 
 ## Usage
-- Frontend: http://localhost:3000/
-- API: http://127.0.0.1:8000/api/
+- Frontend: http://localhost:3000/ (http://localhost:8080/ with Docker)
+- API: http://127.0.0.1:8000/api/ (also available under the versioned prefix `/api/v1/`)
+- API documentation (Swagger): http://127.0.0.1:8000/api/docs/ (open when `DEBUG=True`; otherwise log in at `/admin/` as a staff user first)
 - Admin panel: http://127.0.0.1:8000/admin/
+
+List endpoints return plain arrays; add `?page=1` or `?page_size=50` to get paginated results.
+Sessions use short-lived access tokens that the frontend renews automatically; logging out revokes the session.
 
 ## Future Improvements
 - See [docs/UPGRADE_AUDIT.md](docs/UPGRADE_AUDIT.md) for the upgrade roadmap.

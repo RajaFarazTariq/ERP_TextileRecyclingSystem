@@ -22,7 +22,7 @@ class SalesOrder(models.Model):
     buyer_contact = models.CharField(max_length=100, blank=True, null=True)
     buyer_address = models.TextField(blank=True, null=True)
     fabric = models.ForeignKey(
-        FabricStock, on_delete=models.CASCADE,
+        FabricStock, on_delete=models.PROTECT,
         related_name='sales_orders'
     )
     fabric_quality = models.CharField(max_length=100)
@@ -40,7 +40,7 @@ class SalesOrder(models.Model):
         default='Draft'
     )
     created_by = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE,
+        CustomUser, on_delete=models.PROTECT,
         related_name='sales_orders'
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -65,7 +65,7 @@ class DispatchTracking(models.Model):
     ]
 
     sales_order = models.ForeignKey(
-        SalesOrder, on_delete=models.CASCADE,
+        SalesOrder, on_delete=models.PROTECT,
         related_name='dispatches'
     )
     vehicle_number = models.CharField(max_length=50)
@@ -78,7 +78,7 @@ class DispatchTracking(models.Model):
         default='Pending'
     )
     dispatched_by = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE,
+        CustomUser, on_delete=models.PROTECT,
         related_name='dispatches'
     )
     dispatch_date = models.DateTimeField(auto_now_add=True)
@@ -97,7 +97,7 @@ class Payment(models.Model):
     ]
 
     sales_order = models.ForeignKey(
-        SalesOrder, on_delete=models.CASCADE,
+        SalesOrder, on_delete=models.PROTECT,
         related_name='payments'
     )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
@@ -107,7 +107,7 @@ class Payment(models.Model):
         default='Cash'
     )
     received_by = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE,
+        CustomUser, on_delete=models.PROTECT,
         related_name='payments'
     )
     payment_date = models.DateTimeField(auto_now_add=True)

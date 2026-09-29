@@ -6,7 +6,20 @@ This is the Phase 1 deliverable from `Upgradation.txt`. No application code was 
 
 > **Note:** File paths below refer to the layout at `e075c65`. Since then, the project has been restructured: Django apps now live in `backend/apps/<app>/`, `ERP_Backend/` became `backend/config/`, and `erp-frontend/` became `frontend/`, with pages in `frontend/src/features/`.
 >
-> **Status:** Phase 0 is done: S1 (moved to env), S2, S3 (partly), S4, S10, F1, F2 (safe handlers only), D9, and duplicate code from F5. One follow-up came out of connecting the signals in F2: the demo seed commands triggered hundreds of alert emails, one per chemical issuance or payment. Seed commands now capture email instead of sending it (`apps/core/management/base.py`). The per-event alerts themselves still need throttling before production.
+> **Phase 1 (done):** a 59-test suite pins current behaviour (access matrix for every endpoint and role, workflows in every module), and GitHub Actions runs it on PostgreSQL.
+>
+> **Phase 2 (done):**
+> - **Deletes:** CASCADE replaced by PROTECT (D1), and blocked deletes return a readable 409.
+> - **Audit log:** every write and workflow action is recorded (F3, F4), including user management and failed logins.
+> - **Recorded-by fields:** sales order `created_by` is always the logged-in user (S5); received/dispatched/issued-by default to the logged-in user.
+> - **Logins:** rate limited (S6).
+> - **Sessions:** 30-minute access tokens with rotating, revocable refresh tokens (S7, apart from moving them out of localStorage, which is planned for the Next.js frontend).
+> - **Passwords:** changes from the Users page work and are validated (S9).
+> - **Alerts:** a low-stock email goes out once, when a chemical crosses the threshold.
+> - **API:** opt-in pagination and no N+1 queries on list endpoints; Swagger docs; the `/api/v1/` prefix.
+> - **Deployment:** Docker Compose (PostgreSQL, gunicorn, nginx), and production security settings controlled by env.
+>
+> **Phase 0:** done: S1 (moved to env), S2, S3 (partly), S4, S10, F1, F2 (safe handlers only), D9, and duplicate code from F5. One follow-up came out of connecting the signals in F2: the demo seed commands triggered hundreds of alert emails, one per chemical issuance or payment. Seed commands now capture email instead of sending it (`apps/core/management/base.py`). The per-event alerts themselves still need throttling before production.
 
 ---
 

@@ -20,7 +20,9 @@ INSTALLED_APPS = [
     # Third party
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
+    'drf_spectacular',
     # Project apps
     'apps.users',
     'apps.warehouse',
@@ -36,6 +38,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',   # serves admin static files
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -93,12 +96,26 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    'EXCEPTION_HANDLER': 'apps.core.exceptions.api_exception_handler',
+    'DEFAULT_PAGINATION_CLASS': 'apps.core.pagination.OptionalPageNumberPagination',
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    # Only views that set throttle_scope are throttled (currently: login)
+    'DEFAULT_THROTTLE_CLASSES': (
+        'rest_framework.throttling.ScopedRateThrottle',
+    ),
+    'DEFAULT_THROTTLE_RATES': {
+        'login': config('LOGIN_RATE_LIMIT', default='10/min'),
+    },
 }
 
 from datetime import timedelta
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=8),
+    # Short-lived access tokens; the frontend renews them with the refresh
+    # token, which rotates on every use and is revoked on logout.
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=config('ACCESS_TOKEN_MINUTES', default=30, cast=int)),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 CORS_ALLOWED_ORIGINS = config(
@@ -117,7 +134,41 @@ TIME_ZONE = 'Asia/Karachi'
 USE_I18N = True
 USE_TZ = True
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# API documentation (/api/docs/). Open in development; admin-only otherwise
+# (log in at /admin/ first).
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Textile Recycling ERP API',
+    'VERSION': '1.0.0',
+    'SERVE_PERMISSIONS': (
+        ['rest_framework.permissions.AllowAny'] if DEBUG
+        else ['rest_framework.permissions.IsAdminUser']
+    ),
+    'SERVE_AUTHENTICATION': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+}
+
+# Production hardening. These default to off so plain-HTTP local development
+# keeps working; turn them on in the production .env (see .env.example).
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')   # behind nginx
+SECURE_SSL_REDIRECT     = config('SECURE_SSL_REDIRECT', default=False, cast=bool)
+SESSION_COOKIE_SECURE   = config('SECURE_COOKIES', default=False, cast=bool)
+CSRF_COOKIE_SECURE      = SESSION_COOKIE_SECURE
+SECURE_HSTS_SECONDS     = config('SECURE_HSTS_SECONDS', default=0, cast=int)
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS         = 'DENY'
+CSRF_TRUSTED_ORIGINS    = config('CSRF_TRUSTED_ORIGINS', default='', cast=Csv())
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {'console': {'class': 'logging.StreamHandler'}},
+    'root': {'handlers': ['console'], 'level': config('LOG_LEVEL', default='INFO')},
+}
 
 
 # Email configuration (Gmail SMTP) ───────────────────────────────────────

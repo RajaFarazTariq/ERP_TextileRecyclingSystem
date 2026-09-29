@@ -148,7 +148,7 @@ export default function DryingPage() {
     if (!window.confirm('Are you sure?')) return;
     const url = type === 'dryer' ? 'drying/dryers/' : 'drying/sessions/';
     try { await api.delete(`${url}${id}/`); fetchAll(); }
-    catch { alert('Could not delete.'); }
+    catch (e) { alert(e.response?.data?.detail || 'Could not delete.'); }
   };
 
   const tabs = [

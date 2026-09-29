@@ -22,6 +22,7 @@ HOW TO USE
 """
 
 import json
+from django.db import transaction
 from django.utils.deprecation import MiddlewareMixin
 from rest_framework.viewsets import ModelViewSet
 
@@ -86,54 +87,48 @@ class AuditedModelMixin:
                 changes[key] = {'old': old_val, 'new': new_val}
         return changes
 
-    def perform_create(self, serializer):
-        instance = serializer.save()
+    def _log(self, action, instance, changes=None):
         log_action(
             user=self.request.user,
-            action=AuditLog.ACTION_CREATE,
+            action=action,
             instance=instance,
-            changes={},
+            changes=changes or {},
             request=self.request,
             extra_repr=str(instance)[:255],
         )
+
+    def snapshot(self, instance):
+        """Field values before a change; pass the result to log_change()."""
+        return self._get_instance_dict(instance)
+
+    def log_change(self, instance, before):
+        """
+        Log an UPDATE for changes made outside serializer.save(), e.g. in
+        custom actions (confirm, complete, start, ...) or to related records.
+        """
+        changes = self._diff(before, self._get_instance_dict(instance))
+        if changes:
+            self._log(AuditLog.ACTION_UPDATE, instance, changes)
+
+    def perform_create(self, serializer, **save_kwargs):
+        with transaction.atomic():
+            instance = serializer.save(**save_kwargs)
+            self._log(AuditLog.ACTION_CREATE, instance)
         return instance
 
-    def perform_update(self, serializer):
-        # Snapshot before update
-        old_dict = self._get_instance_dict(serializer.instance)
-        instance = serializer.save()
-        new_dict = self._get_instance_dict(instance)
-        changes  = self._diff(old_dict, new_dict)
-        log_action(
-            user=self.request.user,
-            action=AuditLog.ACTION_UPDATE,
-            instance=instance,
-            changes=changes,
-            request=self.request,
-            extra_repr=str(instance)[:255],
-        )
+    def perform_update(self, serializer, **save_kwargs):
+        with transaction.atomic():
+            old_dict = self._get_instance_dict(serializer.instance)
+            instance = serializer.save(**save_kwargs)
+            self._log(AuditLog.ACTION_UPDATE, instance,
+                      self._diff(old_dict, self._get_instance_dict(instance)))
         return instance
 
     def perform_destroy(self, instance):
-        """Soft-delete if mixin present, else hard delete + log."""
-        if hasattr(instance, 'delete') and hasattr(instance, 'is_deleted'):
-            # SoftDeleteMixin is on this model
-            log_action(
-                user=self.request.user,
-                action=AuditLog.ACTION_DELETE,
-                instance=instance,
-                changes={'is_deleted': {'old': False, 'new': True}},
-                request=self.request,
-                extra_repr=str(instance)[:255],
-            )
-            instance.delete()   # soft delete
-        else:
-            log_action(
-                user=self.request.user,
-                action=AuditLog.ACTION_DELETE,
-                instance=instance,
-                changes={},
-                request=self.request,
-                extra_repr=str(instance)[:255],
-            )
-            instance.delete()   # hard delete (model doesn't support soft)
+        """Soft-delete if the model supports it, else hard delete. Logged only if it succeeds."""
+        with transaction.atomic():
+            if hasattr(instance, 'is_deleted'):
+                self._log(AuditLog.ACTION_DELETE, instance, {'is_deleted': {'old': False, 'new': True}})
+            else:
+                self._log(AuditLog.ACTION_DELETE, instance)
+            instance.delete()   # a blocked delete rolls the log entry back

@@ -26,13 +26,13 @@ class Stock(models.Model):
         ('Rejected', 'Rejected'),
     ]
 
-    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE)
+    vendor = models.ForeignKey(Vendor, on_delete=models.PROTECT)
     fabric_type = models.CharField(max_length=100)
     vendor_weight_slip = models.CharField(max_length=100)
     vehicle_no = models.CharField(max_length=50)
     our_weight = models.DecimalField(max_digits=10, decimal_places=2)
     unloading_weight = models.DecimalField(max_digits=10, decimal_places=2)
-    unit = models.ForeignKey(FactoryUnit, on_delete=models.CASCADE)
+    unit = models.ForeignKey(FactoryUnit, on_delete=models.PROTECT)
     status = models.CharField(
         max_length=50,
         choices=STATUS_CHOICES,

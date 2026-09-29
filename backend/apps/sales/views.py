@@ -22,7 +22,7 @@ class SalesOrderViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsSalesOrAdmin]
 
     def get_queryset(self):
-        qs = SalesOrder.objects.all().order_by('-created_at')
+        qs = SalesOrder.objects.select_related('fabric', 'created_by').prefetch_related('dispatches__dispatched_by', 'payments__received_by').order_by('-created_at')
 
         # ── Existing filters (your original code) ────────────────────────────
         status_filter  = self.request.query_params.get('status')
@@ -60,9 +60,12 @@ class SalesOrderViewSet(AuditedModelMixin, viewsets.ModelViewSet):
 
         serializer = self.get_serializer(data=data)
         if serializer.is_valid():
-            serializer.save()
+            self.perform_create(serializer)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def perform_create(self, serializer):
+        return super().perform_create(serializer, created_by=self.request.user)
 
     def update(self, request, *args, **kwargs):
         data = request.data.copy()
@@ -80,7 +83,7 @@ class SalesOrderViewSet(AuditedModelMixin, viewsets.ModelViewSet):
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=data, partial=partial)
         if serializer.is_valid():
-            serializer.save()
+            self.perform_update(serializer)
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -88,15 +91,19 @@ class SalesOrderViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def confirm(self, request, pk=None):
         order = self.get_object()
+        before = self.snapshot(order)
         order.status = 'Confirmed'
         order.save()
+        self.log_change(order, before)
         return Response({'message': f'Order #{order.id} confirmed.'}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
         order = self.get_object()
+        before = self.snapshot(order)
         order.status = 'Cancelled'
         order.save()
+        self.log_change(order, before)
         return Response({'message': f'Order #{order.id} cancelled.'}, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['get'])
@@ -132,7 +139,7 @@ class DispatchTrackingViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsSalesOrAdmin]
 
     def get_queryset(self):
-        qs = DispatchTracking.objects.all().order_by('-dispatch_date')
+        qs = DispatchTracking.objects.select_related('sales_order', 'dispatched_by').order_by('-dispatch_date')
 
         # ── Existing filter ───────────────────────────────────────────────────
         status_filter = self.request.query_params.get('status')
@@ -143,16 +150,25 @@ class DispatchTrackingViewSet(AuditedModelMixin, viewsets.ModelViewSet):
 
         return qs
 
+    def perform_create(self, serializer):
+        if 'dispatched_by' in serializer.validated_data:
+            return super().perform_create(serializer)
+        return super().perform_create(serializer, dispatched_by=self.request.user)
+
     # ── Your original action (unchanged) ─────────────────────────────────────
     @action(detail=True, methods=['post'])
     def mark_delivered(self, request, pk=None):
         dispatch = self.get_object()
+        dispatch_before = self.snapshot(dispatch)
         dispatch.dispatch_status = 'Delivered'
         dispatch.delivery_date   = timezone.now()
         dispatch.save()
+        self.log_change(dispatch, dispatch_before)
         order        = dispatch.sales_order
+        order_before = self.snapshot(order)
         order.status = 'Completed'
         order.save()
+        self.log_change(order, order_before)
         return Response(
             {'message': 'Marked as delivered and order completed.'},
             status=status.HTTP_200_OK,
@@ -165,7 +181,7 @@ class PaymentViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsSalesOrAdmin]
 
     def get_queryset(self):
-        qs = Payment.objects.all().order_by('-payment_date')
+        qs = Payment.objects.select_related('received_by').order_by('-payment_date')
 
         qs = filter_by_date_params(qs, self.request.query_params, 'payment_date')
 
@@ -173,7 +189,10 @@ class PaymentViewSet(AuditedModelMixin, viewsets.ModelViewSet):
 
     # ── Your original perform_create (unchanged) ──────────────────────────────
     def perform_create(self, serializer):
-        payment = serializer.save()
+        if 'received_by' in serializer.validated_data:
+            payment = super().perform_create(serializer)
+        else:
+            payment = super().perform_create(serializer, received_by=self.request.user)
         order   = payment.sales_order
         total_paid = sum(p.amount for p in order.payments.all())
         if total_paid >= order.total_price:

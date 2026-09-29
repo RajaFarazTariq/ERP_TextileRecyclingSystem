@@ -10,6 +10,8 @@ class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
         fields = '__all__'
+        # Defaults to the logged-in user when not given
+        extra_kwargs = {'received_by': {'required': False}}
 
 
 class DispatchTrackingSerializer(serializers.ModelSerializer):
@@ -23,6 +25,8 @@ class DispatchTrackingSerializer(serializers.ModelSerializer):
     class Meta:
         model = DispatchTracking
         fields = '__all__'
+        # Defaults to the logged-in user when not given
+        extra_kwargs = {'dispatched_by': {'required': False}}
 
 
 class SalesOrderSerializer(serializers.ModelSerializer):
@@ -38,6 +42,8 @@ class SalesOrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = SalesOrder
         fields = '__all__'
+        # Always the logged-in user who created the order
+        read_only_fields = ['created_by']
 
     def validate(self, data):
         weight_sold = data.get('weight_sold', getattr(self.instance, 'weight_sold', None))

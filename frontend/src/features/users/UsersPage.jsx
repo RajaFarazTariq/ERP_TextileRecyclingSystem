@@ -90,7 +90,7 @@ export default function UsersPage() {
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this user?')) return;
     try { await api.delete(`users/detail/${id}/`); fetchUsers(); }
-    catch { alert('Could not delete user.'); }
+    catch (e) { alert(e.response?.data?.detail || 'Could not delete user.'); }
   };
 
   // ─── Filtered list ────────────────────────────────────────────────────────

@@ -60,11 +60,11 @@ class DryingSession(models.Model):
 
     # Relationships — link back to decolorization output
     dryer          = models.ForeignKey(
-        Dryer, on_delete=models.CASCADE,
+        Dryer, on_delete=models.PROTECT,
         related_name='drying_sessions'
     )
     fabric         = models.ForeignKey(
-        FabricStock, on_delete=models.CASCADE,
+        FabricStock, on_delete=models.PROTECT,
         related_name='drying_sessions'
     )
     # Optionally link to the decolorization session this fabric came from
@@ -75,7 +75,7 @@ class DryingSession(models.Model):
         help_text='Decolorization session this batch originated from'
     )
     supervisor     = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE,
+        CustomUser, on_delete=models.PROTECT,
         related_name='drying_sessions'
     )
 

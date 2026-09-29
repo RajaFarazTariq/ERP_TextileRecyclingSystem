@@ -27,7 +27,6 @@ from .tasks import (
     alert_order_dispatched,
     alert_payment_received,
     auto_update_order_payment_status,
-    check_chemical_stock_alerts,
 )
 
 logger = logging.getLogger(__name__)
@@ -136,18 +135,6 @@ def on_dispatch_saved(sender, instance, created, **kwargs):
 # to "Sorted"). They will be replaced by the status redesign in Phase 3.
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CHEMICAL ISSUANCE signals — check stock levels after every issuance
-# ─────────────────────────────────────────────────────────────────────────────
-
-# Stock deduction itself happens in ChemicalIssuanceViewSet.perform_create.
-# Recalculating from total_stock here would double-deduct and overwrite manual
-# remaining_stock edits; stock accuracy is addressed by the Phase 3 ledger.
-
-@receiver(post_save, sender='decolorization.ChemicalIssuance')
-def on_chemical_issuance_saved(sender, instance, **kwargs):
-    """Alert management if any chemical is now critically low."""
-    try:
-        check_chemical_stock_alerts()
-    except Exception as e:
-        logger.error(f"check_chemical_stock_alerts failed: {e}")
+# Chemical low-stock alerts are sent by ChemicalIssuanceViewSet after the stock
+# is deducted (alert_if_chemical_became_low), only when a chemical first drops
+# below the threshold.

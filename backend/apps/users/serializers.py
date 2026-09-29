@@ -43,7 +43,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = ['id', 'username', 'email', 'role', 'is_active', 'last_login', 'last_login_display']
 
-    def get_last_login_display(self, obj):
+    def get_last_login_display(self, obj) -> str:
         if obj.last_login:
             return obj.last_login.strftime('%d %b %Y, %I:%M %p')
         return 'Never'

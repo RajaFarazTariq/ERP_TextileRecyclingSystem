@@ -74,7 +74,7 @@ export default function WarehousePage() {
               : type === 'vendor' ? 'warehouse/vendors/'
               : 'warehouse/units/';
     try { await api.delete(`${url}${id}/`); fetchAll(); }
-    catch { alert('Could not delete.'); }
+    catch (e) { alert(e.response?.data?.detail || 'Could not delete.'); }
   };
 
   const filteredStock = stock.filter(s => {

@@ -43,6 +43,8 @@ class ChemicalIssuanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChemicalIssuance
         fields = '__all__'
+        # Defaults to the logged-in user when not given
+        extra_kwargs = {'issued_by': {'required': False}}
 
     def validate(self, data):
         chemical = data.get('chemical', getattr(self.instance, 'chemical', None))

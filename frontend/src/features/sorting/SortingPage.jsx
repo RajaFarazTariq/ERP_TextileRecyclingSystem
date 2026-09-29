@@ -191,7 +191,7 @@ export default function SortingPage() {
     if (!window.confirm('Are you sure?')) return;
     const url = type === 'session' ? 'sorting/sessions/' : 'sorting/fabric-stock/';
     try { await api.delete(`${url}${id}/`); fetchAll(); }
-    catch { alert('Could not delete.'); }
+    catch (e) { alert(e.response?.data?.detail || 'Could not delete.'); }
   };
 
   // ── Filtered lists (computed from filter state) ──────────────────────────

@@ -17,10 +17,10 @@ class DryingSessionSerializer(serializers.ModelSerializer):
     moisture_loss_kg  = serializers.SerializerMethodField()
     output_efficiency = serializers.SerializerMethodField()
 
-    def get_moisture_loss_kg(self, obj):
+    def get_moisture_loss_kg(self, obj) -> float:
         return obj.moisture_loss_kg
 
-    def get_output_efficiency(self, obj):
+    def get_output_efficiency(self, obj) -> float:
         return obj.output_efficiency_pct
 
     class Meta:

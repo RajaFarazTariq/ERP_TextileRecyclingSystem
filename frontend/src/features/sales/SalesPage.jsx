@@ -189,7 +189,7 @@ export default function SalesPage() {
   const handleDelete       = async (type,id) => {
     if (!window.confirm('Are you sure?')) return;
     const urls={order:'sales/orders/',dispatch:'sales/dispatch/',payment:'sales/payments/'};
-    try { await api.delete(`${urls[type]}${id}/`); fetchAll(); } catch { alert('Could not delete.'); }
+    try { await api.delete(`${urls[type]}${id}/`); fetchAll(); } catch (e) { alert(e.response?.data?.detail || 'Could not delete.'); }
   };
 
   const tabs = [
@@ -531,11 +531,8 @@ export default function SalesPage() {
                     <p className="text-sm text-green-700 dark:text-green-300 font-medium">Total: Rs. {(parseFloat(form.weight_sold||0)*parseFloat(form.price_per_kg||0)).toLocaleString()}</p>
                   </div>
                 )}
-                <div><label className={labelCls}>Created By <span className="text-red-500">*</span></label>
-                  <select name="created_by" value={form.created_by||''} onChange={handleChange} className={inputCls}>
-                    <option value="">Select user</option>
-                    {users.map(u=><option key={u.id} value={u.id}>{u.username}</option>)}
-                  </select></div>
+                <div><label className={labelCls}>Created By</label>
+                  <input disabled value={form.id ? (form.created_by_name||'—') : 'You (recorded automatically)'} className={inputCls}/></div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><label className={labelCls}>Order Status</label>
                     <select name="status" value={form.status||'Draft'} onChange={handleChange} className={inputCls}>

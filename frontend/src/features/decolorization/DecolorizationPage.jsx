@@ -249,7 +249,7 @@ export default function DecolorizationPage() {
     if (!window.confirm('Are you sure?')) return;
     const urls = { tank: 'decolorization/tanks/', chemical: 'decolorization/chemicals/', issuance: 'decolorization/issuances/', session: 'decolorization/sessions/' };
     try { await api.delete(`${urls[type]}${id}/`); fetchAll(); }
-    catch { alert('Could not delete.'); }
+    catch (e) { alert(e.response?.data?.detail || 'Could not delete.'); }
   };
 
   const tabs = [

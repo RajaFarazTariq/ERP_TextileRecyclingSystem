@@ -311,6 +311,33 @@ def check_chemical_stock_alerts():
     )
 
 
+def alert_if_chemical_became_low(chemical, remaining_before):
+    """
+    Alert once, when an issuance takes a chemical from at/above the low-stock
+    threshold to below it. Later issuances of an already-low chemical don't
+    re-alert; the daily report lists everything that is still low.
+    """
+    total = float(chemical.total_stock or 0)
+    if total <= 0:
+        return
+    was_low = float(remaining_before or 0) / total < CHEMICAL_LOW_PCT
+    is_low  = float(chemical.remaining_stock or 0) / total < CHEMICAL_LOW_PCT
+    if was_low or not is_low:
+        return
+    pct = round(float(chemical.remaining_stock) / total * 100, 1)
+    rows = [
+        ("Chemical",  chemical.chemical_name),
+        ("Remaining", f"{_int(chemical.remaining_stock):,} / {_int(total):,} {chemical.unit_of_measure} ({pct}%)"),
+        ("Threshold", f"{int(CHEMICAL_LOW_PCT * 100)}%"),
+    ]
+    _send_alert(
+        subject=f"[ERP] Low Chemical Stock — {chemical.chemical_name}",
+        text_body="\n".join(f"{l}: {v}" for l, v in rows),
+        html_body=_html_wrap(f"{chemical.chemical_name} is running low", rows,
+                             color="#DC2626", note="Restock required."),
+    )
+
+
 def check_warehouse_stock_alerts():
     from apps.warehouse.models import Stock
     total_kg = _live(Stock.objects.filter(status='Approved')).aggregate(
