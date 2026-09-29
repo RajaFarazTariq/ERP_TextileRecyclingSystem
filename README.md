@@ -103,6 +103,8 @@ cd backend
 python manage.py test apps
 ```
 
+GitHub Actions (`.github/workflows/ci.yml`) runs the backend tests against PostgreSQL and builds the frontend on every push to `main` or `upgrade/**` and on every pull request.
+
 ## Usage
 - Frontend: http://localhost:3000/
 - API: http://127.0.0.1:8000/api/
