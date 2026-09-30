@@ -110,3 +110,85 @@ export function DateFilter({ value, onChange }: { value: DateFilterValue; onChan
     </div>
   )
 }
+
+const isoDay = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`
+
+/**
+ * The period to compare against, for "▲ 12% vs last month" figures. Periods
+ * that are still running (this week/month/year) are compared with the same
+ * stretch of the previous one, so a half-finished month isn't set against a
+ * full one. Returns null for "All time".
+ */
+export function previousPeriod(filter: DateFilterValue, now = new Date()): { filter: DateFilterValue; vs: string; short: string } | null {
+  const day = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const range = (start: Date, end: Date): DateFilterValue => ({ type: "custom", start: isoDay(start), end: isoDay(end) })
+  switch (filter.type) {
+    case "today": {
+      const y = new Date(day)
+      y.setDate(y.getDate() - 1)
+      return { filter: range(y, y), vs: "vs yesterday", short: "Yesterday" }
+    }
+    case "this_week": {
+      const monday = new Date(day)
+      monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
+      const start = new Date(monday)
+      start.setDate(start.getDate() - 7)
+      const end = new Date(day)
+      end.setDate(end.getDate() - 7)
+      return { filter: range(start, end), vs: "vs last week", short: "Same time last week" }
+    }
+    case "this_month": {
+      const start = new Date(day.getFullYear(), day.getMonth() - 1, 1)
+      const lastDay = new Date(day.getFullYear(), day.getMonth(), 0).getDate()
+      const end = new Date(day.getFullYear(), day.getMonth() - 1, Math.min(day.getDate(), lastDay))
+      return { filter: range(start, end), vs: "vs last month", short: "Same time last month" }
+    }
+    case "this_year": {
+      const start = new Date(day.getFullYear() - 1, 0, 1)
+      const end = new Date(day.getFullYear() - 1, day.getMonth(), day.getDate())
+      return { filter: range(start, end), vs: "vs last year", short: "Same time last year" }
+    }
+    case "year": {
+      if (!filter.year) return null
+      const y = String(Number(filter.year) - 1)
+      return { filter: { type: "year", year: y }, vs: `vs ${y}`, short: y }
+    }
+    case "month": {
+      if (!filter.month) return null
+      const [y, m] = filter.month.split("-").map(Number)
+      const prev = new Date(y, m - 2, 1)
+      const label = prev.toLocaleDateString("en-GB", { month: "short", year: "numeric" })
+      return { filter: { type: "month", month: isoDay(prev).slice(0, 7) }, vs: `vs ${label}`, short: label }
+    }
+    case "custom": {
+      if (!filter.start || !filter.end) return null
+      const start = new Date(filter.start)
+      const end = new Date(filter.end)
+      const days = Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1
+      if (!(days > 0)) return null
+      const prevEnd = new Date(start)
+      prevEnd.setDate(prevEnd.getDate() - 1)
+      const prevStart = new Date(prevEnd)
+      prevStart.setDate(prevStart.getDate() - (days - 1))
+      return { filter: range(prevStart, prevEnd), vs: `vs previous ${days} days`, short: `Previous ${days} days` }
+    }
+    default:
+      return null
+  }
+}
+
+/** Human label for a period, e.g. "This month", "Sep 2026", "1 Sep – 15 Sep". */
+export function periodLabel(filter: DateFilterValue): string {
+  switch (filter.type) {
+    case "year":
+      return filter.year ?? "By year"
+    case "month":
+      return filter.month
+        ? new Date(`${filter.month}-01T00:00:00`).toLocaleDateString("en-GB", { month: "short", year: "numeric" })
+        : "By month"
+    case "custom":
+      return [filter.start, filter.end].filter(Boolean).join(" – ") || "Custom range"
+    default:
+      return OPTIONS.find((o) => o.value === filter.type)?.label ?? ""
+  }
+}

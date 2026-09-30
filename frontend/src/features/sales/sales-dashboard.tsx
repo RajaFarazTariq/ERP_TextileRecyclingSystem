@@ -1,16 +1,18 @@
 "use client"
 
+import { BadgeCheck, HandCoins, TrendingUp, Wallet } from "lucide-react"
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
+import { axisProps, ChartCard, ChartGradient, ChartTooltip, cursorProps, gridProps, yAxisProps } from "@/components/common/chart"
+import { InitialsAvatar } from "@/components/common/identity"
+import { SegmentedBar } from "@/components/common/meters"
 import { StatCard } from "@/components/common/stat-card"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { rupees } from "@/lib/format"
+import { plural, rupees } from "@/lib/format"
+import { monthlyTotals } from "@/lib/series"
 import type { SalesOrder, SalesSummary } from "@/types/api"
 
 const n = (v: string | number | null | undefined) => Number(v) || 0
-
-const compactRupees = (v: number) =>
-  v >= 1_000_000 ? `${Number((v / 1_000_000).toFixed(1))}M` : v >= 1000 ? `${Number((v / 1000).toFixed(1))}k` : String(v)
 
 /** Order value per month for the last `months` months (cancelled orders excluded). */
 export function revenueByMonth(orders: SalesOrder[], months = 6, now = new Date()) {
@@ -45,51 +47,55 @@ export function SalesDashboard({ summary, orders }: { summary: SalesSummary; ord
   const monthly = revenueByMonth(orders)
   const top = topCustomers(orders)
   const maxTop = top[0]?.revenue || 1
+  const live = orders.filter((o) => o.status !== "Cancelled")
+  const revenueSpark = monthlyTotals(live, (o) => o.created_at, (o) => n(o.total_price))
+  const paymentSpark = monthlyTotals(orders.flatMap((o) => o.payments), (p) => p.payment_date, (p) => n(p.amount))
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Total revenue" value={rupees(summary.total_revenue)} hint={`${summary.total_orders} orders`} />
-        <StatCard label="Collected" value={rupees(summary.total_collected)} hint={`${summary.payment_count} payments`} />
-        <StatCard label="Outstanding" value={rupees(summary.pending_amount)} hint={`${summary.pending_payments} orders unpaid`} />
-        <StatCard label="Paid orders" value={summary.paid_orders} hint={`${summary.completed_orders} completed`} />
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Total revenue" icon={TrendingUp} tone="sales" value={rupees(summary.total_revenue)} hint={plural(summary.total_orders, "order")} spark={revenueSpark} />
+        <StatCard label="Collected" icon={Wallet} tone="success" value={rupees(summary.total_collected)} hint={plural(summary.payment_count, "payment")} spark={paymentSpark} />
+        <StatCard label="Outstanding" icon={HandCoins} tone="warning" value={rupees(summary.pending_amount)} hint={`${plural(summary.pending_payments, "order")} unpaid`}
+          footer={<SegmentedBar label="Collected and outstanding" segments={[
+            { value: summary.total_collected, tone: "success", label: "Collected" },
+            { value: summary.pending_amount, tone: "warning", label: "Outstanding" },
+          ]} />} />
+        <StatCard label="Paid orders" icon={BadgeCheck} tone="info" value={summary.paid_orders} hint={`${summary.completed_orders} completed`} />
       </div>
       <div className="grid gap-4 lg:grid-cols-5">
-        <Card className="lg:col-span-3">
+        <ChartCard className="lg:col-span-3" title="Order value by month" description="Last 6 months, cancelled orders excluded" contentClassName="h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={monthly} margin={{ left: 0, right: 8, top: 8 }}>
+              <ChartGradient id="sales-revenue" color="var(--chart-1)" />
+              <CartesianGrid {...gridProps} />
+              <XAxis dataKey="month" {...axisProps} />
+              <YAxis {...yAxisProps} />
+              <Tooltip cursor={cursorProps}
+                content={<ChartTooltip format={(v) => rupees(v)} footer={(p) => plural(Number(p.orders), "order")} />} />
+              <Bar dataKey="revenue" name="Order value" isAnimationActive={false} fill="url(#sales-revenue)" radius={[6, 6, 2, 2]} maxBarSize={56} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+        <Card className="animate-rise lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Order value by month</CardTitle>
-            <CardDescription>Last 6 months, cancelled orders excluded</CardDescription>
+            <CardTitle>Top customers</CardTitle>
+            <CardDescription className="mt-0.5">By order value</CardDescription>
           </CardHeader>
-          <CardContent className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthly} margin={{ left: 8, right: 8 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={12} />
-                <YAxis tickLine={false} axisLine={false} fontSize={12} width={56} tickFormatter={compactRupees} />
-                <Tooltip
-                  cursor={{ className: "fill-muted" }}
-                  contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--popover-foreground)" }}
-                  formatter={(value, _name, item) => [`${rupees(Number(value))} · ${item.payload.orders} orders`, "Value"]}
-                />
-                <Bar dataKey="revenue" isAnimationActive={false} fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">Top customers</CardTitle>
-            <CardDescription>By order value</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {top.length ? top.map((c) => (
-              <div key={c.name}>
-                <div className="mb-1 flex justify-between gap-2 text-sm">
-                  <span className="truncate font-medium">{c.name}</span>
-                  <span className="shrink-0 tabular-nums text-muted-foreground">{rupees(c.revenue)}</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-chart-2" style={{ width: `${(c.revenue / maxTop) * 100}%` }} />
+          <CardContent className="space-y-4">
+            {top.length ? top.map((c, i) => (
+              <div key={c.name} className="flex items-center gap-3">
+                <span className="w-4 text-xs font-semibold text-faint">{i + 1}</span>
+                <InitialsAvatar name={c.name} size="md" />
+                <div className="min-w-0 flex-1">
+                  <div className="mb-1.5 flex justify-between gap-2 text-sm">
+                    <span className="truncate font-medium">{c.name}</span>
+                    <span className="shrink-0 font-semibold">{rupees(c.revenue)}</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div className="brand-gradient h-full rounded-full" style={{ width: `${(c.revenue / maxTop) * 100}%` }} />
+                  </div>
+                  <p className="mt-1 text-[11px] text-faint">{plural(c.orders, "order")}</p>
                 </div>
               </div>
             )) : <p className="text-sm text-muted-foreground">No orders yet.</p>}

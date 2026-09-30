@@ -1,14 +1,14 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Eye, EyeOff, Loader2, Recycle } from "lucide-react"
+import { AlertCircle, Eye, EyeOff, Loader2 } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 
+import { BrandMark } from "@/components/layout/brand-mark"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { errorMessage } from "@/lib/api"
@@ -53,24 +53,23 @@ export function LoginForm() {
   })
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader className="items-center text-center">
-        <div className="mx-auto mb-2 flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-          <Recycle className="size-6" aria-hidden />
-        </div>
-        <CardTitle className="text-xl">Textile ERP</CardTitle>
-        <CardDescription>Sign in with your username or email</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div className="surface w-full max-w-[400px] animate-rise rounded-2xl p-7 sm:p-8">
+      <div className="mb-7 space-y-3">
+        <BrandMark className="size-11 lg:hidden" />
+        <h2 className="font-heading text-2xl font-bold tracking-tight">Welcome back</h2>
+        <p className="text-sm text-muted-foreground">Sign in with your username or email</p>
+      </div>
+      <div>
         <form onSubmit={onSubmit} className="grid gap-4" noValidate>
           {serverError && (
-            <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <p role="alert" className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2.5 text-sm text-danger-fg">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
               {serverError}
             </p>
           )}
           <div className="grid gap-2">
             <Label htmlFor="username">Username or email</Label>
-            <Input id="username" autoComplete="username" autoFocus aria-invalid={!!errors.username} {...form.register("username")} />
+            <Input id="username" autoComplete="username" autoFocus className="h-10" aria-invalid={!!errors.username} {...form.register("username")} />
             {errors.username && <p className="text-sm text-destructive">{errors.username.message}</p>}
           </div>
           <div className="grid gap-2">
@@ -81,7 +80,7 @@ export function LoginForm() {
                 type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
                 aria-invalid={!!errors.password}
-                className="pr-10"
+                className="h-10 pr-10"
                 {...form.register("password")}
               />
               <button
@@ -95,12 +94,12 @@ export function LoginForm() {
             </div>
             {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
           </div>
-          <Button type="submit" disabled={isSubmitting} className="w-full">
+          <Button type="submit" size="lg" disabled={isSubmitting} className="mt-1 w-full">
             {isSubmitting && <Loader2 className="size-4 animate-spin" />}
             Sign in
           </Button>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

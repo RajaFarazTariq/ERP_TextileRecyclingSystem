@@ -5,6 +5,7 @@ import { useMemo, useState } from "react"
 
 import { ConfirmDialog } from "@/components/common/confirm-dialog"
 import { DataTable, type TableColumn } from "@/components/common/data-table"
+import { NameWithAvatar } from "@/components/common/identity"
 import { PageHeader } from "@/components/common/page-header"
 import { RowActions } from "@/components/common/row-actions"
 import { ErrorState, TableSkeleton } from "@/components/common/states"
@@ -60,7 +61,7 @@ export function SortingPage() {
   const sessionColumns = useMemo<TableColumn<SortingSession>[]>(() => [
     { accessorKey: "id", header: "#", cell: ({ getValue }) => <span className="text-muted-foreground">#{getValue<number>()}</span> },
     { accessorKey: "fabric_material", header: "Fabric", cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span> },
-    { accessorKey: "supervisor_name", header: "Supervisor" },
+    { accessorKey: "supervisor_name", header: "Supervisor", cell: ({ getValue }) => <NameWithAvatar name={getValue<string>()} /> },
     { accessorKey: "unit", header: "Unit" },
     { id: "input", header: "Input", accessorFn: (r) => n(r.quantity_taken), sortFn: "basic", cell: ({ row }) => <span className="tabular-nums">{kg(row.original.quantity_taken)}</span> },
     { id: "sorted", header: "Sorted", accessorFn: (r) => n(r.quantity_sorted), sortFn: "basic", cell: ({ row }) => <span className="tabular-nums">{kg(row.original.quantity_sorted)}</span> },
@@ -113,8 +114,8 @@ export function SortingPage() {
     : <Button onClick={() => setEditing({ kind: "session", record: null })}><Plus className="size-4" /> Start session</Button>
 
   return (
-    <div className="mx-auto max-w-7xl">
-      <PageHeader title="Sorting" description="Sorting sessions, fabric lots and sorting efficiency." actions={action} />
+    <div className="mx-auto max-w-[1440px]">
+      <PageHeader title="Sorting" icon="sorting" description="Sorting sessions, fabric lots and sorting efficiency." actions={action} />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
         <TabsList>
@@ -135,7 +136,8 @@ export function SortingPage() {
             : (
               <DataTable columns={sessionColumns} data={shownSessions} searchPlaceholder="Search fabric, supervisor, unit…"
                 emptyTitle="No sorting sessions" emptyDescription="Start one with “Start session”."
-                initialSorting={[{ id: "id", desc: true }]}
+                initialSorting={[{ id: "id", desc: true }]} exportName="sorting-sessions"
+                filters={sessionStatus !== ALL ? [{ label: `Status: ${sessionStatus}`, onClear: () => setSessionStatus(ALL) }] : []}
                 toolbar={<StatusFilter value={sessionStatus} onChange={setSessionStatus} statuses={SESSION_STATUSES} />} />
             )}
         </TabsContent>
@@ -145,7 +147,8 @@ export function SortingPage() {
             : fabrics.isPending ? <TableSkeleton columns={6} />
             : (
               <DataTable columns={fabricColumns} data={shownFabrics} searchPlaceholder="Search material, vendor…"
-                emptyTitle="No fabric lots" emptyDescription="Add a lot from a warehouse delivery."
+                emptyTitle="No fabric lots" emptyDescription="Add a lot from a warehouse delivery." exportName="fabric-lots"
+                filters={fabricStatus !== ALL ? [{ label: `Status: ${fabricStatus}`, onClear: () => setFabricStatus(ALL) }] : []}
                 toolbar={<StatusFilter value={fabricStatus} onChange={setFabricStatus} statuses={FABRIC_STATUSES} />} />
             )}
         </TabsContent>

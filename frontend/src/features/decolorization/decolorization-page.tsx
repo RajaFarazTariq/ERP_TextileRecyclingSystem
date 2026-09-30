@@ -1,17 +1,18 @@
 "use client"
 
-import { CheckCircle2, Plus, Search } from "lucide-react"
+import { CheckCircle2, Cylinder, Plus, Search } from "lucide-react"
 import { useMemo, useState } from "react"
 
 import { ConfirmDialog } from "@/components/common/confirm-dialog"
 import { DataTable, type TableColumn } from "@/components/common/data-table"
-import { DateFilter, type DateFilterValue, matchesDate } from "@/components/common/date-filter"
+import { DateFilter, type DateFilterValue, matchesDate, periodLabel } from "@/components/common/date-filter"
+import { NameWithAvatar } from "@/components/common/identity"
+import { MachineCard } from "@/components/common/machine-card"
 import { PageHeader } from "@/components/common/page-header"
 import { RowActions } from "@/components/common/row-actions"
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/common/states"
 import { StatusBadge } from "@/components/common/status-badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -36,37 +37,20 @@ const n = (v: string | number | null | undefined) => Number(v) || 0
 const NOUN: Record<Kind, string> = { tank: "tank", chemical: "chemical", issuance: "chemical issuance", session: "session" }
 
 function TankCard({ tank, onEdit, onDelete }: { tank: Tank; onEdit: () => void; onDelete: () => void }) {
-  const ratio = n(tank.capacity) > 0 ? n(tank.fabric_quantity) / n(tank.capacity) : 0
-  const fill = Math.min(ratio, 1) * 100
-  const over = ratio > 1
   return (
-    <Card className="gap-3 py-4">
-      <CardContent className="space-y-3 px-4">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="font-medium">{tank.name}</p>
-            <p className="text-xs text-muted-foreground">Batch {tank.batch_id}</p>
-          </div>
-          <div className="flex items-center gap-1">
-            <StatusBadge status={tank.tank_status} />
-            <RowActions onEdit={onEdit} onDelete={onDelete} />
-          </div>
-        </div>
-        <div>
-          <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-            <span>{kg(tank.fabric_quantity)} of {kg(tank.capacity)}</span>
-            <span className={over ? "font-semibold text-destructive" : "tabular-nums"}>
-              {over ? `Over capacity (${Math.round(ratio * 100)}%)` : `${Math.round(fill)}%`}
-            </span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label={`${tank.name} fill level`}
-            aria-valuenow={Math.round(fill)} aria-valuemin={0} aria-valuemax={100}>
-            <div className={over ? "h-full rounded-full bg-destructive" : "h-full rounded-full bg-primary"} style={{ width: `${fill}%` }} />
-          </div>
-        </div>
-        <p className="text-xs text-muted-foreground">{tank.fabric_material ? `Fabric: ${tank.fabric_material}` : "No fabric assigned"}</p>
-      </CardContent>
-    </Card>
+    <MachineCard
+      name={tank.name}
+      subtitle={`Batch ${tank.batch_id}`}
+      status={tank.tank_status}
+      icon={Cylinder}
+      tone="decolorization"
+      load={n(tank.fabric_quantity)}
+      capacity={n(tank.capacity)}
+      loadLabel={`${tank.name} fill level`}
+      runningSince={tank.tank_status === "Processing" ? tank.start_date : null}
+      detail={tank.fabric_material ? `Fabric: ${tank.fabric_material}` : "No fabric assigned"}
+      actions={<RowActions onEdit={onEdit} onDelete={onDelete} />}
+    />
   )
 }
 
@@ -118,7 +102,7 @@ export function DecolorizationPage() {
     { accessorKey: "tank_name", header: "Tank" },
     { id: "quantity", header: "Quantity", accessorFn: (r) => n(r.quantity), sortFn: "basic",
       cell: ({ row }) => <span className="tabular-nums">{n(row.original.quantity).toLocaleString()}</span> },
-    { accessorKey: "issued_by_name", header: "Issued by" },
+    { accessorKey: "issued_by_name", header: "Issued by", cell: ({ getValue }) => <NameWithAvatar name={getValue<string>()} /> },
     { id: "issued_at", header: "Date", accessorFn: (r) => new Date(r.issued_at), sortFn: "datetime",
       cell: ({ row }) => <span className="text-muted-foreground">{date(row.original.issued_at)}</span> },
     { id: "actions", header: "", enableSorting: false, enableHiding: false,
@@ -132,7 +116,7 @@ export function DecolorizationPage() {
     { accessorKey: "id", header: "#", cell: ({ getValue }) => <span className="text-muted-foreground">#{getValue<number>()}</span> },
     { accessorKey: "tank_name", header: "Tank", cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span> },
     { accessorKey: "fabric_material", header: "Fabric" },
-    { accessorKey: "supervisor_name", header: "Supervisor" },
+    { accessorKey: "supervisor_name", header: "Supervisor", cell: ({ getValue }) => <NameWithAvatar name={getValue<string>()} /> },
     { id: "input", header: "Input", accessorFn: (r) => n(r.input_quantity), sortFn: "basic", cell: ({ row }) => <span className="tabular-nums">{kg(row.original.input_quantity)}</span> },
     { id: "output", header: "Output", accessorFn: (r) => n(r.output_quantity), sortFn: "basic", cell: ({ row }) => <span className="tabular-nums">{kg(row.original.output_quantity)}</span> },
     { id: "waste", header: "Waste", accessorFn: (r) => n(r.waste_quantity), sortFn: "basic", cell: ({ row }) => <span className="tabular-nums">{kg(row.original.waste_quantity)}</span> },
@@ -172,8 +156,8 @@ export function DecolorizationPage() {
   )
 
   return (
-    <div className="mx-auto max-w-7xl">
-      <PageHeader title="Decolorization" description="Tanks, chemical stock and issuances, and decolorization sessions."
+    <div className="mx-auto max-w-[1440px]">
+      <PageHeader title="Decolorization" icon="decolorization" description="Tanks, chemical stock and issuances, and decolorization sessions."
         actions={<Button onClick={addFor[tab].open}><Plus className="size-4" /> {addFor[tab].label}</Button>} />
 
       {loadError ? (
@@ -197,9 +181,9 @@ export function DecolorizationPage() {
           <TabsContent value="tanks" className="mt-4 space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative w-full sm:w-64">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
                 <Input value={tankSearch} onChange={(e) => setTankSearch(e.target.value)} placeholder="Search tank, batch, fabric…"
-                  aria-label="Search tanks" className="h-9 pl-8" />
+                  aria-label="Search tanks" className="h-9 pl-9" />
               </div>
               <Select value={tankStatus} onValueChange={setTankStatus}>
                 <SelectTrigger className="h-9 w-[150px]" aria-label="Tank status"><SelectValue /></SelectTrigger>
@@ -211,7 +195,7 @@ export function DecolorizationPage() {
               <span className="text-sm text-muted-foreground">{shownTanks.length} of {tanks.data!.length} tanks</span>
             </div>
             {shownTanks.length ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {shownTanks.map((t) => (
                   <TankCard key={t.id} tank={t} onEdit={() => setEditing({ kind: "tank", record: t })}
                     onDelete={() => setDeleting({ kind: "tank", id: t.id, label: t.name })} />
@@ -222,17 +206,21 @@ export function DecolorizationPage() {
           </TabsContent>
 
           <TabsContent value="chemicals" className="mt-4">
-            <DataTable columns={chemicalColumns} data={chemicals.data!} searchPlaceholder="Search chemicals…" emptyTitle="No chemicals" />
+            <DataTable columns={chemicalColumns} data={chemicals.data!} searchPlaceholder="Search chemicals…" emptyTitle="No chemicals" exportName="chemicals" />
           </TabsContent>
 
           <TabsContent value="issuances" className="mt-4">
             <DataTable columns={issuanceColumns} data={issuances.data!} searchPlaceholder="Search chemical, tank, person…"
-              emptyTitle="No issuances" initialSorting={[{ id: "issued_at", desc: true }]} />
+              emptyTitle="No issuances" initialSorting={[{ id: "issued_at", desc: true }]} exportName="chemical-issuances" />
           </TabsContent>
 
           <TabsContent value="sessions" className="mt-4">
             <DataTable columns={sessionColumns} data={shownSessions} searchPlaceholder="Search tank, fabric, supervisor…"
-              emptyTitle="No decolorization sessions" initialSorting={[{ id: "id", desc: true }]}
+              emptyTitle="No decolorization sessions" initialSorting={[{ id: "id", desc: true }]} exportName="decolorization-sessions"
+              filters={[
+                ...(sessionStatus !== ALL ? [{ label: `Status: ${sessionStatus}`, onClear: () => setSessionStatus(ALL) }] : []),
+                ...(sessionPeriod.type !== "all" ? [{ label: `Period: ${periodLabel(sessionPeriod)}`, onClear: () => setSessionPeriod({ type: "all" }) }] : []),
+              ]}
               toolbar={
                 <>
                   <Select value={sessionStatus} onValueChange={setSessionStatus}>

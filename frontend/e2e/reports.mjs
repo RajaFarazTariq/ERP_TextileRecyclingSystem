@@ -17,7 +17,7 @@ export async function reportsScenario(browser) {
 
     // Dashboard
     await page.goto(`${BASE}/dashboard`)
-    await page.getByText('Sellable stock').waitFor()
+    await page.getByText('Sellable stock').first().waitFor()
     await page.locator('.recharts-bar-rectangle').first().waitFor()
     r.check('dashboard shows live figures and a chart', (await page.locator('.recharts-bar-rectangle').count()) > 0)
     r.check('attention panel lists low chemicals', (await page.getByText(/is below 25%/).count()) > 0)

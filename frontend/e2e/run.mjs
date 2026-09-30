@@ -29,6 +29,9 @@ const scenarios = {
 const wanted = process.argv.slice(2).filter((a) => a in scenarios)
 
 const browser = await chromium.launch()
+// Figures count up on screen; tests read them straight away, so run without motion
+const newContext = browser.newContext.bind(browser)
+browser.newContext = (options = {}) => newContext({ reducedMotion: 'reduce', ...options })
 try {
   for (const [name, run] of Object.entries(scenarios)) {
     if (wanted.length && !wanted.includes(name)) continue

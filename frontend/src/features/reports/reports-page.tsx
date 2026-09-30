@@ -10,8 +10,8 @@ import { DailyProduction, MonthlySales, WasteAnalysis } from "./report-sections"
 export function ReportsPage() {
   const [tab, setTab] = useState("daily")
   return (
-    <div className="mx-auto max-w-7xl">
-      <PageHeader title="Reports" description="Production, sales and waste reports with Excel export, and the audit log." />
+    <div className="mx-auto max-w-[1440px]">
+      <PageHeader title="Reports" icon="reports" description="Production, sales and waste reports with Excel export, and the audit log." />
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="flex-wrap">
           <TabsTrigger value="daily">Daily production</TabsTrigger>

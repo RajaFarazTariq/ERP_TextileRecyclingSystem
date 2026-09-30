@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
 import { Fragment } from "react"
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { InitialsAvatar } from "@/components/common/identity"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -31,6 +31,9 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 import { ROLE_LABELS } from "@/config/access"
 import { logout } from "@/features/auth/use-session"
 import type { SessionUser } from "@/types/api"
+import { CommandMenu } from "./command-menu"
+import { Notifications } from "./notifications"
+import { ThemeToggle } from "./theme-toggle"
 
 function titleCase(segment: string) {
   return segment.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
@@ -74,11 +77,9 @@ function UserMenu({ user }: { user: SessionUser }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-9 gap-2 px-2" aria-label="Account menu">
-          <Avatar className="size-7">
-            <AvatarFallback className="text-xs">{user.username.slice(0, 2).toUpperCase()}</AvatarFallback>
-          </Avatar>
-          <span className="hidden text-sm font-medium sm:inline">{user.username}</span>
+        <Button variant="ghost" className="h-9 gap-2 rounded-full pr-2.5 pl-1" aria-label="Account menu">
+          <InitialsAvatar name={user.username} />
+          <span className="hidden text-sm font-medium md:inline">{user.username}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
@@ -104,11 +105,17 @@ function UserMenu({ user }: { user: SessionUser }) {
 
 export function AppHeader({ user }: { user: SessionUser }) {
   return (
-    <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <SidebarTrigger className="-ml-1" />
-      <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-      <Breadcrumbs />
-      <div className="ml-auto">
+    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur-xl supports-[backdrop-filter]:bg-background/65 md:px-6">
+      <SidebarTrigger className="-ml-1 size-9" />
+      <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-5" />
+      <div className="hidden min-w-0 sm:block">
+        <Breadcrumbs />
+      </div>
+      <div className="ml-auto flex items-center gap-1.5">
+        <CommandMenu role={user.role} />
+        <Notifications role={user.role} />
+        <ThemeToggle />
+        <Separator orientation="vertical" className="mx-1 hidden data-[orientation=vertical]:h-5 sm:block" />
         <UserMenu user={user} />
       </div>
     </header>

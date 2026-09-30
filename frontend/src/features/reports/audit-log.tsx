@@ -1,9 +1,10 @@
 "use client"
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
-import { ChevronLeft, ChevronRight, Search } from "lucide-react"
+import { CalendarDays, CalendarRange, ChevronLeft, ChevronRight, History, Search, Sun } from "lucide-react"
 import { useState } from "react"
 
+import { InitialsAvatar } from "@/components/common/identity"
 import { ErrorState, TableSkeleton } from "@/components/common/states"
 import { StatCard } from "@/components/common/stat-card"
 import { StatusBadge, type StatusTone } from "@/components/common/status-badge"
@@ -67,19 +68,19 @@ export function AuditLog() {
   return (
     <div className="space-y-4">
       {summary.data && (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <StatCard label="All entries" value={summary.data.total_logs.toLocaleString()} />
-          <StatCard label="Today" value={summary.data.today} />
-          <StatCard label="Last 7 days" value={summary.data.this_week} />
-          <StatCard label="Last 30 days" value={summary.data.this_month} />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard label="All entries" icon={History} tone="running" value={summary.data.total_logs} />
+          <StatCard label="Today" icon={Sun} tone="warning" value={summary.data.today} />
+          <StatCard label="Last 7 days" icon={CalendarDays} tone="info" value={summary.data.this_week} />
+          <StatCard label="Last 30 days" icon={CalendarRange} tone="brand" value={summary.data.this_month} />
         </div>
       )}
 
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="surface flex flex-wrap items-end justify-between gap-3 rounded-xl p-4">
         <div className="flex flex-wrap items-end gap-3">
           <div className="relative w-full sm:w-56">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-            <Input value={search} onChange={(e) => setFilter(setSearch)(e.target.value)} placeholder="Search user, record…" aria-label="Search audit log" className="h-9 pl-8" />
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <Input value={search} onChange={(e) => setFilter(setSearch)(e.target.value)} placeholder="Search user, record…" aria-label="Search audit log" className="h-9 pl-9" />
           </div>
           <Select value={model} onValueChange={setFilter(setModel)}>
             <SelectTrigger className="h-9 w-[190px]" aria-label="Record type"><SelectValue /></SelectTrigger>
@@ -96,11 +97,11 @@ export function AuditLog() {
             </SelectContent>
           </Select>
           <div className="grid gap-1.5">
-            <Label htmlFor="audit-start" className="text-xs">From</Label>
+            <Label htmlFor="audit-start" className="text-xs text-muted-foreground">From</Label>
             <Input id="audit-start" type="date" className="h-9 w-[150px]" value={start} onChange={(e) => setFilter(setStart)(e.target.value)} />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="audit-end" className="text-xs">To</Label>
+            <Label htmlFor="audit-end" className="text-xs text-muted-foreground">To</Label>
             <Input id="audit-end" type="date" className="h-9 w-[150px]" value={end} onChange={(e) => setFilter(setEnd)(e.target.value)} />
           </div>
         </div>
@@ -111,10 +112,10 @@ export function AuditLog() {
         : logs.isPending ? <TableSkeleton columns={6} />
         : (
           <>
-            <div className="overflow-hidden rounded-lg border">
+            <div className="surface overflow-hidden rounded-xl">
               <Table>
-                <TableHeader className="bg-muted/50">
-                  <TableRow>
+                <TableHeader className="bg-[color-mix(in_oklab,var(--card),var(--foreground)_3%)]">
+                  <TableRow className="hover:bg-transparent">
                     <TableHead>When</TableHead><TableHead>User</TableHead><TableHead>Action</TableHead>
                     <TableHead>Record</TableHead><TableHead>Changes</TableHead><TableHead>IP</TableHead>
                   </TableRow>
@@ -122,8 +123,8 @@ export function AuditLog() {
                 <TableBody>
                   {logs.data.results.length ? logs.data.results.map((e) => (
                     <TableRow key={e.id}>
-                      <TableCell className="whitespace-nowrap text-muted-foreground">{e.timestamp_display}</TableCell>
-                      <TableCell><span className="font-medium">{e.username || "system"}</span>{e.user_role && <span className="block text-xs text-muted-foreground">{e.user_role}</span>}</TableCell>
+                      <TableCell className="h-13 whitespace-nowrap text-muted-foreground">{e.timestamp_display}</TableCell>
+                      <TableCell><span className="flex items-center gap-2.5"><InitialsAvatar name={e.username || "system"} /><span><span className="block font-medium">{e.username || "system"}</span>{e.user_role && <span className="block text-xs text-muted-foreground">{e.user_role}</span>}</span></span></TableCell>
                       <TableCell><StatusBadge status={e.action.replace("_", " ")} tone={ACTION_TONES[e.action] ?? "neutral"} /></TableCell>
                       <TableCell className="max-w-56"><span className="block truncate" title={e.object_repr}>{e.model_name} {e.object_id && `#${e.object_id}`}</span><span className="block truncate text-xs text-muted-foreground">{e.object_repr}</span></TableCell>
                       <TableCell className="max-w-80"><span className="line-clamp-2 text-xs text-muted-foreground" title={describeChanges(e.changes)}>{describeChanges(e.changes)}</span></TableCell>
@@ -135,7 +136,7 @@ export function AuditLog() {
                 </TableBody>
               </Table>
             </div>
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <div className="flex items-center justify-between px-1 text-sm text-muted-foreground">
               <span>{logs.data.count.toLocaleString()} entries · page {page} of {pages}</span>
               <div className="flex gap-2">
                 <Button variant="outline" size="icon-sm" disabled={!logs.data.previous || logs.isFetching} onClick={() => setPage((p) => p - 1)} aria-label="Previous page"><ChevronLeft className="size-4" /></Button>

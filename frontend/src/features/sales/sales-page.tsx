@@ -6,7 +6,9 @@ import { useMemo, useState } from "react"
 
 import { ConfirmDialog } from "@/components/common/confirm-dialog"
 import { DataTable, type TableColumn } from "@/components/common/data-table"
-import { DateFilter, type DateFilterValue, dateParams } from "@/components/common/date-filter"
+import { DateFilter, type DateFilterValue, dateParams, periodLabel } from "@/components/common/date-filter"
+import { NameWithAvatar, PlateChip } from "@/components/common/identity"
+import { ProgressBar } from "@/components/common/meters"
 import { PageHeader } from "@/components/common/page-header"
 import { RowActions } from "@/components/common/row-actions"
 import { ErrorState, TableSkeleton } from "@/components/common/states"
@@ -35,6 +37,20 @@ const ALL = "all"
 const n = (v: string | number | null | undefined) => Number(v) || 0
 const LISTS = [["sales/orders"], ["sales/dispatch"], ["sales/payments"], ["sales/orders/summary"], ["sales/customers"],
   ["sorting/fabric-stock"], ["inventory/movements/stock"]]
+
+/** Payment status with how much of the order total has been paid. */
+function PaymentCell({ order }: { order: SalesOrder }) {
+  const total = n(order.total_price)
+  const paid = order.payments.reduce((a, p) => a + n(p.amount), 0)
+  const share = total > 0 ? Math.min(100, (paid / total) * 100) : 0
+  return (
+    <div className="flex min-w-32 flex-col gap-1.5" title={`${rupees(paid)} of ${rupees(total)} paid`}>
+      <StatusBadge status={order.payment_status} />
+      <ProgressBar value={share} size="sm" label={`Order ${order.id} amount paid`}
+        tone={order.payment_status === "Paid" ? "success" : order.payment_status === "Partial" ? "warning" : "neutral"} className="w-24" />
+    </div>
+  )
+}
 
 function Filter({ value, onChange, options, label, allLabel = "All" }: {
   value: string; onChange: (v: string) => void; options: readonly string[]; label: string; allLabel?: string
@@ -90,13 +106,13 @@ export function SalesPage() {
 
   const orderColumns = useMemo<TableColumn<SalesOrder>[]>(() => [
     { accessorKey: "id", header: "#", cell: ({ getValue }) => <span className="text-muted-foreground">#{getValue<number>()}</span> },
-    { accessorKey: "buyer_name", header: "Buyer", cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span> },
+    { accessorKey: "buyer_name", header: "Buyer", cell: ({ getValue }) => <NameWithAvatar name={getValue<string>()} /> },
     { accessorKey: "fabric_material", header: "Fabric" },
     { accessorKey: "fabric_quality", header: "Quality" },
     { id: "weight", header: "Weight", accessorFn: (r) => n(r.weight_sold), sortFn: "basic", cell: ({ row }) => <span className="tabular-nums">{kg(row.original.weight_sold)}</span> },
     { id: "price", header: "Price/kg", accessorFn: (r) => n(r.price_per_kg), sortFn: "basic", cell: ({ row }) => <span className="tabular-nums">{rupees(row.original.price_per_kg)}</span> },
     { id: "total", header: "Total", accessorFn: (r) => n(r.total_price), sortFn: "basic", cell: ({ row }) => <span className="font-medium tabular-nums">{rupees(row.original.total_price)}</span> },
-    { accessorKey: "payment_status", header: "Payment", cell: ({ getValue }) => <StatusBadge status={getValue<string>()} /> },
+    { accessorKey: "payment_status", header: "Payment", cell: ({ row }) => <PaymentCell order={row.original} /> },
     { accessorKey: "status", header: "Status", cell: ({ getValue }) => <StatusBadge status={getValue<string>()} /> },
     { id: "created_at", header: "Date", accessorFn: (r) => new Date(r.created_at), sortFn: "datetime", cell: ({ row }) => <span className="text-muted-foreground">{date(row.original.created_at)}</span> },
     { id: "actions", header: "", enableSorting: false, enableHiding: false,
@@ -114,7 +130,7 @@ export function SalesPage() {
   const dispatchColumns = useMemo<TableColumn<Dispatch>[]>(() => [
     { accessorKey: "id", header: "#", cell: ({ getValue }) => <span className="text-muted-foreground">#{getValue<number>()}</span> },
     { id: "order", header: "Order", accessorFn: (r) => r.order_buyer, cell: ({ row }) => <span className="font-medium">#{row.original.sales_order} {row.original.order_buyer}</span> },
-    { accessorKey: "vehicle_number", header: "Vehicle" },
+    { accessorKey: "vehicle_number", header: "Vehicle", cell: ({ getValue }) => <PlateChip value={getValue<string>()} /> },
     { accessorKey: "driver_name", header: "Driver", cell: ({ getValue }) => getValue<string>() || "—" },
     { id: "weight", header: "Weight", accessorFn: (r) => n(r.dispatched_weight), sortFn: "basic", cell: ({ row }) => <span className="tabular-nums">{kg(row.original.dispatched_weight)}</span> },
     { accessorKey: "dispatch_status", header: "Status", cell: ({ getValue }) => <StatusBadge status={getValue<string>()} /> },
@@ -135,7 +151,7 @@ export function SalesPage() {
     { id: "amount", header: "Amount", accessorFn: (r) => n(r.amount), sortFn: "basic", cell: ({ row }) => <span className="tabular-nums">{rupees(row.original.amount)}</span> },
     { accessorKey: "payment_method", header: "Method" },
     { accessorKey: "reference_number", header: "Reference", cell: ({ getValue }) => getValue<string>() || "—" },
-    { accessorKey: "received_by_name", header: "Received by" },
+    { accessorKey: "received_by_name", header: "Received by", cell: ({ getValue }) => <NameWithAvatar name={getValue<string>()} /> },
     { id: "payment_date", header: "Date", accessorFn: (r) => new Date(r.payment_date), sortFn: "datetime", cell: ({ row }) => <span className="text-muted-foreground">{date(row.original.payment_date)}</span> },
     { id: "actions", header: "", enableSorting: false, enableHiding: false,
       cell: ({ row }) => <RowActions onEdit={() => setEditing({ kind: "payment", record: row.original })}
@@ -143,7 +159,7 @@ export function SalesPage() {
   ], [buyerOf])
 
   const customerColumns = useMemo<TableColumn<Customer>[]>(() => [
-    { accessorKey: "name", header: "Name", cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span> },
+    { accessorKey: "name", header: "Name", cell: ({ getValue }) => <NameWithAvatar name={getValue<string>()} /> },
     { accessorKey: "contact", header: "Contact", cell: ({ getValue }) => getValue<string>() || "—" },
     { accessorKey: "order_count", header: "Orders", sortFn: "basic" },
     { id: "created_at", header: "Since", accessorFn: (r) => new Date(r.created_at), sortFn: "datetime", cell: ({ row }) => <span className="text-muted-foreground">{date(row.original.created_at)}</span> },
@@ -166,10 +182,11 @@ export function SalesPage() {
   const loadError = core.find((q) => q.isError)
   const loading = core.some((q) => q.isPending)
   const dateToolbar = <DateFilter value={period} onChange={setPeriod} />
+  const periodChip = period.type !== "all" ? [{ label: `Period: ${periodLabel(period)}`, onClear: () => setPeriod({ type: "all" }) }] : []
 
   return (
-    <div className="mx-auto max-w-7xl">
-      <PageHeader title="Sales" description="Orders, dispatches, payments and customers."
+    <div className="mx-auto max-w-[1440px]">
+      <PageHeader title="Sales" icon="sales" description="Orders, dispatches, payments and customers."
         actions={<Button onClick={addFor[tab].open}><Plus className="size-4" /> {addFor[tab].label}</Button>} />
 
       {loadError ? (
@@ -194,6 +211,12 @@ export function SalesPage() {
             <DataTable columns={orderColumns}
               data={orders.data!.filter((o) => (orderStatus === ALL || o.status === orderStatus) && (paymentStatus === ALL || o.payment_status === paymentStatus))}
               searchPlaceholder="Search buyer, fabric, quality…" emptyTitle="No orders" initialSorting={[{ id: "created_at", desc: true }]}
+              exportName="sales-orders"
+              filters={[
+                ...(orderStatus !== ALL ? [{ label: `Status: ${orderStatus}`, onClear: () => setOrderStatus(ALL) }] : []),
+                ...(paymentStatus !== ALL ? [{ label: `Payment: ${paymentStatus}`, onClear: () => setPaymentStatus(ALL) }] : []),
+                ...periodChip,
+              ]}
               toolbar={<>
                 <Filter value={orderStatus} onChange={setOrderStatus} options={ORDER_STATUSES} label="Order status" allLabel="All statuses" />
                 <Filter value={paymentStatus} onChange={setPaymentStatus} options={PAYMENT_STATUSES} label="Payment status" allLabel="All payments" />
@@ -204,6 +227,11 @@ export function SalesPage() {
           <TabsContent value="dispatch" className="mt-4">
             <DataTable columns={dispatchColumns} data={dispatches.data!.filter((d) => dispatchStatus === ALL || d.dispatch_status === dispatchStatus)}
               searchPlaceholder="Search order, vehicle, driver…" emptyTitle="No dispatches" initialSorting={[{ id: "dispatch_date", desc: true }]}
+              exportName="dispatches"
+              filters={[
+                ...(dispatchStatus !== ALL ? [{ label: `Status: ${dispatchStatus}`, onClear: () => setDispatchStatus(ALL) }] : []),
+                ...periodChip,
+              ]}
               toolbar={<>
                 <Filter value={dispatchStatus} onChange={setDispatchStatus} options={DISPATCH_STATUSES} label="Dispatch status" allLabel="All statuses" />
                 {dateToolbar}
@@ -213,6 +241,11 @@ export function SalesPage() {
           <TabsContent value="payments" className="mt-4">
             <DataTable columns={paymentColumns} data={payments.data!.filter((p) => paymentMethod === ALL || p.payment_method === paymentMethod)}
               searchPlaceholder="Search order, reference, person…" emptyTitle="No payments" initialSorting={[{ id: "payment_date", desc: true }]}
+              exportName="payments"
+              filters={[
+                ...(paymentMethod !== ALL ? [{ label: `Method: ${paymentMethod}`, onClear: () => setPaymentMethod(ALL) }] : []),
+                ...periodChip,
+              ]}
               toolbar={<>
                 <Filter value={paymentMethod} onChange={setPaymentMethod} options={PAYMENT_METHODS} label="Payment method" allLabel="All methods" />
                 {dateToolbar}
@@ -221,7 +254,7 @@ export function SalesPage() {
 
           <TabsContent value="customers" className="mt-4 space-y-4">
             {duplicates.data && duplicates.data.length > 0 && (
-              <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
+              <div className="rounded-xl border border-warning/30 bg-warning/8 p-4 text-sm">
                 <p className="font-medium">Possible duplicates ({duplicates.data.length})</p>
                 <ul className="mt-2 space-y-1 text-muted-foreground">
                   {duplicates.data.slice(0, 5).map((d) => (
@@ -233,7 +266,7 @@ export function SalesPage() {
             )}
             {customers.isError ? <ErrorState message={customers.error.message} onRetry={() => customers.refetch()} />
               : customers.isPending ? <TableSkeleton columns={4} />
-              : <DataTable columns={customerColumns} data={customers.data} searchPlaceholder="Search customers…" emptyTitle="No customers"
+              : <DataTable columns={customerColumns} data={customers.data} searchPlaceholder="Search customers…" emptyTitle="No customers" exportName="customers"
                   initialSorting={[{ id: "order_count", desc: true }]} />}
           </TabsContent>
         </Tabs>

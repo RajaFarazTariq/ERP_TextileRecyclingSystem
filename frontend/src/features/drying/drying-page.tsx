@@ -1,21 +1,25 @@
 "use client"
 
-import { CheckCircle2, Play, Plus, Power, Wrench } from "lucide-react"
+import { CheckCircle2, Fan, Flame, ListChecks, PackageCheck, Play, Plus, Power, Scale, Trash2, Wrench } from "lucide-react"
 import { useMemo, useState } from "react"
 
 import { ConfirmDialog } from "@/components/common/confirm-dialog"
 import { DataTable, type TableColumn } from "@/components/common/data-table"
+import { NameWithAvatar } from "@/components/common/identity"
+import { MachineCard } from "@/components/common/machine-card"
+import { FlowBar } from "@/components/common/meters"
 import { PageHeader } from "@/components/common/page-header"
 import { RowActions } from "@/components/common/row-actions"
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/common/states"
-import { StatCard } from "@/components/common/stat-card"
+import { SectionTitle } from "@/components/common/section-title"
+import { RateCard, StatCard } from "@/components/common/stat-card"
 import { StatusBadge } from "@/components/common/status-badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAction, useDelete, useList } from "@/lib/crud"
-import { kg } from "@/lib/format"
+import { kg, plural } from "@/lib/format"
 import type { DecolorDoneOption, Dryer, DryingSession, FabricReadyOption, UserSummary } from "@/types/api"
 import { CompleteDialog, DryerDialog, SessionDialog } from "./drying-forms"
 import { DRYER_STATUSES, SESSION_STATUSES } from "./schemas"
@@ -47,33 +51,70 @@ function DryingDashboard({ sessions, dryers }: { sessions: DryingSession[]; drye
   const active = sessions.filter((s) => s.status === "In Progress")
   const completedInput = completed.reduce((a, s) => a + n(s.input_quantity), 0)
   const completedOutput = completed.reduce((a, s) => a + n(s.output_quantity), 0)
+  const completedWaste = completed.reduce((a, s) => a + n(s.waste_quantity), 0)
+  const moisture = completed.reduce((a, s) => a + n(s.moisture_loss_kg), 0)
+  const runningDryers = dryers.filter((d) => d.status === "Running").length
+  // The batch in each dryer right now (latest session in progress)
+  const batchIn = (dryerId: number) =>
+    active.filter((s) => s.dryer === dryerId).sort((x, y) => new Date(y.start_date ?? 0).getTime() - new Date(x.start_date ?? 0).getTime())[0]
+
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Sessions" value={sessions.length} hint={`${completed.length} completed`} />
-        <StatCard label="Active sessions" value={active.length} hint={`${dryers.filter((d) => d.status === "Running").length} dryers running`} />
-        <StatCard label="Output efficiency" value={`${completedInput ? ((completedOutput / completedInput) * 100).toFixed(1) : "0.0"}%`} hint="Output ÷ input, completed sessions" />
-        <StatCard label="Dryers available" value={`${dryers.filter((d) => d.status === "Available").length} / ${dryers.length}`} hint="Ready for a new batch" />
-      </div>
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Total input" value={kg(sessions.reduce((a, s) => a + n(s.input_quantity), 0))} hint="Wet fabric from decolorization" />
-        <StatCard label="Total dried output" value={kg(sessions.reduce((a, s) => a + n(s.output_quantity), 0))} hint="Becomes sellable stock" />
-        <StatCard label="Total waste" value={kg(sessions.reduce((a, s) => a + n(s.waste_quantity), 0))} hint="Damaged or discarded while drying" />
-      </div>
-      <Card>
-        <CardHeader><CardTitle className="text-base">Dryers</CardTitle></CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {dryers.map((d) => (
-            <div key={d.id} className="flex items-center justify-between rounded-lg border p-3">
-              <div>
-                <p className="text-sm font-medium">{d.name}</p>
-                <p className="text-xs text-muted-foreground">{d.dryer_type} · {kg(d.capacity)}</p>
-              </div>
-              <StatusBadge status={d.status} />
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
+      <section className="space-y-3">
+        <SectionTitle>Throughput</SectionTitle>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard label="Sessions" icon={ListChecks} tone="drying" value={sessions.length} hint={`${completed.length} completed`} />
+          <StatCard label="Active sessions" icon={Flame} tone="running" value={active.length} hint={`${plural(runningDryers, "dryer")} running`} />
+          <StatCard label="Dryers available" icon={Fan} tone="success" value={`${dryers.filter((d) => d.status === "Available").length} / ${dryers.length}`} hint="Ready for a new batch" />
+          <StatCard label="Total input" icon={Scale} tone="drying" value={kg(sessions.reduce((a, s) => a + n(s.input_quantity), 0))} hint="Wet fabric from decolorization" />
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <SectionTitle>Output</SectionTitle>
+        <div className="grid gap-4 md:grid-cols-3">
+          <RateCard label="Output efficiency" percent={completedInput ? (completedOutput / completedInput) * 100 : 0} tone="success" hint="Output ÷ input, completed sessions" />
+          <StatCard label="Total dried output" icon={PackageCheck} tone="sales" value={kg(sessions.reduce((a, s) => a + n(s.output_quantity), 0))} hint="Becomes sellable stock" />
+          <StatCard label="Total waste" icon={Trash2} tone="danger" value={kg(sessions.reduce((a, s) => a + n(s.waste_quantity), 0))} hint="Damaged or discarded while drying" />
+        </div>
+        <Card className="animate-rise">
+          <CardHeader>
+            <CardTitle>Where the wet fabric went</CardTitle>
+            <CardDescription className="mt-0.5">Completed sessions · {kg(completedInput)} in</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FlowBar input={completedInput} label="Dried output, waste and moisture share of completed input" parts={[
+              { value: completedOutput, tone: "success", label: "Dried output" },
+              { value: completedWaste, tone: "danger", label: "Waste" },
+              { value: moisture, tone: "info", label: "Moisture lost" },
+            ]} />
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="space-y-3">
+        <SectionTitle>Dryers</SectionTitle>
+        <div className="grid gap-4 md:grid-cols-2">
+          {dryers.map((d) => {
+            const batch = batchIn(d.id)
+            return (
+              <MachineCard
+                key={d.id}
+                name={d.name}
+                subtitle={`${d.dryer_type} · ${kg(d.capacity)}`}
+                status={d.status}
+                icon={Fan}
+                tone="drying"
+                load={batch ? n(batch.input_quantity) : d.status === "Running" ? undefined : 0}
+                capacity={n(d.capacity)}
+                loadLabel={`${d.name} load`}
+                runningSince={batch?.start_date}
+                detail={batch ? `${batch.fabric_material}${batch.temperature_celsius ? ` · ${n(batch.temperature_celsius)} °C` : ""}` : d.status === "Maintenance" ? "Under maintenance" : "No batch loaded"}
+              />
+            )
+          })}
+        </div>
+      </section>
     </div>
   )
 }
@@ -106,7 +147,7 @@ export function DryingPage() {
     { accessorKey: "id", header: "#", cell: ({ getValue }) => <span className="text-muted-foreground">#{getValue<number>()}</span> },
     { accessorKey: "dryer_name", header: "Dryer", cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span> },
     { accessorKey: "fabric_material", header: "Fabric" },
-    { accessorKey: "supervisor_name", header: "Supervisor" },
+    { accessorKey: "supervisor_name", header: "Supervisor", cell: ({ getValue }) => <NameWithAvatar name={getValue<string>()} /> },
     { id: "input", header: "Input", accessorFn: (r) => n(r.input_quantity), sortFn: "basic", cell: ({ row }) => <span className="tabular-nums">{kg(row.original.input_quantity)}</span> },
     { id: "output", header: "Output", accessorFn: (r) => n(r.output_quantity), sortFn: "basic", cell: ({ row }) => <span className="tabular-nums">{kg(row.original.output_quantity)}</span> },
     { id: "waste", header: "Waste", accessorFn: (r) => n(r.waste_quantity), sortFn: "basic", cell: ({ row }) => <span className="tabular-nums">{kg(row.original.waste_quantity)}</span> },
@@ -156,8 +197,8 @@ export function DryingPage() {
   const loading = [sessions, dryers].some((q) => q.isPending)
 
   return (
-    <div className="mx-auto max-w-7xl">
-      <PageHeader title="Drying" description="Dryers and drying sessions. Completed output becomes sellable stock."
+    <div className="mx-auto max-w-[1440px]">
+      <PageHeader title="Drying" icon="drying" description="Dryers and drying sessions. Completed output becomes sellable stock."
         actions={tab === "dryers"
           ? <Button onClick={() => setEditing({ kind: "dryer", record: null })}><Plus className="size-4" /> Add dryer</Button>
           : <Button onClick={() => setEditing({ kind: "session", record: null })}><Plus className="size-4" /> Add session</Button>} />
@@ -179,12 +220,14 @@ export function DryingPage() {
           <TabsContent value="sessions" className="mt-4">
             <DataTable columns={sessionColumns} data={sessions.data!.filter((s) => sessionStatus === ALL || s.status === sessionStatus)}
               searchPlaceholder="Search dryer, fabric, supervisor…" emptyTitle="No drying sessions"
-              initialSorting={[{ id: "id", desc: true }]}
+              initialSorting={[{ id: "id", desc: true }]} exportName="drying-sessions"
+              filters={sessionStatus !== ALL ? [{ label: `Status: ${sessionStatus}`, onClear: () => setSessionStatus(ALL) }] : []}
               toolbar={<StatusSelect value={sessionStatus} onChange={setSessionStatus} statuses={SESSION_STATUSES} label="Status" />} />
           </TabsContent>
           <TabsContent value="dryers" className="mt-4">
             <DataTable columns={dryerColumns} data={dryers.data!.filter((d) => dryerStatus === ALL || d.status === dryerStatus)}
-              searchPlaceholder="Search dryers…" emptyTitle="No dryers"
+              searchPlaceholder="Search dryers…" emptyTitle="No dryers" exportName="dryers"
+              filters={dryerStatus !== ALL ? [{ label: `Status: ${dryerStatus}`, onClear: () => setDryerStatus(ALL) }] : []}
               toolbar={<StatusSelect value={dryerStatus} onChange={setDryerStatus} statuses={DRYER_STATUSES} label="Dryer status" />} />
           </TabsContent>
         </Tabs>

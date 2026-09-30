@@ -24,11 +24,11 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   )
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           {children}
-          <Toaster richColors closeButton />
+          <Toaster closeButton />
         </TooltipProvider>
       </QueryClientProvider>
     </ThemeProvider>

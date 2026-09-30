@@ -11,6 +11,7 @@ import { z } from "zod"
 import { ConfirmDialog } from "@/components/common/confirm-dialog"
 import { DataTable, type TableColumn } from "@/components/common/data-table"
 import { Field, FormDialog } from "@/components/common/form-dialog"
+import { InitialsAvatar } from "@/components/common/identity"
 import { PageHeader } from "@/components/common/page-header"
 import { RowActions } from "@/components/common/row-actions"
 import { SelectField } from "@/components/common/select-field"
@@ -22,13 +23,34 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ROLE_LABELS } from "@/config/access"
+import { NAV_TONES } from "@/config/nav-tones"
+import { NavIcon } from "@/components/layout/nav-icon"
 import { useSession } from "@/features/auth/use-session"
 import { ApiError, api } from "@/lib/api"
 import { useList } from "@/lib/crud"
 import { applyServerErrors } from "@/lib/forms"
+import { relativeTime } from "@/lib/format"
+import { TONE } from "@/lib/tones"
+import { cn } from "@/lib/utils"
 import type { Role, UserSummary } from "@/types/api"
 
 const ROLES = Object.keys(ROLE_LABELS) as Role[]
+// Each role takes the colour and icon of the module it runs
+const ROLE_ICONS = {
+  admin: "dashboard", warehouse_supervisor: "warehouse", sorting_supervisor: "sorting",
+  decolorization_supervisor: "decolorization", drying_supervisor: "drying",
+} as const satisfies Record<Role, keyof typeof NAV_TONES>
+const ROLE_TONES = Object.fromEntries(ROLES.map((r) => [r, NAV_TONES[ROLE_ICONS[r]]])) as Record<Role, (typeof NAV_TONES)[keyof typeof NAV_TONES]>
+
+function RoleBadge({ role }: { role: Role }) {
+  const tone = TONE[ROLE_TONES[role]]
+  return (
+    <span className={cn("inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium whitespace-nowrap", tone.soft, tone.text, tone.border)}>
+      <NavIcon name={ROLE_ICONS[role]} className="size-3" />
+      {ROLE_LABELS[role]}
+    </span>
+  )
+}
 const LISTS = [["users/list"]]
 
 const userSchema = z.object({
@@ -134,13 +156,23 @@ export function UsersPage() {
   const myId = me.data?.id
   const columns = useMemo<TableColumn<UserSummary>[]>(() => [
     { accessorKey: "username", header: "Username",
-      cell: ({ row }) => <span className="font-medium">{row.original.username}{row.original.id === myId && <span className="ml-2 text-xs text-muted-foreground">(you)</span>}</span> },
+      cell: ({ row }) => (
+        <span className="inline-flex items-center gap-2.5">
+          <InitialsAvatar name={row.original.username} />
+          <span className="font-medium">{row.original.username}</span>
+          {row.original.id === myId && <span className="rounded-md bg-brand/12 px-1.5 py-0.5 text-[11px] font-semibold text-brand-text"><span className="sr-only">(</span>you<span className="sr-only">)</span></span>}
+        </span>
+      ) },
     { accessorKey: "email", header: "Email", cell: ({ getValue }) => getValue<string>() || "—" },
-    { id: "role", header: "Role", accessorFn: (r) => ROLE_LABELS[r.role], cell: ({ row }) => ROLE_LABELS[row.original.role] },
+    { id: "role", header: "Role", accessorFn: (r) => ROLE_LABELS[r.role], cell: ({ row }) => <RoleBadge role={row.original.role} /> },
     { id: "status", header: "Status", accessorFn: (r) => (r.is_active ? "Active" : "Inactive"),
       cell: ({ row }) => <StatusBadge status={row.original.is_active ? "Active" : "Inactive"} tone={row.original.is_active ? "success" : "neutral"} /> },
     { id: "last_login", header: "Last login", accessorFn: (r) => (r.last_login ? new Date(r.last_login) : new Date(0)), sortFn: "datetime",
-      cell: ({ row }) => <span className="text-muted-foreground">{row.original.last_login_display}</span> },
+      cell: ({ row }) => (
+        <span className="text-muted-foreground" title={row.original.last_login_display}>
+          {row.original.last_login ? relativeTime(row.original.last_login) : "Never"}
+        </span>
+      ) },
     { id: "actions", header: "", enableSorting: false, enableHiding: false,
       cell: ({ row }) => {
         const u = row.original
@@ -159,8 +191,8 @@ export function UsersPage() {
   const counts = ROLES.map((r) => ({ role: r, count: (users.data ?? []).filter((u) => u.role === r).length }))
 
   return (
-    <div className="mx-auto max-w-6xl">
-      <PageHeader title="Users" description="Who can sign in, and what each role can open."
+    <div className="mx-auto max-w-[1440px]">
+      <PageHeader title="Users" icon="users" description="Who can sign in, and what each role can open."
         actions={<Button onClick={() => setEditing({ record: null })}><Plus className="size-4" /> Add user</Button>} />
 
       {users.isError ? <ErrorState message={users.error.message} onRetry={() => users.refetch()} />
@@ -168,16 +200,24 @@ export function UsersPage() {
         : (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              {counts.map((c) => (
-                <Card key={c.role} className="gap-0 py-3">
-                  <CardContent className="px-4">
-                    <p className="text-2xl font-semibold tabular-nums">{c.count}</p>
-                    <p className="text-xs text-muted-foreground">{ROLE_LABELS[c.role]}</p>
-                  </CardContent>
-                </Card>
-              ))}
+              {counts.map((c) => {
+                const tone = TONE[ROLE_TONES[c.role]]
+                return (
+                  <Card key={c.role} className="animate-rise gap-0 py-4">
+                    <CardContent className="flex items-center gap-3 px-4">
+                      <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", tone.soft, tone.text)}>
+                        <NavIcon name={ROLE_ICONS[c.role]} className="size-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-heading text-2xl leading-tight font-bold">{c.count}</p>
+                        <p className="truncate text-xs text-muted-foreground">{ROLE_LABELS[c.role]}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
             </div>
-            <DataTable columns={columns} data={users.data} searchPlaceholder="Search username, email, role…" emptyTitle="No users" />
+            <DataTable columns={columns} data={users.data} searchPlaceholder="Search username, email, role…" emptyTitle="No users" exportName="users" />
           </div>
         )}
 

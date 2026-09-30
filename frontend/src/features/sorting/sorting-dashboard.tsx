@@ -1,7 +1,11 @@
 "use client"
 
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import { Award, PackageCheck, Scale, Trash2 } from "lucide-react"
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
+import { axisProps, ChartCard, ChartLegend, ChartTooltip, cursorProps, gridProps, yAxisProps } from "@/components/common/chart"
+import { FlowBar } from "@/components/common/meters"
+import { SectionTitle } from "@/components/common/section-title"
 import { EmptyState } from "@/components/common/states"
 import { RateCard, StatCard } from "@/components/common/stat-card"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -49,48 +53,63 @@ export function SortingDashboard({ sessions }: { sessions: SortingSession[] }) {
     }))
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <RateCard label="Output efficiency" percent={k.efficiencyPct} tone="success" hint="Sorted ÷ input, all sessions" />
-        <RateCard label="Waste rate" percent={k.wastePct} tone="warning" hint="Waste ÷ input, all sessions" />
-        <RateCard label="Sessions completed" percent={k.completionPct} hint={`${k.completed} of ${k.total}`} />
-      </div>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Total input" value={kg(k.input)} hint="Fabric taken for sorting" />
-        <StatCard label="Total sorted" value={kg(k.sorted)} />
-        <StatCard label="Total waste" value={kg(k.waste)} />
-        <StatCard
-          label="Best session"
-          value={k.best ? `${k.best.efficiency.toFixed(1)}%` : "—"}
-          hint={k.best ? `#${k.best.session.id} ${k.best.session.fabric_material}` : "No completed sessions"}
-        />
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Recent sessions</CardTitle>
-          <CardDescription>Input, sorted output and waste for the last {recent.length} sessions</CardDescription>
-        </CardHeader>
-        <CardContent className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={recent} margin={{ left: 8, right: 8 }}>
-              <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border" />
-              <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={12} />
-              <YAxis tickLine={false} axisLine={false} fontSize={12} width={56}
-                tickFormatter={(v: number) => (v >= 1000 ? `${Number((v / 1000).toFixed(1))}k` : String(v))} />
-              <Tooltip
-                cursor={{ className: "fill-muted" }}
-                contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--popover-foreground)" }}
-                formatter={(value) => kg(Number(value))}
-                labelFormatter={(label, payload) => `${label} ${payload?.[0]?.payload?.material ?? ""}`}
-              />
-              <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="Input" isAnimationActive={false} fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Sorted" isAnimationActive={false} fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Waste" isAnimationActive={false} fill="var(--chart-5)" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
+      <section className="space-y-3">
+        <SectionTitle>Throughput</SectionTitle>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard label="Total input" icon={Scale} tone="sorting" value={kg(k.input)} hint="Fabric taken for sorting" />
+          <StatCard label="Total sorted" icon={PackageCheck} tone="success" value={kg(k.sorted)} hint="Ready for decolorization" />
+          <StatCard label="Total waste" icon={Trash2} tone="danger" value={kg(k.waste)} hint="Rejected while sorting" />
+          <StatCard
+            label="Best session"
+            icon={Award}
+            tone="warning"
+            value={k.best ? `${k.best.efficiency.toFixed(1)}%` : "—"}
+            hint={k.best ? `#${k.best.session.id} ${k.best.session.fabric_material}` : "No completed sessions"}
+          />
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <SectionTitle>Output</SectionTitle>
+        <div className="grid gap-4 md:grid-cols-3">
+          <RateCard label="Output efficiency" percent={k.efficiencyPct} tone="success" hint="Sorted ÷ input, all sessions" />
+          <RateCard label="Waste rate" percent={k.wastePct} tone="danger" hint="Waste ÷ input, all sessions" />
+          <RateCard label="Sessions completed" percent={k.completionPct} tone="sorting" hint={`${k.completed} of ${k.total}`} />
+        </div>
+        <Card className="animate-rise">
+          <CardHeader>
+            <CardTitle>Where the fabric went</CardTitle>
+            <CardDescription className="mt-0.5">Share of {kg(k.input)} taken for sorting</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FlowBar input={k.input} label="Sorted, waste and remaining share of the input" parts={[
+              { value: k.sorted, tone: "success", label: "Sorted" },
+              { value: k.waste, tone: "danger", label: "Waste" },
+            ]} />
+          </CardContent>
+        </Card>
+      </section>
+
+      <ChartCard title="Recent sessions" description={`Input, sorted output and waste for the last ${recent.length} sessions`} contentClassName="h-72"
+        actions={<ChartLegend items={[
+          { label: "Input", color: "var(--stage-sorting)" },
+          { label: "Sorted", color: "var(--chart-1)" },
+          { label: "Waste", color: "var(--chart-5)" },
+        ]} />}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={recent} margin={{ left: 0, right: 8, top: 8 }} barGap={3}>
+            <CartesianGrid {...gridProps} />
+            <XAxis dataKey="name" {...axisProps} />
+            <YAxis {...yAxisProps} />
+            <Tooltip cursor={cursorProps}
+              content={<ChartTooltip format={(v) => kg(v)} title={(label, p) => `Session ${label} · ${String(p.material ?? "")}`} />} />
+            <Bar dataKey="Input" isAnimationActive={false} fill="var(--stage-sorting)" radius={[4, 4, 1, 1]} maxBarSize={22} />
+            <Bar dataKey="Sorted" isAnimationActive={false} fill="var(--chart-1)" radius={[4, 4, 1, 1]} maxBarSize={22} />
+            <Bar dataKey="Waste" isAnimationActive={false} fill="var(--chart-5)" radius={[4, 4, 1, 1]} maxBarSize={22} />
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartCard>
     </div>
   )
 }

@@ -378,3 +378,12 @@ export interface AuditSummary {
 
 /** DRF validation errors: {"field": ["message"]} or {"detail": "message"}. */
 export type ApiErrorBody = Record<string, string[] | string> | { detail: string }
+
+/** Sellable dried stock per fabric lot (inventory ledger). */
+export interface LotStock {
+  fabric: number
+  material_type: string
+  on_hand_kg: string
+  reserved_kg: string
+  available_kg: string
+}

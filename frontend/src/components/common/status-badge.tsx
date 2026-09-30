@@ -1,16 +1,9 @@
+import { TONE, type StatusTone } from "@/lib/tones"
 import { cn } from "@/lib/utils"
 
+export type { StatusTone }
+
 // One colour language for statuses across every module
-const TONES = {
-  neutral: "bg-muted text-muted-foreground",
-  info: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
-  warning: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  success: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  danger: "bg-red-500/10 text-red-700 dark:text-red-300",
-} as const
-
-export type StatusTone = keyof typeof TONES
-
 const STATUS_TONES: Record<string, StatusTone> = {
   // warehouse
   Received: "info",
@@ -18,24 +11,24 @@ const STATUS_TONES: Record<string, StatusTone> = {
   Approved: "success",
   Rejected: "danger",
   // sessions
-  "In Progress": "info",
+  "In Progress": "running",
   Completed: "success",
   "On Hold": "warning",
   Failed: "danger",
   // tanks
   Empty: "neutral",
   Filled: "info",
-  Processing: "info",
+  Processing: "running",
   Cleaning: "warning",
   // dryers
   Available: "success",
-  Running: "info",
-  Cooling: "neutral",
-  Maintenance: "warning",
+  Running: "running",
+  Cooling: "info",
+  Maintenance: "danger",
   // sales
   Draft: "neutral",
   Confirmed: "info",
-  Dispatched: "info",
+  Dispatched: "running",
   Cancelled: "danger",
   Partial: "warning",
   Paid: "success",
@@ -43,19 +36,30 @@ const STATUS_TONES: Record<string, StatusTone> = {
   Delivered: "success",
   // fabric lots
   "In Warehouse": "neutral",
-  "In Sorting": "info",
+  "In Sorting": "running",
   Sorted: "success",
   "Sent to Decolorization": "info",
 }
 
+export function statusTone(status: string): StatusTone {
+  return STATUS_TONES[status] ?? "neutral"
+}
+
 export function StatusBadge({ status, tone }: { status: string; tone?: StatusTone }) {
+  const t = tone ?? statusTone(status)
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap",
-        TONES[tone ?? STATUS_TONES[status] ?? "neutral"],
+        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap",
+        TONE[t].soft,
+        TONE[t].text,
+        TONE[t].border,
       )}
     >
+      <span
+        aria-hidden
+        className={cn("size-1.5 shrink-0 rounded-full", TONE[t].solid, t === "running" && `animate-pulse-dot ${TONE[t].text}`)}
+      />
       {status}
     </span>
   )
