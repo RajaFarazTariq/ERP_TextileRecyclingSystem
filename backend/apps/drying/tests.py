@@ -66,3 +66,16 @@ class DryingTests(TestCase):
         make_drying_session(fabric=ready, decolor_session=linked)
         ids = {s['id'] for s in self.client.get('/api/drying/decolor-sessions-done/').data}
         self.assertEqual(ids, {done.id})
+
+
+
+class DryingCompletionValidationTests(TestCase):
+    def test_output_plus_waste_cannot_exceed_input(self):
+        client = client_for(make_user('drying_supervisor'))
+        session = make_drying_session(input_quantity=Decimal('100'), status='In Progress')
+        url = f'/api/drying/sessions/{session.id}/complete/'
+        self.assertEqual(client.post(url, {'output_quantity': '95', 'waste_quantity': '10'},
+                                     format='json').status_code, 400)
+        self.assertEqual(client.post(url, {'output_quantity': 'x'}, format='json').status_code, 400)
+        self.assertEqual(client.post(url, {'output_quantity': '90', 'waste_quantity': '10'},
+                                     format='json').status_code, 200)

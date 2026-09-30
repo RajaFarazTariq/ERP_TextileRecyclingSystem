@@ -115,3 +115,9 @@ def make_order(fabric=None, created_by=None, weight='10', price='100', **kwargs)
         weight_sold=Decimal(weight), price_per_kg=Decimal(price),
         total_price=Decimal(weight) * Decimal(price), **kwargs,
     )
+
+
+def make_dried_stock(fabric, kg='1000'):
+    """Give a fabric lot sellable stock the real way: a completed drying session."""
+    return make_drying_session(fabric=fabric, input_quantity=Decimal(kg), output_quantity=Decimal(kg),
+                               status='Completed')

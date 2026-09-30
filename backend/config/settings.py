@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'apps.decolorization',
     'apps.drying',
     'apps.sales',
+    'apps.inventory',
     'apps.reports',
     'apps.audit',
     'apps.notifications',

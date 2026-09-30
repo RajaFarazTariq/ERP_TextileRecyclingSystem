@@ -27,6 +27,9 @@ from apps.warehouse.models import Vendor, FactoryUnit, Stock
 from apps.sorting.models import FabricStock, SortingSession
 from apps.decolorization.models import ChemicalStock, Tank, ChemicalIssuance, DecolorizationSession
 from apps.sales.models import SalesOrder, DispatchTracking, Payment
+from apps.drying.models import DryingSession
+from apps.inventory.models import StockMovement
+from apps.sales.models import Customer
 
 
 # ─── Type-safe Decimal helpers ────────────────────────────────────────────────
@@ -116,6 +119,9 @@ class Command(SeedCommand):
             Payment.objects.all().delete()
             DispatchTracking.objects.all().delete()
             SalesOrder.objects.all().delete()
+            Customer.objects.all().delete()
+            DryingSession.objects.all().delete()
+            StockMovement.objects.all().delete()   # demo reset only: the ledger is otherwise append-only
             DecolorizationSession.objects.all().delete()
             ChemicalIssuance.objects.all().delete()
             Tank.objects.all().delete()
@@ -597,6 +603,12 @@ class Command(SeedCommand):
         self.stdout.write(f'  ✓ {order_count} sales orders (15/month × 24 months)')
         self.stdout.write(f'  ✓ {dispatch_count} dispatch records')
         self.stdout.write(f'  ✓ {payment_count} payments')
+
+        # ── Demo opening stock ───────────────────────────────────────────────
+        # The demo history sells more than it dries, which the stock rules would
+        # flag as oversold. Give each lot a labelled opening balance covering its
+        # orders plus a spare 2,000 kg so new demo orders can be confirmed.
+        self.add_demo_opening_stock(admin)
 
         # ══════════════════════════════════════════════════════════════════════
         # SUMMARY

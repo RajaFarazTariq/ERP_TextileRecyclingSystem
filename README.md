@@ -44,7 +44,8 @@ backend/
     sorting/              Fabric stock and sorting sessions
     decolorization/       Chemicals, tanks, issuances, sessions
     drying/               Dryers and drying sessions
-    sales/                Orders, dispatch, payments
+    sales/                Customers, orders, dispatch, payments
+    inventory/            Dried-stock ledger, reservations, adjustments
     reports/              Report data and Excel exports
     audit/                Audit log (model, ViewSet mixin, API)
     notifications/        Email alerts (signals) and scheduled reports
@@ -126,6 +127,23 @@ GitHub Actions (`.github/workflows/ci.yml`) runs the backend tests against Postg
 
 List endpoints return plain arrays; add `?page=1` or `?page_size=50` to get paginated results.
 Sessions use short-lived access tokens that the frontend renews automatically; logging out revokes the session.
+
+## Stock rules
+
+- **What can be sold:** dried output. Completing a drying session adds its output kg to that fabric lot's stock.
+- **Draft orders** are not checked. **Confirming** an order reserves its kg, and it is refused if the lot doesn't have enough available (on hand minus other confirmed orders).
+- **Dispatches** take stock out. An order must be confirmed first, can be dispatched in parts, and can't ship more than was ordered. Cancelling an order releases whatever it still had reserved.
+- Every stock change is a row in the ledger (`/api/inventory/movements/`) that points to the drying session, dispatch or adjustment that caused it. On-hand stock is the sum of those rows. Editing or deleting a source record corrects the ledger automatically.
+- **Corrections** (e.g. after a physical count) are admin-only adjustments with a required reason: `POST /api/inventory/movements/adjust/`.
+- Current figures per lot: `/api/inventory/movements/stock/`. The sales form's fabric list shows available kg.
+- Buyers are kept as a **customer list** (`/api/sales/customers/`). Typing a buyer name links the order to the matching customer, and new names create one. Similar names can be reviewed with `python manage.py customer_duplicates` and merged by an admin.
+
+Checks:
+
+```bash
+python manage.py reconcile_inventory        # ledger vs. drying sessions/dispatches, negative stock, oversold orders
+python manage.py customer_duplicates        # customers with near-identical names
+```
 
 ## Future Improvements
 - See [docs/UPGRADE_AUDIT.md](docs/UPGRADE_AUDIT.md) for the upgrade roadmap.

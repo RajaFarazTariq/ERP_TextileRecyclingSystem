@@ -11,6 +11,7 @@ api_patterns = [
     path('decolorization/', include('apps.decolorization.urls')),
     path('drying/', include('apps.drying.urls')),
     path('sales/', include('apps.sales.urls')),
+    path('inventory/', include('apps.inventory.urls')),
     path('reports/', include('apps.reports.urls')),
     path('', include('apps.audit.urls')),
 ]

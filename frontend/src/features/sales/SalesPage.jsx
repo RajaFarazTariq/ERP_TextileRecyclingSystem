@@ -6,6 +6,7 @@ import FilterBar from '../../components/common/FilterBar';
 import api from '../../services/api';
 import { inputCls, labelCls } from '../../styles/formClasses';
 import { int, fmtRs } from '../../utils/format';
+import { apiErrorMessage } from '../../utils/apiError';
 
 
 const ORDER_STATUS_COLORS = {
@@ -184,8 +185,8 @@ export default function SalesPage() {
     finally { setSaving(false); }
   };
 
-  const handleOrderAction  = async (id,action) => { try { await api.post(`sales/orders/${id}/${action}/`); fetchAll(); } catch { alert('Action failed.'); } };
-  const handleMarkDelivered= async (id) => { try { await api.post(`sales/dispatch/${id}/mark_delivered/`); fetchAll(); } catch { alert('Action failed.'); } };
+  const handleOrderAction  = async (id,action) => { try { await api.post(`sales/orders/${id}/${action}/`); fetchAll(); } catch (e) { alert(apiErrorMessage(e, 'Action failed.')); } };
+  const handleMarkDelivered= async (id) => { try { await api.post(`sales/dispatch/${id}/mark_delivered/`); fetchAll(); } catch (e) { alert(apiErrorMessage(e, 'Action failed.')); } };
   const handleDelete       = async (type,id) => {
     if (!window.confirm('Are you sure?')) return;
     const urls={order:'sales/orders/',dispatch:'sales/dispatch/',payment:'sales/payments/'};
@@ -520,7 +521,7 @@ export default function SalesPage() {
                 <div><label className={labelCls}>Fabric</label>
                   <select name="fabric" value={form.fabric||''} onChange={handleChange} className={inputCls}>
                     <option value="">Select fabric</option>
-                    {fabricStock.map(f=><option key={f.id} value={f.id}>{f.material_type}</option>)}
+                    {fabricStock.map(f=><option key={f.id} value={f.id}>{f.material_type} — {Number(f.dried_available_kg||0).toLocaleString()} kg available</option>)}
                   </select></div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><label className={labelCls}>Weight Sold (kg) <span className="text-red-500">*</span></label><input type="number" name="weight_sold" value={form.weight_sold||''} onChange={handleChange} className={inputCls}/></div>

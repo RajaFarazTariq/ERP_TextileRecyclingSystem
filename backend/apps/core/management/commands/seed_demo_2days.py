@@ -52,6 +52,7 @@ class Command(SeedCommand):
         tanks      = self._ensure_tanks(users)
         self._seed_decolorization(yesterday, today, fabrics, tanks, chemicals, users)
         self._seed_sales(yesterday, today, fabrics, users)
+        self.add_demo_opening_stock(users['erp_admin'])
 
         self.stdout.write(self.style.SUCCESS('\n✓ Demo data seeded successfully!\n'))
         self.stdout.write('  You can now view entries in all modules.')
@@ -64,7 +65,9 @@ class Command(SeedCommand):
         from apps.warehouse.models import Stock, Vendor, FactoryUnit
         from apps.sorting.models import FabricStock, SortingSession
         from apps.decolorization.models import Tank, ChemicalIssuance, DecolorizationSession
-        from apps.sales.models import SalesOrder, Payment, DispatchTracking
+        from apps.sales.models import SalesOrder, Payment, DispatchTracking, Customer
+        from apps.drying.models import DryingSession
+        from apps.inventory.models import StockMovement
 
         DecolorizationSession.objects.all().delete()
         ChemicalIssuance.objects.all().delete()
@@ -72,6 +75,9 @@ class Command(SeedCommand):
         Payment.objects.all().delete()
         DispatchTracking.objects.all().delete()
         SalesOrder.objects.all().delete()
+        Customer.objects.all().delete()
+        DryingSession.objects.all().delete()
+        StockMovement.objects.all().delete()   # demo reset only: the ledger is otherwise append-only
         Tank.objects.all().delete()
         FabricStock.objects.all().delete()
         Stock.objects.all().delete()

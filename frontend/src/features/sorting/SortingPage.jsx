@@ -5,6 +5,7 @@ import PageHeader from '../../components/common/PageHeader';
 import api from '../../services/api';
 import { inputCls, labelCls } from '../../styles/formClasses';
 import { int, fmt } from '../../utils/format';
+import { apiErrorMessage } from '../../utils/apiError';
 
 
 // ── Safe integer parser — handles Django DecimalField strings like "1683.00" ──
@@ -184,7 +185,7 @@ export default function SortingPage() {
     try {
       await api.post(`sorting/sessions/${completeModal}/complete/`, completeForm);
       await fetchAll(); setCompleteModal(null); setCompleteForm({});
-    } catch { alert('Could not complete session.'); }
+    } catch (e) { alert(apiErrorMessage(e, 'Could not complete session.')); }
   };
 
   const handleDelete = async (type, id) => {
@@ -529,7 +530,7 @@ export default function SortingPage() {
                       <input type="number" name="initial_quantity" value={form.initial_quantity || ''} onChange={handleChange} className={inputCls} />
                     </div>
                     <div><label className={labelCls}>Remaining Qty (kg)</label>
-                      <input type="number" name="remaining_quantity" value={form.remaining_quantity || ''} onChange={handleChange} className={inputCls} />
+                      <input type="number" name="remaining_quantity" value={form.remaining_quantity || ''} onChange={handleChange} disabled={!!form.id} title={form.id ? 'Changes through sorting sessions' : 'Defaults to Initial Quantity'} className={inputCls} />
                     </div>
                   </div>
                   <div><label className={labelCls}>Status</label>

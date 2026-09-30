@@ -5,6 +5,7 @@ import PageHeader from '../../components/common/PageHeader';
 import api from '../../services/api';
 import { inputCls, labelCls } from '../../styles/formClasses';
 import { int, fmt } from '../../utils/format';
+import { apiErrorMessage } from '../../utils/apiError';
 
 
 // ── Safe integer parser — handles Django DecimalField strings like "4800.00" ─
@@ -242,7 +243,7 @@ export default function DecolorizationPage() {
     try {
       await api.post(`decolorization/sessions/${completeModal}/complete/`, completeForm);
       await fetchAll(); setCompleteModal(null); setCompleteForm({});
-    } catch { alert('Could not complete session.'); }
+    } catch (e) { alert(apiErrorMessage(e, 'Could not complete session.')); }
   };
 
   const handleDelete = async (type, id) => {
@@ -617,7 +618,7 @@ export default function DecolorizationPage() {
                   <div><label className={labelCls}>Chemical Name</label><input name="chemical_name" value={form.chemical_name || ''} onChange={handleChange} placeholder="e.g. Sodium Hypochlorite" className={inputCls} /></div>
                   <div className="grid grid-cols-2 gap-3">
                     <div><label className={labelCls}>Total Stock</label><input type="number" name="total_stock" value={form.total_stock || ''} onChange={handleChange} className={inputCls} /></div>
-                    <div><label className={labelCls}>Remaining Stock</label><input type="number" name="remaining_stock" value={form.remaining_stock || ''} onChange={handleChange} className={inputCls} /></div>
+                    <div><label className={labelCls}>Remaining Stock</label><input type="number" name="remaining_stock" value={form.remaining_stock || ''} onChange={handleChange} disabled={!!form.id} title={form.id ? 'Changes through issuances; edit Total Stock to restock' : 'Defaults to Total Stock'} className={inputCls} /></div>
                   </div>
                   <div><label className={labelCls}>Unit of Measure</label>
                     <select name="unit_of_measure" value={form.unit_of_measure || 'Liters'} onChange={handleChange} className={inputCls}>

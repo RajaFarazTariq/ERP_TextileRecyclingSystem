@@ -93,3 +93,28 @@ class AccessMatrixTests(TestCase):
         for url in list(MATRIX) + list(READ_ONLY):
             with self.subTest(url=url):
                 self.assertEqual(APIClient().get(url).status_code, 401)
+
+
+class ReseedTests(TestCase):
+    """Demo seeding must work repeatedly with stock tracking and delete protection in place."""
+
+    def test_seed_twice_then_confirm_a_new_order(self):
+        from apps.inventory import services
+        from apps.sales.models import SalesOrder
+        from apps.sorting.models import FabricStock
+
+        for _ in range(2):
+            call_command('seed_demo_data', stdout=StringIO())
+            call_command('seed_drying_data', stdout=StringIO())
+        self.assertFalse(SalesOrder.objects.filter(customer__isnull=True).exists())
+
+        fabric = FabricStock.objects.filter(
+            pk__in=[f for f, v in services.availability_map().items() if v['available'] >= 100]
+        ).first()
+        self.assertIsNotNone(fabric)
+        admin = make_user('admin')
+        res = client_for(admin).post('/api/sales/orders/', {
+            'buyer_name': 'New Buyer', 'fabric': fabric.id, 'fabric_quality': 'A',
+            'weight_sold': '100', 'price_per_kg': '50', 'status': 'Confirmed',
+        }, format='json')
+        self.assertEqual(res.status_code, 201)

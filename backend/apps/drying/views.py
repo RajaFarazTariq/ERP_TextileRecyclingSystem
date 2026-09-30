@@ -5,12 +5,14 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from django.db import transaction
 from django.utils import timezone
 
 from apps.audit.middleware import AuditedModelMixin
 from .models import Dryer, DryingSession
 from .serializers import DryerSerializer, DryingSessionSerializer
 from apps.core.permissions import IsDryingSupervisor
+from apps.core.quantities import parse_kg, check_not_more_than_input
 
 
 class DryerViewSet(AuditedModelMixin, viewsets.ModelViewSet):
@@ -79,6 +81,7 @@ class DryingSessionViewSet(AuditedModelMixin, viewsets.ModelViewSet):
         return Response({'message': f'Drying session started on {session.dryer.name}.'})
 
     @action(detail=True, methods=['post'])
+    @transaction.atomic
     def complete(self, request, pk=None):
         session = self.get_object()
         if session.status == 'Completed':
@@ -87,8 +90,9 @@ class DryingSessionViewSet(AuditedModelMixin, viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        output_qty = request.data.get('output_quantity', 0)
-        waste_qty  = request.data.get('waste_quantity',  0)
+        output_qty = parse_kg(request.data, 'output_quantity')
+        waste_qty  = parse_kg(request.data, 'waste_quantity')
+        check_not_more_than_input(session.input_quantity, output_qty, waste_qty)
         notes      = request.data.get('notes', session.notes or '')
 
         session_before = self.snapshot(session)

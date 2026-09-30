@@ -5,6 +5,7 @@ import FilterBar from '../../components/common/FilterBar';
 import api from '../../services/api';
 import { labelCls } from '../../styles/formClasses';
 import { int, fmt } from '../../utils/format';
+import { apiErrorMessage } from '../../utils/apiError';
 
 const inputCls = 'w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors';
 
@@ -129,19 +130,19 @@ export default function DryingPage() {
 
   const handleAction = async (id, action) => {
     try { await api.post(`drying/sessions/${id}/${action}/`); fetchAll(); }
-    catch { alert('Action failed.'); }
+    catch (e) { alert(apiErrorMessage(e, 'Action failed.')); }
   };
 
   const handleDryerAction = async (id, action) => {
     try { await api.post(`drying/dryers/${id}/${action}/`); fetchAll(); }
-    catch { alert('Action failed.'); }
+    catch (e) { alert(apiErrorMessage(e, 'Action failed.')); }
   };
 
   const handleComplete = async () => {
     try {
       await api.post(`drying/sessions/${completeModal}/complete/`, completeForm);
       await fetchAll(); setCompleteModal(null); setCompleteForm({});
-    } catch { alert('Could not complete session.'); }
+    } catch (e) { alert(apiErrorMessage(e, 'Could not complete session.')); }
   };
 
   const handleDelete = async (type, id) => {

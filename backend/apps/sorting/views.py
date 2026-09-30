@@ -5,7 +5,11 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from django.db import transaction
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError
+
+from apps.core.quantities import parse_kg, check_not_more_than_input
 
 from .models import FabricStock, SortingSession
 from .serializers import FabricStockSerializer, SortingSessionSerializer
@@ -19,6 +23,14 @@ class FabricStockViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     # IsSortingOrAdmin:
     #   GET  → any logged-in role (warehouse, decolor, etc. can read fabric)
     #   POST/PUT/DELETE → sorting_supervisor or admin only
+
+    def get_serializer_context(self):
+        # One pass over the ledger for the whole list instead of one per lot
+        from apps.inventory.services import availability_map
+        context = super().get_serializer_context()
+        if self.action == 'list':
+            context['availability'] = availability_map()
+        return context
 
     def get_queryset(self):
         queryset = FabricStock.objects.select_related('stock__vendor').order_by('-created_at')
@@ -44,6 +56,7 @@ class SortingSessionViewSet(AuditedModelMixin, viewsets.ModelViewSet):
         return queryset
 
     @action(detail=True, methods=['post'])
+    @transaction.atomic
     def complete(self, request, pk=None):
         session = self.get_object()
 
@@ -53,9 +66,18 @@ class SortingSessionViewSet(AuditedModelMixin, viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # ── FIX: use Decimal() not float() — model fields are DecimalField ──
-        quantity_sorted = Decimal(str(request.data.get('quantity_sorted', 0)))
-        waste_quantity  = Decimal(str(request.data.get('waste_quantity',  0)))
+        quantity_sorted = parse_kg(request.data, 'quantity_sorted')
+        waste_quantity  = parse_kg(request.data, 'waste_quantity')
+        check_not_more_than_input(session.quantity_taken, quantity_sorted, waste_quantity,
+                                  output_field='quantity_sorted')
+        processed = quantity_sorted + waste_quantity
+
+        # Lock the lot so two sessions can't process the same kg at once
+        fabric = FabricStock.objects.select_for_update().get(pk=session.fabric_id)
+        if processed > fabric.remaining_quantity:
+            raise ValidationError({'quantity_sorted': [
+                f'Only {fabric.remaining_quantity:,.2f} kg of this fabric is left unsorted.'
+            ]})
 
         session_before = self.snapshot(session)
         session.quantity_sorted = quantity_sorted
@@ -65,14 +87,12 @@ class SortingSessionViewSet(AuditedModelMixin, viewsets.ModelViewSet):
         session.save()
         self.log_change(session, session_before)
 
-        # Update fabric stock
-        fabric = session.fabric
+        # Update fabric stock: sorted and wasted kg both leave the unsorted pool
         fabric_before = self.snapshot(fabric)
         fabric.sorted_quantity    += quantity_sorted
-        fabric.remaining_quantity -= quantity_sorted
+        fabric.remaining_quantity -= processed
 
         if fabric.remaining_quantity <= Decimal('0'):
-            fabric.remaining_quantity = Decimal('0')
             fabric.status = 'Sorted'
 
         fabric.save()

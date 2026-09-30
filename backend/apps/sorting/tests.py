@@ -35,7 +35,8 @@ class SortingSessionTests(TestCase):
         self.assertEqual(res.status_code, 400)
 
     def test_partial_completion_reduces_remaining(self):
-        session = make_sorting_session(fabric=self.fabric, supervisor=self.user)
+        session = make_sorting_session(fabric=self.fabric, supervisor=self.user,
+                                       quantity_taken=Decimal('120'))
         res = self.complete(session, '100', waste='5')
         self.assertEqual(res.status_code, 200)
 
@@ -47,15 +48,33 @@ class SortingSessionTests(TestCase):
 
         self.fabric.refresh_from_db()
         self.assertEqual(self.fabric.sorted_quantity, Decimal('100'))
-        self.assertEqual(self.fabric.remaining_quantity, Decimal('200'))
+        # sorted and wasted kg both leave the unsorted pool
+        self.assertEqual(self.fabric.remaining_quantity, Decimal('195'))
         self.assertEqual(self.fabric.status, 'In Warehouse')   # unchanged until fully sorted
 
     def test_full_completion_marks_fabric_sorted(self):
-        session = make_sorting_session(fabric=self.fabric, supervisor=self.user)
-        self.complete(session, '350')   # more than remaining is clamped to zero
+        session = make_sorting_session(fabric=self.fabric, supervisor=self.user,
+                                       quantity_taken=Decimal('300'))
+        self.assertEqual(self.complete(session, '290', waste='10').status_code, 200)
         self.fabric.refresh_from_db()
         self.assertEqual(self.fabric.remaining_quantity, Decimal('0'))
         self.assertEqual(self.fabric.status, 'Sorted')
+
+    def test_completion_is_validated(self):
+        session = make_sorting_session(fabric=self.fabric, supervisor=self.user,
+                                       quantity_taken=Decimal('100'))
+        # more than the session took
+        self.assertEqual(self.complete(session, '90', waste='20').status_code, 400)
+        # negative or non-numeric values
+        self.assertEqual(self.complete(session, '-1').status_code, 400)
+        self.assertEqual(self.complete(session, 'abc').status_code, 400)
+        # more than the lot has left unsorted
+        big = make_sorting_session(fabric=self.fabric, supervisor=self.user,
+                                   quantity_taken=Decimal('400'))
+        self.assertEqual(self.complete(big, '350').status_code, 400)
+        session.refresh_from_db(); self.fabric.refresh_from_db()
+        self.assertEqual(session.status, 'In Progress')
+        self.assertEqual(self.fabric.remaining_quantity, Decimal('300'))
 
     def test_cannot_complete_twice(self):
         session = make_sorting_session(fabric=self.fabric, supervisor=self.user)

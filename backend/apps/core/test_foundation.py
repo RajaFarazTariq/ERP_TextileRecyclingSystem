@@ -11,7 +11,7 @@ from rest_framework.test import APIClient
 from apps.audit.models import AuditLog
 from apps.core.testing import (
     make_user, client_for, make_stock, make_fabric, make_sorting_session, make_order,
-    make_chemical, make_tank,
+    make_chemical, make_tank, make_dried_stock,
 )
 from apps.sales.models import SalesOrder, Payment
 from apps.warehouse.models import Vendor
@@ -61,6 +61,7 @@ class AuditCoverageTests(TestCase):
 
     def test_sales_order_create_and_actions(self):
         fabric = make_fabric()
+        make_dried_stock(fabric)
         res = self.client.post('/api/sales/orders/', {
             'buyer_name': 'B', 'fabric': fabric.id, 'fabric_quality': 'A',
             'weight_sold': '1', 'price_per_kg': '1',
@@ -102,7 +103,8 @@ class ActorFieldTests(TestCase):
         self.admin = make_user('admin')
         self.other = make_user('admin')
         self.client = client_for(self.admin)
-        self.order = make_order(created_by=self.other)
+        self.order = make_order(created_by=self.other, status='Confirmed')
+        make_dried_stock(self.order.fabric)
 
     def test_created_by_is_always_the_logged_in_user(self):
         res = self.client.post('/api/sales/orders/', {

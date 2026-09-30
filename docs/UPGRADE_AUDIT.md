@@ -19,6 +19,16 @@ This is the Phase 1 deliverable from `Upgradation.txt`. No application code was 
 > - **API:** opt-in pagination and no N+1 queries on list endpoints; Swagger docs; the `/api/v1/` prefix.
 > - **Deployment:** Docker Compose (PostgreSQL, gunicorn, nginx), and production security settings controlled by env.
 >
+> **Phase 3 (done):** decisions made with the owner: dried output is sellable; overselling is blocked; stock is reserved at Confirm and deducted at Dispatch; customers are merged on exact name matches.
+> - **Stock ledger** (`apps/inventory`) kept in sync with drying sessions and dispatches (D2). Reservations are computed, not stored. Stock checks lock the fabric row (tested with concurrent requests on PostgreSQL).
+> - **Sales:** can no longer oversell, and dispatches need a confirmed order (D7).
+> - **Chemicals:** issuance edits and deletes restore stock (D4). Stock figures on fabric lots and chemicals can't be typed in directly anymore (D3).
+> - **Process steps:** sorting, decolorization and drying completions are validated (D5, D6).
+> - **Customer list** with automatic linking, a duplicate report and admin merge (D10); order total widened (D12).
+> - **Migrations:** rehearsed on a demo-data database. Existing rows are unchanged (checksum-verified), rollback and re-apply work, and backup/restore was tested.
+> - **Seed commands:** re-seeding works with delete protection in place, and demo lots get a labelled "Demo opening stock" adjustment.
+> - **Still open:** D8. The `FabricStock.status` values are unchanged; sellable stock now comes from the ledger rather than the status.
+>
 > **Phase 0:** done: S1 (moved to env), S2, S3 (partly), S4, S10, F1, F2 (safe handlers only), D9, and duplicate code from F5. One follow-up came out of connecting the signals in F2: the demo seed commands triggered hundreds of alert emails, one per chemical issuance or payment. Seed commands now capture email instead of sending it (`apps/core/management/base.py`). The per-event alerts themselves still need throttling before production.
 
 ---

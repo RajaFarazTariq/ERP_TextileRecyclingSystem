@@ -1,6 +1,7 @@
 # decolorization/views.py
 import logging
 
+from django.db import transaction
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets, status
@@ -15,6 +16,7 @@ from .serializers import (
     ChemicalIssuanceSerializer, DecolorizationSessionSerializer,
 )
 from apps.core.permissions import IsDecolorizationOrAdmin
+from apps.core.quantities import parse_kg, check_not_more_than_input
 from apps.notifications.tasks import alert_if_chemical_became_low
 
 logger = logging.getLogger(__name__)
@@ -101,17 +103,55 @@ class ChemicalIssuanceViewSet(AuditedModelMixin, viewsets.ModelViewSet):
         else:
             issuance = super().perform_create(serializer, issued_by=self.request.user)
         # Deduct from chemical stock automatically
-        chemical = issuance.chemical
+        chemical = ChemicalStock.objects.select_for_update().get(pk=issuance.chemical_id)
         before = self.snapshot(chemical)
         chemical.issued_quantity += issuance.quantity
         chemical.remaining_stock -= issuance.quantity
         chemical.save()
         self.log_change(chemical, before)
 
+        self._alert(chemical, before)
+
+    def perform_update(self, serializer):
+        old = serializer.instance
+        old_chemical_id, old_quantity = old.chemical_id, old.quantity
+        issuance = super().perform_update(serializer)
+        # Return the old quantity, then take the new one (the chemical may have changed)
+        self._adjust(old_chemical_id, old_quantity)
+        chemical = ChemicalStock.objects.get(pk=issuance.chemical_id)
+        before = self.snapshot(chemical)
+        self._adjust(issuance.chemical_id, -issuance.quantity)
+        chemical.refresh_from_db()
+        self._alert(chemical, before)
+
+    def perform_destroy(self, instance):
+        chemical_id, quantity = instance.chemical_id, instance.quantity
+        with transaction.atomic():
+            super().perform_destroy(instance)
+            self._adjust(chemical_id, quantity)
+
+    def _adjust(self, chemical_id, quantity):
+        """Add `quantity` back to remaining stock (negative takes it out)."""
+        chemical = ChemicalStock.objects.select_for_update().get(pk=chemical_id)
+        before = self.snapshot(chemical)
+        chemical.remaining_stock += quantity
+        chemical.issued_quantity -= quantity
+        chemical.save()
+        self.log_change(chemical, before)
+
+    def _alert(self, chemical, before):
         try:
             alert_if_chemical_became_low(chemical, remaining_before=before['remaining_stock'])
         except Exception as e:   # an email failure must not fail the issuance
             logger.error(f"Low-stock alert failed: {e}")
+
+    def create(self, request, *args, **kwargs):
+        with transaction.atomic():
+            return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        with transaction.atomic():
+            return super().update(request, *args, **kwargs)
 
 
 class DecolorizationSessionViewSet(AuditedModelMixin, viewsets.ModelViewSet):
@@ -120,6 +160,7 @@ class DecolorizationSessionViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsDecolorizationOrAdmin]
 
     @action(detail=True, methods=['post'])
+    @transaction.atomic
     def complete(self, request, pk=None):
         session = self.get_object()
         if session.status == 'Completed':
@@ -128,8 +169,9 @@ class DecolorizationSessionViewSet(AuditedModelMixin, viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        output_quantity = request.data.get('output_quantity', 0)
-        waste_quantity  = request.data.get('waste_quantity',  0)
+        output_quantity = parse_kg(request.data, 'output_quantity')
+        waste_quantity  = parse_kg(request.data, 'waste_quantity')
+        check_not_more_than_input(session.input_quantity, output_quantity, waste_quantity)
 
         session_before = self.snapshot(session)
         session.output_quantity = output_quantity

@@ -61,7 +61,7 @@ class PartialUpdateTests(APITestCase):
 # ─────────────────────────────────────────────────────────────────────────────
 # Order, dispatch and payment workflow
 # ─────────────────────────────────────────────────────────────────────────────
-from apps.core.testing import make_user, client_for, make_fabric, make_order
+from apps.core.testing import make_user, client_for, make_fabric, make_order, make_dried_stock
 from .models import DispatchTracking, Payment
 
 
@@ -89,6 +89,7 @@ class SalesWorkflowTests(APITestCase):
         self.assertEqual(order.total_price, Decimal('1500'))
 
     def test_confirm_and_cancel(self):
+        make_dried_stock(self.fabric)
         order = make_order(fabric=self.fabric, created_by=self.admin)
         self.client.post(f'/api/sales/orders/{order.id}/confirm/')
         order.refresh_from_db()
@@ -148,3 +149,64 @@ class SalesWorkflowTests(APITestCase):
         self.assertEqual(ids('buyer=ali'), {a.id})
         self.assertEqual(ids('status=Confirmed'), {a.id})
         self.assertEqual(len(ids('date_filter=today')), 2)
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 3: customers
+# ─────────────────────────────────────────────────────────────────────────────
+from .models import Customer
+
+
+class CustomerTests(APITestCase):
+    def setUp(self):
+        self.admin = make_user('admin')
+        self.client = client_for(self.admin)
+        self.fabric = make_fabric()
+
+    def create_order(self, **data):
+        payload = {'fabric': self.fabric.id, 'fabric_quality': 'A', 'weight_sold': '1', 'price_per_kg': '1'}
+        payload.update(data)
+        return self.client.post('/api/sales/orders/', payload, format='json')
+
+    def test_typed_buyer_names_link_to_one_customer(self):
+        a = self.create_order(buyer_name='Ali Traders').data
+        b = self.create_order(buyer_name='  ALI  traders').data
+        self.assertEqual(a['customer'], b['customer'])
+        self.assertEqual(a['customer_name'], 'Ali Traders')
+        self.assertEqual(b['buyer_name'], 'ALI  traders')          # kept as typed (DRF trims the ends)
+        self.assertEqual(Customer.objects.count(), 1)
+
+    def test_choosing_a_customer_fills_the_buyer_name(self):
+        c = Customer.objects.create(name='Bilal & Co')
+        res = self.create_order(customer=c.id)
+        self.assertEqual(res.status_code, 201)
+        self.assertEqual(res.data['buyer_name'], 'Bilal & Co')
+        self.assertEqual(self.create_order().status_code, 400)       # neither given
+
+    def test_customer_crud_and_duplicate_names(self):
+        res = self.client.post('/api/sales/customers/', {'name': 'Zain Fabrics'}, format='json')
+        self.assertEqual(res.status_code, 201)
+        res = self.client.post('/api/sales/customers/', {'name': 'zain  FABRICS'}, format='json')
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(client_for(make_user('sorting_supervisor')).post(
+            '/api/sales/customers/', {'name': 'X'}, format='json').status_code, 403)
+
+    def test_similar_names_are_reported_and_can_be_merged(self):
+        keep = Customer.objects.create(name='Ali Traders')
+        dupe = Customer.objects.create(name='Ali Trader')
+        Customer.objects.create(name='Zain Fabrics')
+        order = make_order(fabric=self.fabric, created_by=self.admin, customer=dupe)
+
+        pairs = self.client.get('/api/sales/customers/duplicates/').data
+        self.assertEqual(len(pairs), 1)
+        self.assertEqual({pairs[0]['a']['id'], pairs[0]['b']['id']}, {keep.id, dupe.id})
+
+        self.assertEqual(client_for(make_user('warehouse_supervisor')).post(
+            f'/api/sales/customers/{dupe.id}/merge/', {'into': keep.id}, format='json').status_code, 403)
+        res = self.client.post(f'/api/sales/customers/{dupe.id}/merge/', {'into': keep.id}, format='json')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data['order_count'], 1)
+        order.refresh_from_db()
+        self.assertEqual(order.customer, keep)
+        self.assertFalse(Customer.objects.filter(pk=dupe.pk).exists())
