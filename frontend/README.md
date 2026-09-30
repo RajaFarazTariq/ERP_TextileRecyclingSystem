@@ -1,12 +1,12 @@
 # Textile ERP — web app (Next.js)
 
-The new interface for the ERP. Pages move here from the classic app (`../frontend`) one module at a time; modules not moved yet open in the classic app.
+The web interface for the ERP.
 
 ## Run
 
 ```bash
 npm install
-copy .env.example .env.local     # DJANGO_API_URL, NEXT_PUBLIC_LEGACY_APP_URL, SECURE_COOKIES
+copy .env.example .env.local     # DJANGO_API_URL, SECURE_COOKIES
 npm run dev -- -p 3001           # http://localhost:3001
 ```
 
@@ -31,5 +31,5 @@ The browser never holds the login tokens. `src/app/api/auth/*` logs in against D
 npm run lint
 npm run typecheck
 npm run build
-npm run e2e        # browser test; see the header of e2e/warehouse.mjs for setup
+npm run e2e        # browser tests; see the header of e2e/run.mjs for setup
 ```

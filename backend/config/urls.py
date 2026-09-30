@@ -2,8 +2,8 @@ from django.contrib import admin
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
-# Module APIs. Served at /api/ (what the current frontend uses) and at the
-# versioned /api/v1/ prefix for new clients.
+# Module APIs. Served at the versioned /api/v1/ prefix (used by the web app)
+# and, for older clients, at /api/.
 api_patterns = [
     path('users/', include('apps.users.urls')),
     path('warehouse/', include('apps.warehouse.urls')),

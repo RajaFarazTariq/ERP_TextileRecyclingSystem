@@ -19,11 +19,12 @@ This is the Phase 1 deliverable from `Upgradation.txt`. No application code was 
 > - **API:** opt-in pagination and no N+1 queries on list endpoints; Swagger docs; the `/api/v1/` prefix.
 > - **Deployment:** Docker Compose (PostgreSQL, gunicorn, nginx), and production security settings controlled by env.
 >
-> **Phase 4 (in progress):** a new Next.js + TypeScript app in `frontend-next/` runs alongside the classic one.
+> **Phase 4 (done):** a new Next.js + TypeScript app in `frontend/` replaced the classic React app, which has been removed.
 > - **Login and API access:** the login is held in httpOnly cookies by the app's own server (the rest of S7), which forwards API calls to `/api/v1/`, renews the session, and blocks cross-site writes.
 > - **Role-aware layout** and shared components: data table, dialogs, and loading, empty and error states.
-> - **Warehouse** has moved; the other modules open in the classic app until they're moved.
-> - **Verified:** a browser test (`npm run e2e`) passes locally and against the Docker stack.
+> - **All pages moved:** Dashboard, Warehouse, Sorting, Decolorization, Drying, Sales, Users, Reports (with the audit log).
+> - **Docker:** the site is served at port 8080; its front server also routes `/admin/` and `/api/docs/` to Django.
+> - **Verified:** browser tests (`npm run e2e`, 86 checks across 7 scenarios) pass locally and against the Docker stack.
 >
 > **Phase 3 (done):** decisions made with the owner: dried output is sellable; overselling is blocked; stock is reserved at Confirm and deducted at Dispatch; customers are merged on exact name matches.
 > - **Stock ledger** (`apps/inventory`) kept in sync with drying sessions and dispatches (D2). Reservations are computed, not stored. Stock checks lock the fabric row (tested with concurrent requests on PostgreSQL).

@@ -15,8 +15,7 @@ ERP Textile Recycling System is a web-based application designed to streamline a
 ## Tech Stack
 
 - Backend: Python, Django 5.2, Django REST Framework, SimpleJWT
-- Frontend (new, being rolled out page by page): Next.js, TypeScript, Tailwind CSS, shadcn/ui, TanStack Query/Table, React Hook Form + Zod
-- Frontend (classic, still serving pages not yet moved): React (JavaScript, Tailwind CSS)
+- Frontend: Next.js, TypeScript, Tailwind CSS, shadcn/ui, TanStack Query/Table, React Hook Form + Zod, Recharts
 - Database: PostgreSQL
 - Version Control: Git & GitHub
 
@@ -54,7 +53,7 @@ backend/
   setup_fresh.py          Creates a fresh database with a Test_User admin
   requirements.txt
   .env.example
-frontend-next/            New app (Next.js + TypeScript)
+frontend/                 Web app (Next.js + TypeScript)
   src/
     app/                  Routes: login, (app)/<module>, api/ (session + Django proxy)
     features/<module>/    Page, forms and schemas per module
@@ -62,15 +61,6 @@ frontend-next/            New app (Next.js + TypeScript)
     lib/                  API client, CRUD hooks, formatting; lib/server/ = session cookies
     config/access.ts      Role access per route and the sidebar menu
     proxy.ts              Route guard (login + role)
-frontend/                 Classic app (pages move to frontend-next one at a time)
-  src/
-    config/access.js      Which roles can open which routes (router + sidebar)
-    services/api.js       Axios client (base URL from REACT_APP_API_URL)
-    context/              Auth and dark-mode state
-    routes/               ProtectedRoute
-    components/           layout/ (MainLayout, Sidebar), common/ (shared UI)
-    features/<module>/    One folder per module page
-    utils/, styles/       Shared formatters, form classes, global CSS
 docs/                     Upgrade audit and roadmap
 ```
 
@@ -85,7 +75,7 @@ docker compose up -d --build
 docker compose exec backend python setup_fresh.py   # first time: creates Test_User / Test@1234
 ```
 
-Open http://localhost:8081 for the new app, or http://localhost:8080 for the classic app. Database data is kept in the `pgdata` Docker volume.
+Open http://localhost:8080. The admin panel is at http://localhost:8080/admin/ and the API docs at http://localhost:8080/api/docs/. Database data is kept in the `pgdata` Docker volume.
 
 ## Installation (without Docker)
 
@@ -110,25 +100,16 @@ python setup_fresh.py             # fresh database with only Test_User / Test@12
 python manage.py seed_demo_data   # demo data (alert emails are not sent while seeding)
 ```
 
-### Frontend (new app)
-
-```bash
-cd frontend-next
-npm install
-copy .env.example .env.local      # DJANGO_API_URL, NEXT_PUBLIC_LEGACY_APP_URL
-npm run dev -- -p 3001
-```
-
-Open http://localhost:3001. The browser never talks to Django directly: the app's own server keeps the login in httpOnly cookies and forwards API calls to Django (`/api/django/...` → `/api/v1/...`), renewing the session when it expires. Set `NUM_PROXIES=1` in `backend/.env` so Django's login rate limit sees each user's real address. Pages not moved yet open in the classic app.
-
-### Frontend (classic app)
+### Frontend
 
 ```bash
 cd frontend
 npm install
-copy .env.example .env            # REACT_APP_API_URL, defaults to http://127.0.0.1:8000/api/
-npm start
+copy .env.example .env.local      # DJANGO_API_URL, SECURE_COOKIES
+npm run dev -- -p 3001
 ```
+
+Open http://localhost:3001. The browser never talks to Django directly: the app's own server keeps the login in httpOnly cookies and forwards API calls to Django (`/api/django/...` → `/api/v1/...`), renewing the session when it expires. Set `NUM_PROXIES=1` in `backend/.env` so Django's login rate limit sees each user's real address.
 
 ### Tests
 
@@ -137,11 +118,10 @@ cd backend
 python manage.py test apps
 ```
 
-GitHub Actions (`.github/workflows/ci.yml`) runs the backend tests against PostgreSQL and builds the frontend on every push to `main` or `upgrade/**` and on every pull request.
+GitHub Actions (`.github/workflows/ci.yml`) runs the backend tests against PostgreSQL and lints, type-checks and builds the web app on every push to `main` or `upgrade/**` and on every pull request.
 
 ## Usage
-- New app: http://localhost:3001/ (http://localhost:8081/ with Docker)
-- Classic app: http://localhost:3000/ (http://localhost:8080/ with Docker)
+- Web app: http://localhost:3001/ (http://localhost:8080/ with Docker)
 - API: http://127.0.0.1:8000/api/ (also available under the versioned prefix `/api/v1/`)
 - API documentation (Swagger): http://127.0.0.1:8000/api/docs/ (open when `DEBUG=True`; otherwise log in at `/admin/` as a staff user first)
 - Admin panel: http://127.0.0.1:8000/admin/
