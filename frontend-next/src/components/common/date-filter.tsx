@@ -41,6 +41,38 @@ export function dateParams(filter: DateFilterValue): Record<string, string | und
   }
 }
 
+/**
+ * Same periods applied in the browser, for lists whose API has no date
+ * parameters. Weeks start on Monday, as in the backend.
+ */
+export function matchesDate(value: string | null | undefined, filter: DateFilterValue): boolean {
+  if (filter.type === "all") return true
+  if (!value) return false
+  const d = new Date(value)
+  const now = new Date()
+  const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate())
+  const iso = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`
+  switch (filter.type) {
+    case "today":
+      return day(d).getTime() === day(now).getTime()
+    case "this_week": {
+      const start = day(now)
+      start.setDate(start.getDate() - ((start.getDay() + 6) % 7))
+      return d >= start
+    }
+    case "this_month":
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+    case "this_year":
+      return d.getFullYear() === now.getFullYear()
+    case "year":
+      return !filter.year || String(d.getFullYear()) === filter.year
+    case "month":
+      return !filter.month || iso(d).slice(0, 7) === filter.month
+    case "custom":
+      return (!filter.start || iso(d) >= filter.start) && (!filter.end || iso(d) <= filter.end)
+  }
+}
+
 export function DateFilter({ value, onChange }: { value: DateFilterValue; onChange: (v: DateFilterValue) => void }) {
   const thisYear = new Date().getFullYear()
   return (

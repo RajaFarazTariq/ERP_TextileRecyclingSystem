@@ -9,10 +9,15 @@
 //   BASE=http://host:port        another address; SHOTS=<folder> for screenshots
 import { chromium } from 'playwright'
 
+import { decolorizationScenario } from './decolorization.mjs'
 import { sortingScenario } from './sorting.mjs'
 import { warehouseScenario } from './warehouse.mjs'
 
-const scenarios = { warehouse: warehouseScenario, sorting: sortingScenario }
+const scenarios = {
+  warehouse: warehouseScenario,
+  sorting: sortingScenario,
+  decolorization: decolorizationScenario,
+}
 const wanted = process.argv.slice(2).filter((a) => a in scenarios)
 
 const browser = await chromium.launch()

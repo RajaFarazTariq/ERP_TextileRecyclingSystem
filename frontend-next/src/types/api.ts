@@ -90,5 +90,74 @@ export interface SortingSession {
   notes: string | null
 }
 
+export type TankStatus = "Empty" | "Filled" | "Processing" | "Completed" | "Cleaning"
+
+export interface Tank {
+  id: number
+  name: string
+  batch_id: string
+  capacity: Decimal
+  fabric: number | null
+  fabric_material: string | null
+  fabric_quantity: Decimal
+  tank_status: TankStatus
+  supervisor: number | null
+  supervisor_name: string | null
+  start_date: string | null
+  expected_completion: string | null
+  actual_completion: string | null
+  notes: string | null
+  created_at: string
+}
+
+export interface Chemical {
+  id: number
+  chemical_name: string
+  total_stock: Decimal
+  issued_quantity: Decimal
+  remaining_stock: Decimal
+  unit_of_measure: string
+  last_updated: string
+}
+
+export interface ChemicalIssuance {
+  id: number
+  chemical: number
+  chemical_name: string
+  tank: number
+  tank_name: string
+  issued_by: number
+  issued_by_name: string
+  quantity: Decimal
+  issued_at: string
+  notes: string | null
+}
+
+export type ProcessStatus = "In Progress" | "Completed" | "Failed" | "On Hold"
+
+export interface DecolorizationSession {
+  id: number
+  tank: number
+  tank_name: string
+  fabric: number
+  fabric_material: string
+  supervisor: number
+  supervisor_name: string
+  input_quantity: Decimal
+  output_quantity: Decimal
+  waste_quantity: Decimal
+  status: ProcessStatus
+  start_date: string
+  end_date: string | null
+  notes: string | null
+}
+
+/** Lightweight fabric list for decolorization dropdowns. */
+export interface FabricOption {
+  id: number
+  material_type: string
+  status: string
+}
+
 /** DRF validation errors: {"field": ["message"]} or {"detail": "message"}. */
 export type ApiErrorBody = Record<string, string[] | string> | { detail: string }

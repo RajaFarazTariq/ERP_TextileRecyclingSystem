@@ -5,8 +5,8 @@ import { useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 
 import { Field, FormDialog } from "@/components/common/form-dialog"
+import { SelectField } from "@/components/common/select-field"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { ROLE_LABELS } from "@/config/access"
 import { useAction, useSave } from "@/lib/crud"
@@ -27,28 +27,6 @@ interface DialogProps<T> {
   open: boolean
   onOpenChange: (open: boolean) => void
   record?: T | null
-}
-
-function SelectField({
-  id, value, onChange, placeholder, options, invalid,
-}: {
-  id: string
-  value: string
-  onChange: (v: string) => void
-  placeholder: string
-  options: { value: string; label: string }[]
-  invalid?: boolean
-}) {
-  return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger id={id} className="w-full" aria-invalid={invalid}>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-      </SelectContent>
-    </Select>
-  )
 }
 
 // ─── Sorting session ────────────────────────────────────────────────────────

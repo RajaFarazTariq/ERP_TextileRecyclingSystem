@@ -55,7 +55,7 @@ export const NAV: NavGroup[] = [
     items: [
       { title: "Warehouse", href: "/warehouse", icon: "warehouse", migrated: true },
       { title: "Sorting", href: "/sorting", icon: "sorting", migrated: true },
-      { title: "Decolorization", href: "/decolorization", icon: "decolorization", migrated: false },
+      { title: "Decolorization", href: "/decolorization", icon: "decolorization", migrated: true },
       { title: "Drying", href: "/drying", icon: "drying", migrated: false },
     ],
   },

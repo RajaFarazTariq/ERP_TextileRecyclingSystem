@@ -53,3 +53,17 @@ export async function choose(scope, label, optionText) {
     : scope.page().getByRole('option', { name: optionText })
   await option.click()
 }
+
+/**
+ * Re-read a value until it equals `expected` (lists refresh just after the
+ * success toast). Returns the last value read, so a failing check shows it.
+ */
+export async function settle(read, expected, timeout = 5000) {
+  const until = Date.now() + timeout
+  let value = await read()
+  while (value !== expected && Date.now() < until) {
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    value = await read()
+  }
+  return value
+}

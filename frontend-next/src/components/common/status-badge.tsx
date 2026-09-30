@@ -22,6 +22,11 @@ const STATUS_TONES: Record<string, StatusTone> = {
   Completed: "success",
   "On Hold": "warning",
   Failed: "danger",
+  // tanks
+  Empty: "neutral",
+  Filled: "info",
+  Processing: "info",
+  Cleaning: "warning",
   // fabric lots
   "In Warehouse": "neutral",
   "In Sorting": "info",
