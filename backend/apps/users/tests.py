@@ -191,3 +191,19 @@ class TokenLifecycleTests(APITestCase):
         self.assertEqual(self.refresh(self.tokens['refresh']).status_code, 401)
         # logging out twice, or with junk, is harmless
         self.assertEqual(self.client.post('/api/users/logout/', {'refresh': 'junk'}).status_code, 205)
+
+
+class SelfLockoutTests(APITestCase):
+    def test_admin_cannot_deactivate_or_delete_themselves(self):
+        admin = CustomUser.objects.create_user(username='only_admin', password='Pass@12345', role='admin')
+        self.client.force_authenticate(admin)
+        res = self.client.post(f'/api/users/toggle-active/{admin.id}/')
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(self.client.delete(f'/api/users/detail/{admin.id}/').status_code, 400)
+        # nor through the edit endpoint
+        self.assertEqual(self.client.patch(f'/api/users/detail/{admin.id}/', {'is_active': False}).status_code, 400)
+        self.assertEqual(self.client.patch(f'/api/users/detail/{admin.id}/', {'role': 'drying_supervisor'}).status_code, 400)
+        self.assertEqual(self.client.patch(f'/api/users/detail/{admin.id}/', {'email': 'me@example.com'}).status_code, 200)
+        admin.refresh_from_db()
+        self.assertTrue(admin.is_active)
+        self.assertEqual(admin.role, 'admin')

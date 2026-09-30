@@ -67,7 +67,7 @@ export const NAV: NavGroup[] = [
     label: "Administration",
     items: [
       { title: "Reports", href: "/reports", icon: "reports", migrated: false },
-      { title: "Users", href: "/users", icon: "users", migrated: false },
+      { title: "Users", href: "/users", icon: "users", migrated: true },
     ],
   },
 ]

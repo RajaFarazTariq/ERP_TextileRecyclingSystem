@@ -10,6 +10,7 @@ from rest_framework import serializers, status, generics, permissions
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -199,6 +200,12 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
         serializer = self.get_serializer(instance, data=data, partial=True)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if instance.pk == request.user.pk:
+            # An admin can't lock themselves out by editing their own account
+            if serializer.validated_data.get('is_active') is False:
+                return Response({'is_active': ["You can't deactivate your own account."]}, status=status.HTTP_400_BAD_REQUEST)
+            if serializer.validated_data.get('role', instance.role) != instance.role:
+                return Response({'role': ["You can't change your own role."]}, status=status.HTTP_400_BAD_REQUEST)
         if password:
             errors = _password_errors(password, user=instance)
             if errors:
@@ -220,6 +227,8 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(serializer.data)
 
     def perform_destroy(self, instance):
+        if instance.pk == self.request.user.pk:
+            raise ValidationError({'detail': "You can't delete your own account."})
         with transaction.atomic():   # a blocked delete rolls the log entry back
             log_action(self.request.user, AuditLog.ACTION_DELETE, instance, request=self.request)
             instance.delete()
@@ -240,6 +249,8 @@ class ToggleActiveView(APIView):
             user = CustomUser.objects.get(pk=pk)
         except CustomUser.DoesNotExist:
             return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if user.pk == request.user.pk:
+            return Response({'detail': "You can't deactivate your own account."}, status=status.HTTP_400_BAD_REQUEST)
 
         user.is_active = not user.is_active
         user.save(update_fields=['is_active'])

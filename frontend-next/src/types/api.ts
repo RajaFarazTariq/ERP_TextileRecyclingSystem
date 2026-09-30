@@ -52,6 +52,8 @@ export interface UserSummary {
   email: string
   role: Role
   is_active: boolean
+  last_login: string | null
+  last_login_display: string
 }
 
 export type FabricStatus = "In Warehouse" | "In Sorting" | "Sorted" | "Sent to Decolorization"
