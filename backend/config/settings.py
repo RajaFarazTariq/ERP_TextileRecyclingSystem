@@ -7,6 +7,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
+# Names other services use to reach this API inside a private network (e.g. the
+# Next.js app calling http://backend:8000 in Docker). Added to ALLOWED_HOSTS.
+ALLOWED_HOSTS += config('INTERNAL_HOSTS', default='', cast=Csv())
 
 AUTH_USER_MODEL = 'users.CustomUser'
 
@@ -107,6 +110,10 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'login': config('LOGIN_RATE_LIMIT', default='10/min'),
     },
+    # Number of trusted proxies in front of Django (nginx and/or the Next.js
+    # server). With 1, the login rate limit uses the client address from
+    # X-Forwarded-For instead of the proxy's own address.
+    'NUM_PROXIES': config('NUM_PROXIES', default=0, cast=int) or None,
 }
 
 from datetime import timedelta
