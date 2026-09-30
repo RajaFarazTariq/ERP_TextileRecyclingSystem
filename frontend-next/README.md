@@ -1,36 +1,35 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Textile ERP — web app (Next.js)
 
-## Getting Started
+The new interface for the ERP. Pages move here from the classic app (`../frontend`) one module at a time; modules not moved yet open in the classic app.
 
-First, run the development server:
+## Run
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+copy .env.example .env.local     # DJANGO_API_URL, NEXT_PUBLIC_LEGACY_APP_URL, SECURE_COOKIES
+npm run dev -- -p 3001           # http://localhost:3001
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Django must be running (see `../backend`). Set `NUM_PROXIES=1` in `backend/.env` so its login rate limit sees each user's own address.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How it talks to Django
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The browser never holds the login tokens. `src/app/api/auth/*` logs in against Django and stores the tokens in httpOnly cookies. `src/app/api/django/[...path]` forwards every API call to Django `/api/v1/`, adding the access token and renewing it with the refresh token when it expires. Pages call it through `src/lib/api.ts`.
 
-## Learn More
+## Layout
 
-To learn more about Next.js, take a look at the following resources:
+- `src/app/` — routes: `login`, `(app)/<module>` (signed-in pages), `api/` (session and proxy)
+- `src/features/<module>/` — a module's page, forms and validation schemas
+- `src/components/common/` — data table, form and confirm dialogs, states, filters
+- `src/components/layout/` — sidebar and header; `src/components/ui/` — shadcn/ui
+- `src/config/access.ts` — which roles may open which page, and the sidebar menu
+- `src/proxy.ts` — route guard (login and role)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Checks
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run lint
+npm run typecheck
+npm run build
+npm run e2e        # browser test; see the header of e2e/warehouse.mjs for setup
+```
