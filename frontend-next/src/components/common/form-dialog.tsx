@@ -80,7 +80,8 @@ export function Field({
   children: React.ReactNode
 }) {
   return (
-    <div className="grid gap-1.5">
+    // content-start: a long error under one field mustn't stretch its neighbours in the same row
+    <div className="grid content-start gap-1.5">
       <Label htmlFor={id}>{label}</Label>
       {children}
       {error ? (

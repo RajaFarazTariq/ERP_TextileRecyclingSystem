@@ -32,6 +32,15 @@ const STATUS_TONES: Record<string, StatusTone> = {
   Running: "info",
   Cooling: "neutral",
   Maintenance: "warning",
+  // sales
+  Draft: "neutral",
+  Confirmed: "info",
+  Dispatched: "info",
+  Cancelled: "danger",
+  Partial: "warning",
+  Paid: "success",
+  Loading: "warning",
+  Delivered: "success",
   // fabric lots
   "In Warehouse": "neutral",
   "In Sorting": "info",

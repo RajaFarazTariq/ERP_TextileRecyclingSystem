@@ -214,5 +214,89 @@ export interface DecolorDoneOption {
   end_date: string | null
 }
 
+export type OrderStatus = "Draft" | "Confirmed" | "Dispatched" | "Completed" | "Cancelled"
+export type PaymentStatus = "Pending" | "Partial" | "Paid"
+export type DispatchStatus = "Pending" | "Loading" | "Dispatched" | "Delivered"
+export type PaymentMethod = "Cash" | "Bank Transfer" | "Cheque" | "Online Transfer"
+
+export interface Dispatch {
+  id: number
+  sales_order: number
+  order_buyer: string
+  vehicle_number: string
+  driver_name: string | null
+  driver_contact: string | null
+  dispatched_weight: Decimal
+  dispatch_status: DispatchStatus
+  dispatched_by: number
+  dispatched_by_name: string
+  dispatch_date: string
+  delivery_date: string | null
+  notes: string | null
+}
+
+export interface Payment {
+  id: number
+  sales_order: number
+  amount: Decimal
+  payment_method: PaymentMethod
+  received_by: number
+  received_by_name: string
+  payment_date: string
+  reference_number: string | null
+  notes: string | null
+}
+
+export interface SalesOrder {
+  id: number
+  buyer_name: string
+  buyer_contact: string | null
+  buyer_address: string | null
+  customer: number | null
+  customer_name: string | null
+  fabric: number
+  fabric_material: string
+  fabric_quality: string
+  weight_sold: Decimal
+  price_per_kg: Decimal
+  total_price: Decimal
+  payment_status: PaymentStatus
+  status: OrderStatus
+  created_by: number
+  created_by_name: string
+  created_at: string
+  updated_at: string
+  notes: string | null
+  dispatches: Dispatch[]
+  payments: Payment[]
+}
+
+export interface SalesSummary {
+  total_orders: number
+  total_revenue: number
+  pending_payments: number
+  completed_orders: number
+  total_collected: number
+  pending_amount: number
+  paid_orders: number
+  payment_count: number
+}
+
+export interface Customer {
+  id: number
+  name: string
+  contact: string | null
+  address: string | null
+  notes: string | null
+  created_at: string
+  order_count: number
+}
+
+export interface CustomerDuplicate {
+  a: { id: number; name: string }
+  b: { id: number; name: string }
+  similarity: number
+}
+
 /** DRF validation errors: {"field": ["message"]} or {"detail": "message"}. */
 export type ApiErrorBody = Record<string, string[] | string> | { detail: string }

@@ -210,3 +210,16 @@ class CustomerTests(APITestCase):
         order.refresh_from_db()
         self.assertEqual(order.customer, keep)
         self.assertFalse(Customer.objects.filter(pk=dupe.pk).exists())
+
+
+class PaymentMethodTests(APITestCase):
+    def test_all_offered_payment_methods_are_accepted(self):
+        admin = make_user('admin')
+        client = client_for(admin)
+        order = make_order(created_by=admin)
+        for method in ('Cash', 'Bank Transfer', 'Cheque', 'Online Transfer'):
+            with self.subTest(method=method):
+                res = client.post('/api/sales/payments/', {
+                    'sales_order': order.id, 'amount': '1', 'payment_method': method,
+                }, format='json')
+                self.assertEqual(res.status_code, 201)

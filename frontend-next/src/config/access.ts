@@ -61,7 +61,7 @@ export const NAV: NavGroup[] = [
   },
   {
     label: "Commercial",
-    items: [{ title: "Sales", href: "/sales", icon: "sales", migrated: false }],
+    items: [{ title: "Sales", href: "/sales", icon: "sales", migrated: true }],
   },
   {
     label: "Administration",

@@ -129,6 +129,7 @@ class Payment(models.Model):
         ('Cash', 'Cash'),
         ('Bank Transfer', 'Bank Transfer'),
         ('Cheque', 'Cheque'),
+        ('Online Transfer', 'Online Transfer'),
     ]
 
     sales_order = models.ForeignKey(

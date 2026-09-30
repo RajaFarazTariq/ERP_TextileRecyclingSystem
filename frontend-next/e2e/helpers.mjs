@@ -50,7 +50,7 @@ export async function choose(scope, label, optionText) {
   await scope.getByLabel(label, { exact: true }).click()
   const option = typeof optionText === 'number'
     ? scope.page().getByRole('option').nth(optionText)
-    : scope.page().getByRole('option', { name: optionText })
+    : scope.page().getByRole('option', { name: optionText }).first()
   await option.click()
 }
 
