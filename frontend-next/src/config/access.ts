@@ -36,8 +36,6 @@ export interface NavItem {
   title: string
   href: string
   icon: NavIcon
-  /** false = not moved to this app yet; the link opens the classic app */
-  migrated: boolean
 }
 
 export interface NavGroup {
@@ -48,26 +46,26 @@ export interface NavGroup {
 export const NAV: NavGroup[] = [
   {
     label: "Overview",
-    items: [{ title: "Dashboard", href: "/dashboard", icon: "dashboard", migrated: true }],
+    items: [{ title: "Dashboard", href: "/dashboard", icon: "dashboard" }],
   },
   {
     label: "Operations",
     items: [
-      { title: "Warehouse", href: "/warehouse", icon: "warehouse", migrated: true },
-      { title: "Sorting", href: "/sorting", icon: "sorting", migrated: true },
-      { title: "Decolorization", href: "/decolorization", icon: "decolorization", migrated: true },
-      { title: "Drying", href: "/drying", icon: "drying", migrated: true },
+      { title: "Warehouse", href: "/warehouse", icon: "warehouse" },
+      { title: "Sorting", href: "/sorting", icon: "sorting" },
+      { title: "Decolorization", href: "/decolorization", icon: "decolorization" },
+      { title: "Drying", href: "/drying", icon: "drying" },
     ],
   },
   {
     label: "Commercial",
-    items: [{ title: "Sales", href: "/sales", icon: "sales", migrated: true }],
+    items: [{ title: "Sales", href: "/sales", icon: "sales" }],
   },
   {
     label: "Administration",
     items: [
-      { title: "Reports", href: "/reports", icon: "reports", migrated: true },
-      { title: "Users", href: "/users", icon: "users", migrated: true },
+      { title: "Reports", href: "/reports", icon: "reports" },
+      { title: "Users", href: "/users", icon: "users" },
     ],
   },
 ]
@@ -77,6 +75,3 @@ export function navFor(role: Role | undefined): NavGroup[] {
     (g) => g.items.length > 0,
   )
 }
-
-/** Pages still served by the classic React app (see NEXT_PUBLIC_LEGACY_APP_URL). */
-export const LEGACY_APP_URL = (process.env.NEXT_PUBLIC_LEGACY_APP_URL ?? "http://localhost:3000").replace(/\/$/, "")

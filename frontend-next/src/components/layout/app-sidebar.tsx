@@ -1,6 +1,6 @@
 "use client"
 
-import { ExternalLink, Recycle } from "lucide-react"
+import { Recycle } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -16,7 +16,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { LEGACY_APP_URL, navFor } from "@/config/access"
+import { navFor } from "@/config/access"
 import type { SessionUser } from "@/types/api"
 import { NavIcon } from "./nav-icon"
 
@@ -49,28 +49,16 @@ export function AppSidebar({ user }: { user: SessionUser }) {
             <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {group.items.map((item) =>
-                  item.migrated ? (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton asChild tooltip={item.title} isActive={pathname.startsWith(item.href)}>
-                        <Link href={item.href}>
-                          <NavIcon name={item.icon} />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ) : (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton asChild tooltip={`${item.title} (classic app)`}>
-                        <a href={`${LEGACY_APP_URL}${item.href}`} target="_blank" rel="noreferrer">
-                          <NavIcon name={item.icon} />
-                          <span>{item.title}</span>
-                          <ExternalLink className="ml-auto size-3.5 opacity-50" aria-label="opens the classic app" />
-                        </a>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ),
-                )}
+                {group.items.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton asChild tooltip={item.title} isActive={pathname.startsWith(item.href)}>
+                      <Link href={item.href}>
+                        <NavIcon name={item.icon} />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
