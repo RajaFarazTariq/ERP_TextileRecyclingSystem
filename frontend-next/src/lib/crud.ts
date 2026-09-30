@@ -30,6 +30,25 @@ export function useSave<T, Body = unknown>(resource: string, options: { invalida
   })
 }
 
+/**
+ * A workflow action on one record, e.g. POST sorting/sessions/5/complete.
+ * Refreshes the given lists and shows `success` as a toast.
+ */
+export function useAction<Body = unknown>(
+  resource: string,
+  action: string,
+  options: { invalidate?: QueryKey[]; success: string },
+) {
+  const qc = useQueryClient()
+  return useMutation<unknown, ApiError, { id: number; body?: Body }>({
+    mutationFn: ({ id, body }) => api(`${resource}/${id}/${action}`, { method: "POST", body: body ?? {} }),
+    onSuccess: () => {
+      toast.success(options.success)
+      for (const key of [[resource], ...(options.invalidate ?? [])]) qc.invalidateQueries({ queryKey: key })
+    },
+  })
+}
+
 export function useDelete(resource: string, options: { invalidate?: QueryKey[]; noun: string }) {
   const qc = useQueryClient()
   return useMutation<void, ApiError, number>({

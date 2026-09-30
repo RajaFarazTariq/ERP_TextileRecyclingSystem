@@ -12,10 +12,21 @@ const TONES = {
 export type StatusTone = keyof typeof TONES
 
 const STATUS_TONES: Record<string, StatusTone> = {
+  // warehouse
   Received: "info",
   Pending: "warning",
   Approved: "success",
   Rejected: "danger",
+  // sessions
+  "In Progress": "info",
+  Completed: "success",
+  "On Hold": "warning",
+  Failed: "danger",
+  // fabric lots
+  "In Warehouse": "neutral",
+  "In Sorting": "info",
+  Sorted: "success",
+  "Sent to Decolorization": "info",
 }
 
 export function StatusBadge({ status, tone }: { status: string; tone?: StatusTone }) {

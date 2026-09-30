@@ -1,21 +1,16 @@
 "use client"
 
-import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
+import { Plus } from "lucide-react"
 import { useMemo, useState } from "react"
 
 import { ConfirmDialog } from "@/components/common/confirm-dialog"
 import { DataTable, type TableColumn } from "@/components/common/data-table"
 import { DateFilter, type DateFilterValue, dateParams } from "@/components/common/date-filter"
 import { PageHeader } from "@/components/common/page-header"
+import { RowActions } from "@/components/common/row-actions"
 import { ErrorState, TableSkeleton } from "@/components/common/states"
 import { StatusBadge } from "@/components/common/status-badge"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useDelete, useList } from "@/lib/crud"
@@ -32,22 +27,6 @@ type Editing =
 type Deleting = { kind: "stock" | "vendor" | "unit"; id: number; label: string }
 
 const ALL = "all"
-
-function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label="Row actions">
-          <MoreHorizontal className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={onEdit}><Pencil className="size-4" /> Edit</DropdownMenuItem>
-        <DropdownMenuItem variant="destructive" onSelect={onDelete}><Trash2 className="size-4" /> Delete</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
 
 export function WarehousePage() {
   const [tab, setTab] = useState<Tab>("stock")
