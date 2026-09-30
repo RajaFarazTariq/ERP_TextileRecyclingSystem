@@ -27,6 +27,11 @@ const STATUS_TONES: Record<string, StatusTone> = {
   Filled: "info",
   Processing: "info",
   Cleaning: "warning",
+  // dryers
+  Available: "success",
+  Running: "info",
+  Cooling: "neutral",
+  Maintenance: "warning",
   // fabric lots
   "In Warehouse": "neutral",
   "In Sorting": "info",

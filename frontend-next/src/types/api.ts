@@ -159,5 +159,60 @@ export interface FabricOption {
   status: string
 }
 
+export type DryerStatus = "Available" | "Running" | "Cooling" | "Maintenance"
+export type DryerType = "Tumble" | "Conveyor" | "Chamber"
+
+export interface Dryer {
+  id: number
+  name: string
+  capacity: Decimal
+  dryer_type: DryerType
+  status: DryerStatus
+  notes: string | null
+  created_at: string
+}
+
+export type DryingStatus = "Pending" | "In Progress" | "Completed" | "Failed" | "On Hold"
+
+export interface DryingSession {
+  id: number
+  dryer: number
+  dryer_name: string
+  fabric: number
+  fabric_material: string
+  decolor_session: number | null
+  supervisor: number
+  supervisor_name: string
+  input_quantity: Decimal
+  output_quantity: Decimal
+  waste_quantity: Decimal
+  temperature_celsius: Decimal | null
+  duration_minutes: number | null
+  status: DryingStatus
+  start_date: string | null
+  end_date: string | null
+  notes: string | null
+  created_at: string
+  moisture_loss_kg: number
+  output_efficiency: number
+}
+
+/** Fabric lots that came out of decolorization (drying dropdown). */
+export interface FabricReadyOption {
+  id: number
+  material_type: string
+  status: string
+  remaining_quantity: Decimal
+}
+
+/** Completed decolorization sessions not yet linked to a drying session. */
+export interface DecolorDoneOption {
+  id: number
+  tank__name: string
+  fabric__material_type: string
+  output_quantity: Decimal
+  end_date: string | null
+}
+
 /** DRF validation errors: {"field": ["message"]} or {"detail": "message"}. */
 export type ApiErrorBody = Record<string, string[] | string> | { detail: string }
