@@ -48,7 +48,7 @@ export interface NavGroup {
 export const NAV: NavGroup[] = [
   {
     label: "Overview",
-    items: [{ title: "Dashboard", href: "/dashboard", icon: "dashboard", migrated: false }],
+    items: [{ title: "Dashboard", href: "/dashboard", icon: "dashboard", migrated: true }],
   },
   {
     label: "Operations",
@@ -66,7 +66,7 @@ export const NAV: NavGroup[] = [
   {
     label: "Administration",
     items: [
-      { title: "Reports", href: "/reports", icon: "reports", migrated: false },
+      { title: "Reports", href: "/reports", icon: "reports", migrated: true },
       { title: "Users", href: "/users", icon: "users", migrated: true },
     ],
   },

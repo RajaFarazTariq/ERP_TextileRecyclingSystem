@@ -300,5 +300,81 @@ export interface CustomerDuplicate {
   similarity: number
 }
 
+export interface ProcessFigures {
+  sessions: number
+  input_kg: number
+  output_kg: number
+  waste_kg: number
+  efficiency_pct: number
+}
+
+export interface DailyProductionReport {
+  date: string
+  warehouse: { stock_entries: number; total_weight_kg: number }
+  sorting: ProcessFigures
+  decolorization: ProcessFigures
+}
+
+export interface MonthlySalesReport {
+  year: number
+  month: number
+  total_orders: number
+  total_revenue: number
+  total_collected: number
+  pending_amount: number
+  total_weight_kg: number
+  avg_price_per_kg: number
+  total_dispatches: number
+  status_breakdown: Record<string, number>
+  payment_method_breakdown: Record<string, { count: number; amount: number }>
+}
+
+export interface WasteFigures {
+  sessions?: number
+  input_kg: number
+  waste_kg: number
+  waste_pct: number
+}
+
+export interface WasteReport {
+  start: string
+  end: string
+  sorting: WasteFigures
+  decolorization: WasteFigures
+  total: WasteFigures
+  by_fabric: { fabric: string; input_kg: number; output_kg: number; waste_kg: number; waste_pct: number }[]
+}
+
+export interface AuditEntry {
+  id: number
+  username: string
+  user_role: string
+  action: string
+  model_name: string
+  object_id: string
+  object_repr: string
+  changes: Record<string, { old: unknown; new: unknown } | unknown>
+  ip_address: string | null
+  endpoint: string
+  timestamp: string
+  timestamp_display: string
+}
+
+export interface Page<T> {
+  count: number
+  next: string | null
+  previous: string | null
+  results: T[]
+}
+
+export interface AuditSummary {
+  total_logs: number
+  today: number
+  this_week: number
+  this_month: number
+  by_action: { action: string; count: number }[]
+  by_model: { model_name: string; count: number }[]
+}
+
 /** DRF validation errors: {"field": ["message"]} or {"detail": "message"}. */
 export type ApiErrorBody = Record<string, string[] | string> | { detail: string }
