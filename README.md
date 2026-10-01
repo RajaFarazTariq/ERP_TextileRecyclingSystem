@@ -42,7 +42,7 @@ A web-based ERP for textile recycling factories. It follows material from the su
 **Interface**
 - "Industrial Eco-Tech" design with dark (default) and light themes.
 - A command palette (Ctrl+K) for jumping to any page, section or action.
-- Notifications, and sortable, filterable tables with CSV export and adjustable row density.
+- Notifications that can be marked as read, and sortable, filterable tables with CSV export and adjustable row density.
 - Works on phones and tablets.
 
 ## Screenshots
@@ -207,6 +207,8 @@ npm run lint && npm run typecheck && npm run build
 npm run e2e                  # all scenarios
 npm run e2e -- sales         # only the named ones
 ```
+
+**Layout audit:** with the same setup, `npm run audit:ui` opens every page, tab and form at phone, tablet, laptop and desktop sizes in both themes. It reports overlapping controls, content wider than the screen, and clipped text, and saves screenshots to `e2e/screenshots/audit/`.
 
 GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main` or `upgrade/**` and on every pull request. It runs the backend tests against PostgreSQL, then lints, type-checks and builds the web app.
 

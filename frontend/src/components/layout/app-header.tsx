@@ -46,7 +46,8 @@ function Breadcrumbs() {
   const segments = usePathname().split("/").filter(Boolean)
   return (
     <Breadcrumb>
-      <BreadcrumbList>
+      {/* One line: a long trail shortens with "…" instead of wrapping under the header */}
+      <BreadcrumbList className="flex-nowrap whitespace-nowrap">
         <BreadcrumbItem>
           {segments.length ? (
             <BreadcrumbLink asChild><Link href="/">Home</Link></BreadcrumbLink>
@@ -60,9 +61,9 @@ function Breadcrumbs() {
           return (
             <Fragment key={href}>
               <BreadcrumbSeparator />
-              <BreadcrumbItem>
+              <BreadcrumbItem className={last ? "min-w-0" : undefined}>
                 {last ? (
-                  <BreadcrumbPage>{titleCase(segment)}</BreadcrumbPage>
+                  <BreadcrumbPage className="truncate">{titleCase(segment)}</BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink asChild><Link href={href}>{titleCase(segment)}</Link></BreadcrumbLink>
                 )}
@@ -110,15 +111,15 @@ export function AppHeader({ user }: { user: SessionUser }) {
   return (
     <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur-xl supports-[backdrop-filter]:bg-background/65 md:px-6">
       <SidebarTrigger className="-ml-1 size-9" />
-      <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-5" />
-      <div className="hidden min-w-0 sm:block">
+      <Separator orientation="vertical" className="mr-2 data-vertical:h-5 data-vertical:self-center" />
+      <div className="hidden min-w-0 flex-1 overflow-hidden sm:block">
         <Breadcrumbs />
       </div>
-      <div className="ml-auto flex items-center gap-1.5">
+      <div className="ml-auto flex shrink-0 items-center gap-1.5">
         <CommandMenu role={user.role} />
-        <Notifications role={user.role} />
+        <Notifications role={user.role} username={user.username} />
         <ThemeToggle />
-        <Separator orientation="vertical" className="mx-1 hidden data-[orientation=vertical]:h-5 sm:block" />
+        <Separator orientation="vertical" className="mx-1 hidden data-vertical:h-5 data-vertical:self-center sm:block" />
         <UserMenu user={user} />
       </div>
     </header>

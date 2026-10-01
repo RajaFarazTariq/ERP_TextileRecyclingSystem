@@ -249,6 +249,12 @@
   h1, h2, h3 {
     font-family: var(--font-heading);
   }
+  /* A grid cell may be narrower than its content: wide tables then scroll, and long
+     values truncate, inside their own box instead of stretching the page or the
+     neighbouring cell. (:where keeps this weaker than any min-w-* class.) */
+  :where(.grid, .inline-grid) > * {
+    min-width: 0;
+  }
   button:not(:disabled), [role="button"]:not(:disabled) {
     cursor: pointer;
   }

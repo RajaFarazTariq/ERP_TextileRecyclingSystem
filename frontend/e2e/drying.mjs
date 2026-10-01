@@ -69,7 +69,7 @@ export async function dryingScenario(browser) {
     await complete.getByRole('button', { name: 'Mark complete' }).click()
     await page.getByText(/Output added to sellable stock/).waitFor()
     const after = await onHand(fabricId)
-    r.check('completing adds the dried output to sellable stock', after - before === 90, `${before} → ${after}`)
+    r.check('completing adds the dried output to sellable stock', Math.abs(after - before - 90) < 0.005, `${before} → ${after}`)
     await page.screenshot({ path: `${SHOTS}/drying-1-sessions.png` })
 
     // Deleting the completed session takes the output back out

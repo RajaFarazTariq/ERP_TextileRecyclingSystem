@@ -100,7 +100,7 @@ function RequisitionDialogBody({ open, onOpenChange, record, units }: Requisitio
       <FieldGroup title="Materials">
         {lines.fields.map((line, i) => (
           <div key={line.id} className="space-y-1">
-            <div className="grid grid-cols-[1fr_8rem_auto] items-start gap-2">
+            <div className="grid grid-cols-[minmax(0,1fr)_6.5rem_auto] items-start gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_auto]">
               <Input aria-label={`Material ${i + 1}`} placeholder="e.g. Cotton White" aria-invalid={!!errors.lines?.[i]?.material}
                 {...form.register(`lines.${i}.material`)} />
               <Input aria-label={`Quantity ${i + 1} (kg)`} placeholder="kg" inputMode="decimal" aria-invalid={!!errors.lines?.[i]?.quantity_kg}
@@ -206,15 +206,15 @@ function OrderDialogBody({ open, onOpenChange, record, vendors, requisitions, fr
         </Field>
       </div>
       <FieldGroup title="Lines">
-        <div className="hidden grid-cols-[1fr_7rem_7rem_auto] gap-2 px-0.5 text-xs text-muted-foreground sm:grid">
+        <div className="hidden grid-cols-[minmax(0,1fr)_7rem_7rem_auto] gap-2 px-0.5 text-xs text-muted-foreground sm:grid">
           <span>Material</span><span>Quantity (kg)</span><span>Price per kg</span><span className="w-9" />
         </div>
         {lines.fields.map((line, i) => {
           const original = record?.lines.find((l) => l.id === line.id)
           return (
             <div key={line.key} className="space-y-1">
-              <div className="grid grid-cols-[1fr_7rem_7rem_auto] items-start gap-2">
-                <Input aria-label={`Material ${i + 1}`} placeholder="e.g. Cotton White" aria-invalid={!!errors.lines?.[i]?.material}
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-start gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_7rem_auto]">
+                <Input className="col-span-full sm:col-span-1" aria-label={`Material ${i + 1}`} placeholder="e.g. Cotton White" aria-invalid={!!errors.lines?.[i]?.material}
                   {...form.register(`lines.${i}.material`)} />
                 <Input aria-label={`Quantity ${i + 1} (kg)`} placeholder="kg" inputMode="decimal" aria-invalid={!!errors.lines?.[i]?.quantity_kg}
                   {...form.register(`lines.${i}.quantity_kg`)} />

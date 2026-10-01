@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/common/page-header"
 import { RowActions } from "@/components/common/row-actions"
 import { ErrorState, TableSkeleton } from "@/components/common/states"
 import { StatCard } from "@/components/common/stat-card"
-import { StatusBadge, statusTone } from "@/components/common/status-badge"
+import { StatusBadge } from "@/components/common/status-badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -62,15 +62,11 @@ export function WarehousePage() {
       cell: ({ row }) => <span className="font-medium">{kg(row.original.our_weight)}</span>,
     },
     { accessorKey: "unit_name", header: "Unit" },
-    { accessorKey: "status", header: "Status", cell: ({ row }) => (
-      <span className="flex flex-col items-start gap-1">
-        <StatusBadge status={row.original.status} />
-        {row.original.qc_status && (
-          <StatusBadge status={row.original.qc_status === "Quarantined" ? "Quarantined" : `QC: ${row.original.qc_status}`}
-            tone={statusTone(row.original.qc_status)} />
-        )}
-      </span>
-    ) },
+    { accessorKey: "status", header: "Status", cell: ({ getValue }) => <StatusBadge status={getValue<string>()} /> },
+    { id: "qc_status", header: "Quality", accessorFn: (r) => r.qc_status ?? "",
+      cell: ({ row }) => row.original.qc_status
+        ? <StatusBadge status={row.original.qc_status} />
+        : <span className="text-muted-foreground" title="Not inspected">—</span> },
     {
       id: "created_at", header: "Date", accessorFn: (r) => new Date(r.created_at), sortFn: "datetime",
       cell: ({ row }) => <span className="text-muted-foreground">{date(row.original.created_at)}</span>,

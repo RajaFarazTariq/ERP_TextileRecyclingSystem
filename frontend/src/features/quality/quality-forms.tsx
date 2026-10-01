@@ -175,11 +175,11 @@ function InspectionDialogBody({ open, onOpenChange, record, stages, deliveries, 
           const limit = limitText(current)
           return (
             <div key={row.id} className="space-y-1">
-              <div className="grid grid-cols-[1fr_8.5rem_4.5rem_auto] items-center gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)_4.5rem_auto] items-center gap-2 sm:grid-cols-[minmax(0,1fr)_8.5rem_4.5rem_auto]">
                 {row.custom ? (
-                  <Input aria-label={`Check ${i + 1} name`} placeholder="e.g. No oil stains" {...form.register(`results.${i}.name`)} />
+                  <Input className="col-span-full sm:col-span-1" aria-label={`Check ${i + 1} name`} placeholder="e.g. No oil stains" {...form.register(`results.${i}.name`)} />
                 ) : (
-                  <span className="min-w-0 text-sm">
+                  <span className="col-span-full min-w-0 text-sm sm:col-span-1">
                     <span className="block truncate font-medium">{row.name}</span>
                     {limit && <span className="block text-xs text-muted-foreground">{limit}</span>}
                   </span>
@@ -417,28 +417,28 @@ function StandardDialogBody({ open, onOpenChange, record }: DialogProps<QualityS
         <Input id="standard-material" placeholder="e.g. Cotton" {...form.register("material_type")} />
       </Field>
       <FieldGroup title="Checks">
-        <div className="hidden grid-cols-[1fr_8rem_4rem_4.5rem_4.5rem_auto] gap-2 px-0.5 text-xs text-muted-foreground sm:grid">
+        <div className="hidden grid-cols-[minmax(0,1fr)_8rem_4rem_4.5rem_4.5rem_auto] gap-2 px-0.5 text-xs text-muted-foreground sm:grid">
           <span>Check</span><span>Type</span><span>Unit</span><span>Min</span><span>Max</span><span className="w-9" />
         </div>
         {checks.fields.map((check, i) => {
           const measure = (watched?.[i]?.kind ?? check.kind) === "Measure"
           return (
             <div key={check.id} className="space-y-1">
-              <div className="grid grid-cols-[1fr_8rem_4rem_4.5rem_4.5rem_auto] items-start gap-2">
-                <Input aria-label={`Check ${i + 1}`} placeholder="e.g. Moisture" aria-invalid={!!errors.checks?.[i]?.name}
+              <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_auto] items-start gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_4rem_4.5rem_4.5rem_auto]">
+                <Input className="col-span-full sm:col-span-1" aria-label={`Check ${i + 1}`} placeholder="e.g. Moisture" aria-invalid={!!errors.checks?.[i]?.name}
                   {...form.register(`checks.${i}.name`)} />
                 <Controller control={form.control} name={`checks.${i}.kind`} render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger className="w-full" aria-label={`Type ${i + 1}`}><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="col-span-full w-full sm:col-span-1" aria-label={`Type ${i + 1}`}><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {CHECK_KINDS.map((k) => <SelectItem key={k} value={k}>{k === "Measure" ? "Measured" : "Yes / no"}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 )} />
-                <Input aria-label={`Unit ${i + 1}`} placeholder="%" disabled={!measure} {...form.register(`checks.${i}.unit`)} />
-                <Input aria-label={`Minimum ${i + 1}`} inputMode="decimal" disabled={!measure} aria-invalid={!!errors.checks?.[i]?.min_value}
+                <Input aria-label={`Unit ${i + 1}`} placeholder="Unit" disabled={!measure} {...form.register(`checks.${i}.unit`)} />
+                <Input aria-label={`Minimum ${i + 1}`} placeholder="Min" inputMode="decimal" disabled={!measure} aria-invalid={!!errors.checks?.[i]?.min_value}
                   {...form.register(`checks.${i}.min_value`)} />
-                <Input aria-label={`Maximum ${i + 1}`} inputMode="decimal" disabled={!measure} aria-invalid={!!errors.checks?.[i]?.max_value}
+                <Input aria-label={`Maximum ${i + 1}`} placeholder="Max" inputMode="decimal" disabled={!measure} aria-invalid={!!errors.checks?.[i]?.max_value}
                   {...form.register(`checks.${i}.max_value`)} />
                 <Button type="button" variant="ghost" size="icon" aria-label={`Remove check ${i + 1}`}
                   disabled={checks.fields.length === 1} onClick={() => checks.remove(i)}>
