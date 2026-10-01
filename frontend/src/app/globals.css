@@ -65,6 +65,8 @@
   --color-stage-drying: var(--stage-drying);
   --color-stage-sales: var(--stage-sales);
   --color-stage-procurement: var(--stage-procurement);
+  --color-stage-quality: var(--stage-quality);
+  --color-stage-production: var(--stage-production);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -126,6 +128,8 @@
   --stage-drying: #f97316;
   --stage-sales: #10b981;
   --stage-procurement: #6366f1;
+  --stage-quality: #65a30d;
+  --stage-production: #c026d3;
 
   --chart-1: #10b981;
   --chart-2: #0ea5e9;
@@ -191,6 +195,8 @@
   --stage-drying: #fb923c;
   --stage-sales: #34d399;
   --stage-procurement: #818cf8;
+  --stage-quality: #a3e635;
+  --stage-production: #e879f9;
 
   --chart-1: #10b981;
   --chart-2: #38bdf8;
@@ -245,6 +251,12 @@
   }
   h1, h2, h3 {
     font-family: var(--font-heading);
+  }
+  /* A grid cell may be narrower than its content: wide tables then scroll, and long
+     values truncate, inside their own box instead of stretching the page or the
+     neighbouring cell. (:where keeps this weaker than any min-w-* class.) */
+  :where(.grid, .inline-grid) > * {
+    min-width: 0;
   }
   button:not(:disabled), [role="button"]:not(:disabled) {
     cursor: pointer;

@@ -101,9 +101,19 @@ def lock_fabric(fabric_id):
 # Rules
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _check_not_quarantined(fabric_id, field):
+    """Lots held by a failed quality inspection can't be sold until released."""
+    from apps.quality.services import check_usable
+    from apps.sorting.models import FabricStock
+    fabric = FabricStock.objects.filter(pk=fabric_id).first()
+    if fabric:
+        check_usable(fabric=fabric, field=field, verb='sold')
+
+
 def check_order_reservation(fabric_id, weight_sold, order_id=None):
     """A Confirmed/Dispatched order must be covered by available dried stock."""
     lock_fabric(fabric_id)
+    _check_not_quarantined(fabric_id, 'fabric')
     still_needed = weight_sold - (dispatched_for_order(order_id) if order_id else ZERO)
     free = available(fabric_id, exclude_order_id=order_id)
     if still_needed > free:
@@ -118,6 +128,7 @@ def check_dispatch(order, weight, dispatch_id=None):
     if order.status not in RESERVING_STATUSES:
         raise ValidationError({'sales_order': ['Confirm the order before dispatching it.']})
     lock_fabric(order.fabric_id)
+    _check_not_quarantined(order.fabric_id, 'sales_order')
     remaining = order.weight_sold - dispatched_for_order(order.pk, exclude_dispatch_id=dispatch_id)
     if weight > remaining:
         raise ValidationError({'dispatched_weight': [

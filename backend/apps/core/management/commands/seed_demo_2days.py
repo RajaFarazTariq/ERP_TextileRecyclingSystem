@@ -69,6 +69,19 @@ class Command(SeedCommand):
         from apps.drying.models import DryingSession
         from apps.inventory.models import StockMovement
 
+        # Quality and purchasing records point at deliveries, lots and vendors
+        from apps.procurement.models import (
+            PurchaseOrder, PurchaseRequisition, PurchaseReturn, SupplierInvoice, SupplierPayment, SupplierQuotation,
+        )
+        from apps.production.models import BillOfMaterials, ProductionOrder
+        from apps.quality.models import Inspection
+        Inspection.objects.all().delete()
+        ProductionOrder.objects.all().delete()
+        BillOfMaterials.objects.all().delete()
+        SupplierPayment.objects.all().delete()
+        SupplierInvoice.objects.all().delete()
+        SupplierQuotation.objects.all().delete()
+        PurchaseReturn.objects.all().delete()
         DecolorizationSession.objects.all().delete()
         ChemicalIssuance.objects.all().delete()
         SortingSession.objects.all().delete()
@@ -81,6 +94,8 @@ class Command(SeedCommand):
         Tank.objects.all().delete()
         FabricStock.objects.all().delete()
         Stock.objects.all().delete()
+        PurchaseOrder.objects.all().delete()
+        PurchaseRequisition.objects.all().delete()
         self.stdout.write('  Flushed transaction data (vendors/units/chemicals/users kept).')
 
     # ─────────────────────────────────────────────────────────────────────────

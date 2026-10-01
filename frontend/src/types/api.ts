@@ -52,6 +52,8 @@ export interface StockEntry {
   po_line: number | null
   po_number: string | null
   po_material: string | null
+  /** Latest quality inspection; null when the delivery was never inspected */
+  qc_status: "Pass" | "Conditional" | "Quarantined" | "Released" | null
   created_at: string
 }
 
@@ -79,6 +81,8 @@ export interface FabricLot {
   status: FabricStatus
   /** Sellable dried stock (inventory ledger), in kg */
   dried_available_kg: number
+  /** Held by a failed quality inspection until an admin releases it */
+  quarantined: boolean
   created_at: string
   updated_at: string
 }
@@ -570,6 +574,9 @@ export interface SupplierPerformance {
   rejected_pct: number | null
   on_time_pct: number | null
   avg_price_per_kg: Decimal | null
+  inspections: number
+  failed_inspections: number
+  quality_pass_pct: number | null
 }
 
 export interface PriceComparison {
@@ -581,4 +588,288 @@ export interface PriceComparison {
     avg_order_price: Decimal | null
     orders: number
   }[]
+}
+
+// ─── Quality control ────────────────────────────────────────────────────────
+
+export type QualityStage = "Incoming" | "In-process" | "Finished"
+export type CheckKind = "Measure" | "Pass/Fail"
+export type InspectionOutcome = "Pass" | "Conditional" | "Fail"
+
+export interface StandardCheck {
+  id: number
+  name: string
+  kind: CheckKind
+  unit: string
+  min_value: Decimal | null
+  max_value: Decimal | null
+}
+
+export interface QualityStandard {
+  id: number
+  name: string
+  stage: QualityStage
+  /** Empty = any material */
+  material_type: string
+  is_active: boolean
+  notes: string
+  created_at: string
+  checks: StandardCheck[]
+  inspections: number
+}
+
+export interface InspectionCheck extends StandardCheck {
+  value: Decimal | null
+  passed: boolean
+  note: string
+}
+
+export interface CorrectiveAction {
+  id: number
+  inspection: number
+  inspection_number: string
+  kind: "Corrective" | "Preventive"
+  description: string
+  owner: number | null
+  owner_name: string | null
+  due_date: string | null
+  status: "Open" | "Done"
+  completed_at: string | null
+  completion_note: string
+  created_by: number
+  created_by_name: string
+  created_at: string
+  overdue: boolean
+}
+
+export interface Inspection {
+  id: number
+  number: string
+  stage: QualityStage
+  /** The delivery (incoming inspections) */
+  stock: number | null
+  /** The fabric lot (in-process and finished inspections) */
+  fabric: number | null
+  target: string
+  material: string
+  vendor_name: string
+  standard: number | null
+  standard_name: string | null
+  inspector: number
+  inspector_name: string
+  inspected_on: string
+  sample_kg: Decimal | null
+  composition: string
+  result: InspectionOutcome
+  rejection_reason: string
+  notes: string
+  /** Failed and not yet released by an admin */
+  quarantined: boolean
+  released_by: number | null
+  released_by_name: string | null
+  released_at: string | null
+  release_note: string
+  created_at: string
+  results: InspectionCheck[]
+  failed_checks: number
+  actions: CorrectiveAction[]
+}
+
+export interface QualitySummary {
+  inspections_this_month: number
+  pass_pct_this_month: number | null
+  conditional_this_month: number
+  failed_this_month: number
+  quarantined: number
+  open_actions: number
+  overdue_actions: number
+  trend: { month: string; Pass: number; Conditional: number; Fail: number }[]
+  stages: { stage: QualityStage; Pass: number; Conditional: number; Fail: number }[]
+  defects: { name: string; checks: number; failures: number; failure_pct: number }[]
+  suppliers: { vendor: number; name: string; inspections: number; failed: number; pass_pct: number }[]
+}
+
+// ─── Production ─────────────────────────────────────────────────────────────
+
+export type StageModule = "" | "sorting" | "decolorization" | "drying"
+
+export interface ProcessStage {
+  id: number
+  name: string
+  sequence: number
+  /** The module whose sessions do this work, if any */
+  module: StageModule
+  is_active: boolean
+}
+
+export interface RoutingStep {
+  id: number
+  stage: number
+  stage_name: string
+  sequence: number
+  planned_hours: Decimal
+  hourly_cost: Decimal
+}
+
+export interface Routing {
+  id: number
+  name: string
+  description: string
+  is_active: boolean
+  created_at: string
+  steps: RoutingStep[]
+  orders: number
+  planned_hours: Decimal
+}
+
+export interface BomLine {
+  id: number
+  material: string
+  chemical: number | null
+  chemical_name: string | null
+  quantity_per_100kg: Decimal
+  unit: string
+  unit_cost: Decimal
+}
+
+export interface Bom {
+  id: number
+  name: string
+  product_name: string
+  is_active: boolean
+  notes: string
+  created_at: string
+  lines: BomLine[]
+  orders: number
+}
+
+export type StepStatus = "Pending" | "In Progress" | "Done" | "Skipped"
+
+export interface OrderStep {
+  id: number
+  order: number
+  order_number: string
+  stage: number
+  stage_name: string
+  stage_module: StageModule
+  sequence: number
+  status: StepStatus
+  operator: number | null
+  operator_name: string | null
+  machine: string
+  planned_hours: Decimal
+  hourly_cost: Decimal
+  started_at: string | null
+  finished_at: string | null
+  actual_hours: Decimal | null
+  input_kg: Decimal | null
+  output_kg: Decimal | null
+  waste_kg: Decimal | null
+  notes: string
+  cost: Decimal
+}
+
+export interface MaterialUse {
+  id: number
+  order: number
+  material: string
+  chemical: number | null
+  chemical_name: string | null
+  unit: string
+  planned_quantity: Decimal
+  actual_quantity: Decimal | null
+  unit_cost: Decimal
+  planned_cost: Decimal
+  actual_cost: Decimal | null
+}
+
+export type ProductionStatus = "Draft" | "Released" | "In Progress" | "Completed" | "Cancelled"
+export type Priority = "Low" | "Normal" | "High"
+
+export interface ProductionOrder {
+  id: number
+  number: string
+  product_name: string
+  fabric: number
+  fabric_material: string
+  unit: number | null
+  unit_name: string | null
+  routing: number
+  routing_name: string
+  bom: number | null
+  bom_name: string | null
+  planned_input_kg: Decimal
+  planned_output_kg: Decimal
+  planned_start: string
+  planned_end: string
+  priority: Priority
+  status: ProductionStatus
+  actual_output_kg: Decimal | null
+  notes: string
+  created_by: number
+  created_by_name: string
+  released_by: number | null
+  released_by_name: string | null
+  released_at: string | null
+  started_at: string | null
+  completed_at: string | null
+  created_at: string
+  steps: OrderStep[]
+  materials: MaterialUse[]
+  // Planned against actual (computed by the server)
+  progress_pct: number
+  current_stage: string | null
+  planned_hours: Decimal
+  actual_hours: Decimal
+  actual_input_kg: Decimal | null
+  output_kg: Decimal | null
+  waste_kg: Decimal
+  yield_pct: number | null
+  planned_cost: Decimal
+  labour_cost: Decimal
+  material_cost: Decimal
+  total_cost: Decimal
+  cost_per_kg: Decimal | null
+  is_late: boolean
+}
+
+export interface ProductionSummary {
+  draft: number
+  released: number
+  in_progress: number
+  completed: number
+  late: number
+  wip_kg: Decimal
+  completed_this_month: number
+  output_this_month: Decimal
+  planned_output_completed: Decimal
+  actual_output_completed: Decimal
+  yield_pct: number | null
+  waste_kg: Decimal
+  planned_cost_completed: Decimal
+  actual_cost_completed: Decimal
+  cost_per_kg: Decimal | null
+  stages: { stage: string; steps: number; planned_hours: Decimal; actual_hours: Decimal; input_kg: Decimal; output_kg: Decimal; waste_kg: Decimal }[]
+}
+
+export interface MaterialRequirement {
+  material: string
+  chemical: number | null
+  unit: string
+  required: Decimal
+  /** Chemical stock on hand; null for materials that are not stocked chemicals */
+  in_stock: Decimal | null
+  shortage: Decimal | null
+  orders: string[]
+}
+
+export interface LotActivity {
+  module: "sorting" | "decolorization" | "drying"
+  id: number
+  status: string
+  supervisor: string
+  input_kg: Decimal
+  output_kg: Decimal
+  waste_kg: Decimal
+  date: string
 }

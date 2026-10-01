@@ -23,10 +23,21 @@ class StockSerializer(serializers.ModelSerializer):
     )
     po_number = serializers.CharField(source='po_line.order.number', read_only=True, default=None)
     po_material = serializers.CharField(source='po_line.material', read_only=True, default=None)
+    # Latest quality inspection: null (not inspected), Pass, Conditional, Quarantined or Released
+    qc_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Stock
         fields = '__all__'
+
+    def get_qc_status(self, obj) -> str | None:
+        inspections = sorted(obj.inspections.all(), key=lambda i: (i.inspected_on, i.pk))
+        if not inspections:
+            return None
+        if any(i.quarantined for i in inspections):
+            return 'Quarantined'
+        latest = inspections[-1]
+        return 'Released' if latest.result == 'Fail' else latest.result
 
     def validate(self, data):
         our_weight = data.get('our_weight', getattr(self.instance, 'our_weight', None))

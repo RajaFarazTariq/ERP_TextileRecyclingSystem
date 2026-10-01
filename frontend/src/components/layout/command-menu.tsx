@@ -32,6 +32,8 @@ const SECTIONS: Record<string, string[]> = {
   "/decolorization": ["Tanks", "Chemicals", "Issuances", "Sessions"],
   "/drying": ["Sessions", "Dryers"],
   "/procurement": ["Purchase requests", "Purchase orders", "Supplier invoices", "Supplier payments", "Purchase returns", "Suppliers", "Price comparison"],
+  "/production": ["Production orders", "Schedule", "Material requirements", "Routings", "Bills of materials", "Process stages"],
+  "/quality": ["Inspections", "Quarantine", "Corrective actions", "Quality standards"],
   "/sales": ["Orders", "Dispatches", "Payments", "Customers"],
   "/reports": ["Daily production", "Monthly sales", "Waste analysis", "Audit log"],
 }
@@ -70,12 +72,12 @@ export function CommandMenu({ role }: { role: Role }) {
       <Button
         variant="outline"
         onClick={() => setOpen(true)}
-        className="h-9 w-9 justify-start gap-2 px-0 text-muted-foreground sm:w-56 sm:px-3 lg:w-72"
+        className="h-9 w-9 justify-start gap-2 px-0 text-muted-foreground lg:w-56 lg:px-3 xl:w-72"
         aria-label="Search pages and actions"
       >
-        <Search className="mx-auto size-4 sm:mx-0" />
-        <span className="hidden flex-1 text-left font-normal sm:inline">Search or jump to…</span>
-        <kbd className="pointer-events-none hidden h-5 items-center gap-0.5 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium sm:inline-flex">
+        <Search className="mx-auto size-4 lg:mx-0" />
+        <span className="hidden flex-1 text-left font-normal lg:inline">Search or jump to…</span>
+        <kbd className="pointer-events-none hidden h-5 items-center gap-0.5 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium lg:inline-flex">
           Ctrl K
         </kbd>
       </Button>

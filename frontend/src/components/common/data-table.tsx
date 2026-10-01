@@ -255,7 +255,7 @@ export function DataTable<T extends Record<string, any>>({
       )}
 
       <div className="surface overflow-hidden rounded-xl">
-        <Table containerClassName="max-h-[min(72vh,760px)] overflow-auto">
+        <Table containerClassName="@container max-h-[min(72vh,760px)] overflow-auto">
           <TableHeader>
             {table.getHeaderGroups().map((group) => (
               <TableRow key={group.id} className="hover:bg-transparent">
@@ -321,12 +321,15 @@ export function DataTable<T extends Record<string, any>>({
               ))
             ) : (
               <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={table.getVisibleLeafColumns().length} className="border-0">
-                  <EmptyState
-                    icon={data.length ? Search : undefined}
-                    title={data.length ? "No matching records" : emptyTitle}
-                    description={data.length ? "Try a different search or filter." : emptyDescription}
-                  />
+                <TableCell colSpan={table.getVisibleLeafColumns().length} className="border-0 p-0 whitespace-normal">
+                  {/* As wide as the visible box, not the (wider) table, so the message stays centred and whole */}
+                  <div className="sticky left-0 w-[100cqw] px-4">
+                    <EmptyState
+                      icon={data.length ? Search : undefined}
+                      title={data.length ? "No matching records" : emptyTitle}
+                      description={data.length ? "Try a different search or filter." : emptyDescription}
+                    />
+                  </div>
                 </TableCell>
               </TableRow>
             )}

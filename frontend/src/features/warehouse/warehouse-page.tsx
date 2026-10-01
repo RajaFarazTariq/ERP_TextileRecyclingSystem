@@ -63,6 +63,10 @@ export function WarehousePage() {
     },
     { accessorKey: "unit_name", header: "Unit" },
     { accessorKey: "status", header: "Status", cell: ({ getValue }) => <StatusBadge status={getValue<string>()} /> },
+    { id: "qc_status", header: "Quality", accessorFn: (r) => r.qc_status ?? "",
+      cell: ({ row }) => row.original.qc_status
+        ? <StatusBadge status={row.original.qc_status} />
+        : <span className="text-muted-foreground" title="Not inspected">—</span> },
     {
       id: "created_at", header: "Date", accessorFn: (r) => new Date(r.created_at), sortFn: "datetime",
       cell: ({ row }) => <span className="text-muted-foreground">{date(row.original.created_at)}</span>,

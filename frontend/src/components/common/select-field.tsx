@@ -16,6 +16,7 @@ export function SelectField({
   options,
   invalid,
   allowNone,
+  disabled,
 }: {
   id: string
   value: string
@@ -23,12 +24,13 @@ export function SelectField({
   placeholder: string
   options: SelectOption[]
   invalid?: boolean
+  disabled?: boolean
   /** Adds a "None" choice that maps to "" (for optional links) */
   allowNone?: string
 }) {
   const NONE = "__none__"
   return (
-    <Select value={value || (allowNone ? NONE : "")} onValueChange={(v) => onChange(v === NONE ? "" : v)}>
+    <Select disabled={disabled} value={value || (allowNone ? NONE : "")} onValueChange={(v) => onChange(v === NONE ? "" : v)}>
       <SelectTrigger id={id} className="w-full" aria-invalid={invalid}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>

@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 
 import { canAccess, type NavIcon } from "@/config/access"
 import { api } from "@/lib/api"
-import type { DecolorizationSession, DryingSession, Role, SalesOrder, SortingSession, StockEntry } from "@/types/api"
+import type { DecolorizationSession, DryingSession, Inspection, ProductionOrder, Role, SalesOrder, SortingSession, StockEntry } from "@/types/api"
 
 // Shares the cache of each module's main list (same query keys as useList)
 function useCount<T>(resource: string, enabled: boolean, count: (rows: T[]) => number) {
@@ -18,6 +18,8 @@ export function useNavCounts(role: Role | undefined): Partial<Record<NavIcon, { 
   const sorting = useCount<SortingSession>("sorting/sessions", canAccess(role, "/sorting"), (r) => r.filter((s) => s.status === "In Progress").length)
   const decolor = useCount<DecolorizationSession>("decolorization/sessions", canAccess(role, "/decolorization"), (r) => r.filter((s) => s.status === "In Progress").length)
   const drying = useCount<DryingSession>("drying/sessions", canAccess(role, "/drying"), (r) => r.filter((s) => s.status === "In Progress").length)
+  const quarantined = useCount<Inspection>("quality/inspections", canAccess(role, "/quality"), (r) => r.filter((i) => i.quarantined).length)
+  const producing = useCount<ProductionOrder>("production/orders", canAccess(role, "/production"), (r) => r.filter((o) => o.status === "In Progress").length)
   const toDispatch = useCount<SalesOrder>("sales/orders", canAccess(role, "/sales"), (r) => r.filter((o) => o.status === "Confirmed").length)
 
   const entry = (count: number | undefined, label: string) => (count ? { count, label: `${count} ${label}` } : undefined)
@@ -26,6 +28,8 @@ export function useNavCounts(role: Role | undefined): Partial<Record<NavIcon, { 
     sorting: entry(sorting, "sessions in progress"),
     decolorization: entry(decolor, "sessions in progress"),
     drying: entry(drying, "sessions in progress"),
+    quality: entry(quarantined, "in quarantine"),
+    production: entry(producing, "orders in progress"),
     sales: entry(toDispatch, "orders awaiting dispatch"),
   }
 }

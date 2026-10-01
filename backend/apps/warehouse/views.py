@@ -28,7 +28,8 @@ class StockViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsWarehouseOrAdmin]
 
     def get_queryset(self):
-        qs = Stock.objects.select_related('vendor', 'unit').order_by('-created_at')
+        qs = (Stock.objects.select_related('vendor', 'unit', 'po_line__order')
+              .prefetch_related('inspections').order_by('-created_at'))
 
         # ── Existing filters (your original code) ────────────────────────────
         status_filter = self.request.query_params.get('status')

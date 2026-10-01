@@ -34,6 +34,16 @@ const STATUS_TONES: Record<string, StatusTone> = {
   Paid: "success",
   Loading: "warning",
   Delivered: "success",
+  // production
+  Released: "info",
+  Skipped: "neutral",
+  // quality
+  Pass: "success",
+  Conditional: "warning",
+  Fail: "danger",
+  Quarantined: "danger",
+  Open: "warning",
+  Done: "success",
   // fabric lots
   "In Warehouse": "neutral",
   "In Sorting": "running",
@@ -50,7 +60,7 @@ export function StatusBadge({ status, tone }: { status: string; tone?: StatusTon
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap",
+        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium tracking-normal whitespace-nowrap",
         TONE[t].soft,
         TONE[t].text,
         TONE[t].border,
