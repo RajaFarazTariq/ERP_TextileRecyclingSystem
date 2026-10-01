@@ -17,6 +17,7 @@ export const ROUTE_ROLES: Record<string, Role[]> = {
   "/sorting": ["admin", "sorting_supervisor"],
   "/decolorization": ["admin", "decolorization_supervisor"],
   "/drying": ["admin", "drying_supervisor"],
+  "/procurement": ["admin", "warehouse_supervisor"],
   "/sales": ["admin"],
   "/reports": ["admin"],
   "/users": ["admin"],
@@ -30,7 +31,7 @@ export function canAccess(role: Role | undefined, pathname: string): boolean {
 }
 
 export type NavIcon =
-  | "dashboard" | "warehouse" | "sorting" | "decolorization" | "drying" | "sales" | "reports" | "users"
+  | "dashboard" | "warehouse" | "sorting" | "decolorization" | "drying" | "procurement" | "sales" | "reports" | "users"
 
 export interface NavItem {
   title: string
@@ -59,7 +60,10 @@ export const NAV: NavGroup[] = [
   },
   {
     label: "Commercial",
-    items: [{ title: "Sales", href: "/sales", icon: "sales" }],
+    items: [
+      { title: "Purchasing", href: "/procurement", icon: "procurement" },
+      { title: "Sales", href: "/sales", icon: "sales" },
+    ],
   },
   {
     label: "Administration",

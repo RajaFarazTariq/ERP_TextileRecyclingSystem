@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'apps.drying',
     'apps.sales',
     'apps.inventory',
+    'apps.procurement',
     'apps.reports',
     'apps.audit',
     'apps.notifications',

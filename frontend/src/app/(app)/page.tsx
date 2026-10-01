@@ -15,6 +15,7 @@ const DESCRIPTIONS: Record<NavIconName, string> = {
   sorting: "Run sorting sessions and track fabric lots.",
   decolorization: "Tanks, chemical stock and decolorization batches.",
   drying: "Dryers and drying batches; output becomes sellable.",
+  procurement: "Purchase requests, orders, supplier invoices and payments.",
   sales: "Orders, dispatches, payments and customers.",
   reports: "Production, sales and waste reports, and the audit log.",
   users: "Accounts, roles and access.",
