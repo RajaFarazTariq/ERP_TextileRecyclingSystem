@@ -6,7 +6,37 @@ This is the Phase 1 deliverable from `Upgradation.txt`. No application code was 
 
 > **Note:** File paths below refer to the layout at `e075c65`. Since then, the project has been restructured: Django apps now live in `backend/apps/<app>/`, `ERP_Backend/` became `backend/config/`, and `erp-frontend/` became `frontend/`, with pages in `frontend/src/features/`.
 >
-> **Status:** Phase 0 is done: S1 (moved to env), S2, S3 (partly), S4, S10, F1, F2 (safe handlers only), D9, and duplicate code from F5. One follow-up came out of connecting the signals in F2: the demo seed commands triggered hundreds of alert emails, one per chemical issuance or payment. Seed commands now capture email instead of sending it (`apps/core/management/base.py`). The per-event alerts themselves still need throttling before production.
+> **Phase 1 (done):** a 59-test suite pins current behaviour (access matrix for every endpoint and role, workflows in every module), and GitHub Actions runs it on PostgreSQL.
+>
+> **Phase 2 (done):**
+> - **Deletes:** CASCADE replaced by PROTECT (D1), and blocked deletes return a readable 409.
+> - **Audit log:** every write and workflow action is recorded (F3, F4), including user management and failed logins.
+> - **Recorded-by fields:** sales order `created_by` is always the logged-in user (S5); received/dispatched/issued-by default to the logged-in user.
+> - **Logins:** rate limited (S6).
+> - **Sessions:** 30-minute access tokens with rotating, revocable refresh tokens (S7, apart from moving them out of localStorage, which is planned for the Next.js frontend).
+> - **Passwords:** changes from the Users page work and are validated (S9).
+> - **Alerts:** a low-stock email goes out once, when a chemical crosses the threshold.
+> - **API:** opt-in pagination and no N+1 queries on list endpoints; Swagger docs; the `/api/v1/` prefix.
+> - **Deployment:** Docker Compose (PostgreSQL, gunicorn, nginx), and production security settings controlled by env.
+>
+> **Phase 4 (done):** a new Next.js + TypeScript app in `frontend/` replaced the classic React app, which has been removed.
+> - **Login and API access:** the login is held in httpOnly cookies by the app's own server (the rest of S7), which forwards API calls to `/api/v1/`, renews the session, and blocks cross-site writes.
+> - **Role-aware layout** and shared components: data table, dialogs, and loading, empty and error states.
+> - **All pages moved:** Dashboard, Warehouse, Sorting, Decolorization, Drying, Sales, Users, Reports (with the audit log).
+> - **Docker:** the site is served at port 8080; its front server also routes `/admin/` and `/api/docs/` to Django.
+> - **Verified:** browser tests (`npm run e2e`, 86 checks across 7 scenarios) pass locally and against the Docker stack.
+>
+> **Phase 3 (done):** decisions made with the owner: dried output is sellable; overselling is blocked; stock is reserved at Confirm and deducted at Dispatch; customers are merged on exact name matches.
+> - **Stock ledger** (`apps/inventory`) kept in sync with drying sessions and dispatches (D2). Reservations are computed, not stored. Stock checks lock the fabric row (tested with concurrent requests on PostgreSQL).
+> - **Sales:** can no longer oversell, and dispatches need a confirmed order (D7).
+> - **Chemicals:** issuance edits and deletes restore stock (D4). Stock figures on fabric lots and chemicals can't be typed in directly anymore (D3).
+> - **Process steps:** sorting, decolorization and drying completions are validated (D5, D6).
+> - **Customer list** with automatic linking, a duplicate report and admin merge (D10); order total widened (D12).
+> - **Migrations:** rehearsed on a demo-data database. Existing rows are unchanged (checksum-verified), rollback and re-apply work, and backup/restore was tested.
+> - **Seed commands:** re-seeding works with delete protection in place, and demo lots get a labelled "Demo opening stock" adjustment.
+> - **Still open:** D8. The `FabricStock.status` values are unchanged; sellable stock now comes from the ledger rather than the status.
+>
+> **Phase 0:** done: S1 (moved to env), S2, S3 (partly), S4, S10, F1, F2 (safe handlers only), D9, and duplicate code from F5. One follow-up came out of connecting the signals in F2: the demo seed commands triggered hundreds of alert emails, one per chemical issuance or payment. Seed commands now capture email instead of sending it (`apps/core/management/base.py`). The per-event alerts themselves still need throttling before production.
 
 ---
 

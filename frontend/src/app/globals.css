@@ -1,0 +1,306 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-manrope);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-faint: var(--faint);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-brand: var(--brand);
+  --color-brand-2: var(--brand-2);
+  --color-brand-text: var(--brand-text);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-elevated: var(--elevated);
+
+  /* Status colours: the base tint (backgrounds, dots, bars) and a text shade readable on it */
+  --color-info: var(--info);
+  --color-info-fg: var(--info-fg);
+  --color-warning: var(--warning);
+  --color-warning-fg: var(--warning-fg);
+  --color-success: var(--success);
+  --color-success-fg: var(--success-fg);
+  --color-running: var(--running);
+  --color-running-fg: var(--running-fg);
+  --color-danger: var(--danger);
+  --color-danger-fg: var(--danger-fg);
+
+  /* Process stages: warehouse → sorting → decolorization → drying → sales */
+  --color-stage-warehouse: var(--stage-warehouse);
+  --color-stage-sorting: var(--stage-sorting);
+  --color-stage-decolorization: var(--stage-decolorization);
+  --color-stage-drying: var(--stage-drying);
+  --color-stage-sales: var(--stage-sales);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  --animate-pulse-dot: pulse-dot 1.8s ease-out infinite;
+  --animate-flow: flow 1.6s linear infinite;
+  --animate-rise: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* "Industrial Eco-Tech": calm ink surfaces, a recycling-green accent. */
+:root {
+  --radius: 0.7rem;
+
+  --background: #f7f8f6;
+  --foreground: #0f1714;
+  --card: #ffffff;
+  --card-foreground: #0f1714;
+  --elevated: #ffffff;
+  --popover: #ffffff;
+  --popover-foreground: #0f1714;
+  --muted: #eef1ee;
+  --muted-foreground: #56645d;
+  --faint: #8a968f;
+  --secondary: #eef1ee;
+  --secondary-foreground: #0f1714;
+  --accent: #e9f7f1;
+  --accent-foreground: #065f46;
+  --border: rgb(15 23 20 / 0.09);
+  --border-strong: rgb(15 23 20 / 0.16);
+  --input: rgb(15 23 20 / 0.14);
+
+  --brand: #10b981;
+  --brand-2: #14b8a6;
+  --brand-text: #047857;
+  --primary: #10b981;
+  --primary-foreground: #03140e;
+  --ring: #10b981;
+  --destructive: #e11d48;
+
+  --info: #38bdf8;
+  --info-fg: #0369a1;
+  --warning: #f59e0b;
+  --warning-fg: #b45309;
+  --success: #10b981;
+  --success-fg: #047857;
+  --running: #8b5cf6;
+  --running-fg: #6d28d9;
+  --danger: #f43f5e;
+  --danger-fg: #be123c;
+
+  --stage-warehouse: #6b7fb3;
+  --stage-sorting: #0ea5e9;
+  --stage-decolorization: #06b6d4;
+  --stage-drying: #f97316;
+  --stage-sales: #10b981;
+
+  --chart-1: #10b981;
+  --chart-2: #0ea5e9;
+  --chart-3: #8b5cf6;
+  --chart-4: #f59e0b;
+  --chart-5: #f43f5e;
+
+  --sidebar: #fbfcfb;
+  --sidebar-foreground: #26332d;
+  --sidebar-primary: #10b981;
+  --sidebar-primary-foreground: #03140e;
+  --sidebar-accent: rgb(16 185 129 / 0.09);
+  --sidebar-accent-foreground: #0f1714;
+  --sidebar-border: rgb(15 23 20 / 0.08);
+  --sidebar-ring: #10b981;
+
+  --card-shadow: 0 1px 2px rgb(15 23 20 / 0.04), 0 4px 16px -6px rgb(15 23 20 / 0.08);
+  --card-highlight: inset 0 1px 0 rgb(255 255 255 / 0.9);
+  --glow: rgb(16 185 129 / 0.1);
+}
+
+.dark {
+  --background: #0b0f0e;
+  --foreground: #e8efec;
+  --card: #111715;
+  --card-foreground: #e8efec;
+  --elevated: #161e1b;
+  --popover: #161e1b;
+  --popover-foreground: #e8efec;
+  --muted: #1a2320;
+  --muted-foreground: #9aa8a2;
+  --faint: #6b7872;
+  --secondary: #1a2320;
+  --secondary-foreground: #e8efec;
+  --accent: rgb(16 185 129 / 0.1);
+  --accent-foreground: #a7f3d0;
+  --border: rgb(255 255 255 / 0.06);
+  --border-strong: rgb(255 255 255 / 0.1);
+  --input: rgb(255 255 255 / 0.09);
+
+  --brand: #10b981;
+  --brand-2: #14b8a6;
+  --brand-text: #34d399;
+  --primary: #10b981;
+  --primary-foreground: #03140e;
+  --ring: #10b981;
+  --destructive: #fb7185;
+
+  --info: #38bdf8;
+  --info-fg: #7dd3fc;
+  --warning: #f59e0b;
+  --warning-fg: #fcd34d;
+  --success: #10b981;
+  --success-fg: #6ee7b7;
+  --running: #8b5cf6;
+  --running-fg: #c4b5fd;
+  --danger: #f43f5e;
+  --danger-fg: #fda4af;
+
+  --stage-warehouse: #8b9dd0;
+  --stage-sorting: #38bdf8;
+  --stage-decolorization: #22d3ee;
+  --stage-drying: #fb923c;
+  --stage-sales: #34d399;
+
+  --chart-1: #10b981;
+  --chart-2: #38bdf8;
+  --chart-3: #a78bfa;
+  --chart-4: #fbbf24;
+  --chart-5: #fb7185;
+
+  --sidebar: #0d1311;
+  --sidebar-foreground: #c4d0cb;
+  --sidebar-primary: #10b981;
+  --sidebar-primary-foreground: #03140e;
+  --sidebar-accent: rgb(16 185 129 / 0.1);
+  --sidebar-accent-foreground: #e8efec;
+  --sidebar-border: rgb(255 255 255 / 0.06);
+  --sidebar-ring: #10b981;
+
+  --card-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+  --card-highlight: inset 0 1px 0 rgb(255 255 255 / 0.04);
+  --glow: rgb(16 185 129 / 0.12);
+}
+
+@keyframes pulse-dot {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, currentColor 55%, transparent); }
+  70%, 100% { box-shadow: 0 0 0 6px transparent; }
+}
+
+@keyframes flow {
+  to { stroke-dashoffset: -16; }
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground;
+    /* Figures line up in tables and cards */
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "cv11", "ss01";
+  }
+  h1, h2, h3 {
+    font-family: var(--font-heading);
+  }
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--brand) 30%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Card surface: hairline border, a faint top highlight, soft shadow in light mode */
+  .surface {
+    background: var(--card);
+    border: 1px solid var(--border);
+    box-shadow: var(--card-highlight), var(--card-shadow);
+  }
+  .brand-gradient {
+    background-image: linear-gradient(135deg, var(--brand), var(--brand-2));
+  }
+  .brand-gradient-text {
+    background-image: linear-gradient(135deg, var(--brand-text), var(--brand-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  /* Soft emerald glow behind the top of each page */
+  .page-glow {
+    background-image:
+      radial-gradient(60rem 18rem at 12% -6rem, var(--glow), transparent 70%),
+      radial-gradient(40rem 14rem at 95% -8rem, color-mix(in oklab, var(--brand-2) 8%, transparent), transparent 70%);
+  }
+  /* Hatched background for machines under maintenance */
+  .hatched {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      color-mix(in oklab, var(--danger) 9%, transparent) 0 6px,
+      transparent 6px 12px
+    );
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  [data-slot="sidebar"], [data-print="hide"], header { display: none !important; }
+  body { background: white; }
+  .page-glow { background: none; }
+}

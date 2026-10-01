@@ -1,14 +1,18 @@
 # drying/views.py
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from django.db import transaction
 from django.utils import timezone
 
 from apps.audit.middleware import AuditedModelMixin
 from .models import Dryer, DryingSession
 from .serializers import DryerSerializer, DryingSessionSerializer
 from apps.core.permissions import IsDryingSupervisor
+from apps.core.quantities import parse_kg, check_not_more_than_input
 
 
 class DryerViewSet(AuditedModelMixin, viewsets.ModelViewSet):
@@ -26,15 +30,19 @@ class DryerViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def set_available(self, request, pk=None):
         dryer = self.get_object()
+        before = self.snapshot(dryer)
         dryer.status = 'Available'
         dryer.save()
+        self.log_change(dryer, before)
         return Response({'message': f'{dryer.name} marked as Available.'})
 
     @action(detail=True, methods=['post'])
     def set_maintenance(self, request, pk=None):
         dryer = self.get_object()
+        before = self.snapshot(dryer)
         dryer.status = 'Maintenance'
         dryer.save()
+        self.log_change(dryer, before)
         return Response({'message': f'{dryer.name} sent to Maintenance.'})
 
 
@@ -44,7 +52,7 @@ class DryingSessionViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsDryingSupervisor]
 
     def get_queryset(self):
-        qs = DryingSession.objects.all().order_by('-created_at')
+        qs = DryingSession.objects.select_related('dryer', 'fabric', 'supervisor', 'decolor_session').order_by('-created_at')
         status_filter = self.request.query_params.get('status')
         if status_filter:
             qs = qs.filter(status=status_filter)
@@ -58,17 +66,22 @@ class DryingSessionViewSet(AuditedModelMixin, viewsets.ModelViewSet):
                 {'error': 'Only Pending or On Hold sessions can be started.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        session_before = self.snapshot(session)
         session.status     = 'In Progress'
         session.start_date = timezone.now()
         session.save()
+        self.log_change(session, session_before)
 
         # Mark dryer as running
+        dryer_before = self.snapshot(session.dryer)
         session.dryer.status = 'Running'
         session.dryer.save()
+        self.log_change(session.dryer, dryer_before)
 
         return Response({'message': f'Drying session started on {session.dryer.name}.'})
 
     @action(detail=True, methods=['post'])
+    @transaction.atomic
     def complete(self, request, pk=None):
         session = self.get_object()
         if session.status == 'Completed':
@@ -77,25 +90,32 @@ class DryingSessionViewSet(AuditedModelMixin, viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        output_qty = request.data.get('output_quantity', 0)
-        waste_qty  = request.data.get('waste_quantity',  0)
+        output_qty = parse_kg(request.data, 'output_quantity')
+        waste_qty  = parse_kg(request.data, 'waste_quantity')
+        check_not_more_than_input(session.input_quantity, output_qty, waste_qty)
         notes      = request.data.get('notes', session.notes or '')
 
+        session_before = self.snapshot(session)
         session.output_quantity = output_qty
         session.waste_quantity  = waste_qty
         session.status          = 'Completed'
         session.end_date        = timezone.now()
         session.notes           = notes
         session.save()
+        self.log_change(session, session_before)
 
         # Mark dryer as cooling (not immediately available after run)
+        dryer_before = self.snapshot(session.dryer)
         session.dryer.status = 'Cooling'
         session.dryer.save()
+        self.log_change(session.dryer, dryer_before)
 
         # Update fabric status — ready for sale
         fabric = session.fabric
+        fabric_before = self.snapshot(fabric)
         fabric.status = 'Sorted'   # Ready to be sold
         fabric.save()
+        self.log_change(fabric, fabric_before)
 
         return Response({'message': 'Drying session completed. Dryer cooling down.'})
 
@@ -104,6 +124,7 @@ class DryingSessionViewSet(AuditedModelMixin, viewsets.ModelViewSet):
 # Fabric list endpoint — for drying session dropdowns
 # Only shows fabric that came out of decolorization (Sent to Decolorization)
 # ─────────────────────────────────────────────────────────────────────────────
+@extend_schema(responses=OpenApiTypes.OBJECT)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, IsDryingSupervisor])
 def fabric_for_drying(request):
@@ -118,6 +139,7 @@ def fabric_for_drying(request):
     return Response(list(fabrics))
 
 
+@extend_schema(responses=OpenApiTypes.OBJECT)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, IsDryingSupervisor])
 def decolor_sessions_for_drying(request):

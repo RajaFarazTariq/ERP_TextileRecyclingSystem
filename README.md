@@ -15,7 +15,7 @@ ERP Textile Recycling System is a web-based application designed to streamline a
 ## Tech Stack
 
 - Backend: Python, Django 5.2, Django REST Framework, SimpleJWT
-- Frontend: React (JavaScript, Tailwind CSS)
+- Frontend: Next.js, TypeScript, Tailwind CSS, shadcn/ui, TanStack Query/Table, React Hook Form + Zod, Recharts
 - Database: PostgreSQL
 - Version Control: Git & GitHub
 
@@ -44,7 +44,8 @@ backend/
     sorting/              Fabric stock and sorting sessions
     decolorization/       Chemicals, tanks, issuances, sessions
     drying/               Dryers and drying sessions
-    sales/                Orders, dispatch, payments
+    sales/                Customers, orders, dispatch, payments
+    inventory/            Dried-stock ledger, reservations, adjustments
     reports/              Report data and Excel exports
     audit/                Audit log (model, ViewSet mixin, API)
     notifications/        Email alerts (signals) and scheduled reports
@@ -52,19 +53,31 @@ backend/
   setup_fresh.py          Creates a fresh database with a Test_User admin
   requirements.txt
   .env.example
-frontend/
+frontend/                 Web app (Next.js + TypeScript)
   src/
-    config/access.js      Which roles can open which routes (router + sidebar)
-    services/api.js       Axios client (base URL from REACT_APP_API_URL)
-    context/              Auth and dark-mode state
-    routes/               ProtectedRoute
-    components/           layout/ (MainLayout, Sidebar), common/ (shared UI)
-    features/<module>/    One folder per module page
-    utils/, styles/       Shared formatters, form classes, global CSS
+    app/                  Routes: login, (app)/<module>, api/ (session + Django proxy)
+    features/<module>/    Page, forms and schemas per module
+    components/           common/ (data table, dialogs, states), layout/, ui/ (shadcn)
+    lib/                  API client, CRUD hooks, formatting; lib/server/ = session cookies
+    config/access.ts      Role access per route and the sidebar menu
+    proxy.ts              Route guard (login + role)
 docs/                     Upgrade audit and roadmap
 ```
 
-## Installation
+## Run with Docker (recommended)
+
+Runs PostgreSQL, the API and the web app together. Requires Docker Desktop.
+
+```bash
+copy backend\.env.example backend\.env        # set SECRET_KEY (and email settings if wanted)
+copy .env.docker.example .env                  # set POSTGRES_PASSWORD
+docker compose up -d --build
+docker compose exec backend python setup_fresh.py   # first time: creates Test_User / Test@1234
+```
+
+Open http://localhost:8080. The admin panel is at http://localhost:8080/admin/ and the API docs at http://localhost:8080/api/docs/. Database data is kept in the `pgdata` Docker volume.
+
+## Installation (without Docker)
 
 ### Backend
 
@@ -92,9 +105,11 @@ python manage.py seed_demo_data   # demo data (alert emails are not sent while s
 ```bash
 cd frontend
 npm install
-copy .env.example .env            # REACT_APP_API_URL, defaults to http://127.0.0.1:8000/api/
-npm start
+copy .env.example .env.local      # DJANGO_API_URL, SECURE_COOKIES
+npm run dev -- -p 3001
 ```
+
+Open http://localhost:3001. The browser never talks to Django directly: the app's own server keeps the login in httpOnly cookies and forwards API calls to Django (`/api/django/...` → `/api/v1/...`), renewing the session when it expires. Set `NUM_PROXIES=1` in `backend/.env` so Django's login rate limit sees each user's real address.
 
 ### Tests
 
@@ -103,10 +118,33 @@ cd backend
 python manage.py test apps
 ```
 
+GitHub Actions (`.github/workflows/ci.yml`) runs the backend tests against PostgreSQL and lints, type-checks and builds the web app on every push to `main` or `upgrade/**` and on every pull request.
+
 ## Usage
-- Frontend: http://localhost:3000/
-- API: http://127.0.0.1:8000/api/
+- Web app: http://localhost:3001/ (http://localhost:8080/ with Docker)
+- API: http://127.0.0.1:8000/api/ (also available under the versioned prefix `/api/v1/`)
+- API documentation (Swagger): http://127.0.0.1:8000/api/docs/ (open when `DEBUG=True`; otherwise log in at `/admin/` as a staff user first)
 - Admin panel: http://127.0.0.1:8000/admin/
+
+List endpoints return plain arrays; add `?page=1` or `?page_size=50` to get paginated results.
+Sessions use short-lived access tokens that the frontend renews automatically; logging out revokes the session.
+
+## Stock rules
+
+- **What can be sold:** dried output. Completing a drying session adds its output kg to that fabric lot's stock.
+- **Draft orders** are not checked. **Confirming** an order reserves its kg, and it is refused if the lot doesn't have enough available (on hand minus other confirmed orders).
+- **Dispatches** take stock out. An order must be confirmed first, can be dispatched in parts, and can't ship more than was ordered. Cancelling an order releases whatever it still had reserved.
+- Every stock change is a row in the ledger (`/api/inventory/movements/`) that points to the drying session, dispatch or adjustment that caused it. On-hand stock is the sum of those rows. Editing or deleting a source record corrects the ledger automatically.
+- **Corrections** (e.g. after a physical count) are admin-only adjustments with a required reason: `POST /api/inventory/movements/adjust/`.
+- Current figures per lot: `/api/inventory/movements/stock/`. The sales form's fabric list shows available kg.
+- Buyers are kept as a **customer list** (`/api/sales/customers/`). Typing a buyer name links the order to the matching customer, and new names create one. Similar names can be reviewed with `python manage.py customer_duplicates` and merged by an admin.
+
+Checks:
+
+```bash
+python manage.py reconcile_inventory        # ledger vs. drying sessions/dispatches, negative stock, oversold orders
+python manage.py customer_duplicates        # customers with near-identical names
+```
 
 ## Future Improvements
 - See [docs/UPGRADE_AUDIT.md](docs/UPGRADE_AUDIT.md) for the upgrade roadmap.

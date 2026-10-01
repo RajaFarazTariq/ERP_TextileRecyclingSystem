@@ -57,15 +57,15 @@ class Tank(models.Model):
 
 class ChemicalIssuance(models.Model):
     chemical = models.ForeignKey(
-        ChemicalStock, on_delete=models.CASCADE,
+        ChemicalStock, on_delete=models.PROTECT,
         related_name='issuances'
     )
     tank = models.ForeignKey(
-        Tank, on_delete=models.CASCADE,
+        Tank, on_delete=models.PROTECT,
         related_name='chemical_issuances'
     )
     issued_by = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE,
+        CustomUser, on_delete=models.PROTECT,
         related_name='chemical_issuances'
     )
     quantity = models.DecimalField(max_digits=10, decimal_places=2)
@@ -85,15 +85,15 @@ class DecolorizationSession(models.Model):
     ]
 
     tank = models.ForeignKey(
-        Tank, on_delete=models.CASCADE,
+        Tank, on_delete=models.PROTECT,
         related_name='sessions'
     )
     fabric = models.ForeignKey(
-        FabricStock, on_delete=models.CASCADE,
+        FabricStock, on_delete=models.PROTECT,
         related_name='decolorization_sessions'
     )
     supervisor = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE,
+        CustomUser, on_delete=models.PROTECT,
         related_name='decolorization_sessions'
     )
     input_quantity = models.DecimalField(max_digits=10, decimal_places=2)

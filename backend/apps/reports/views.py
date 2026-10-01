@@ -17,6 +17,8 @@ from decimal import Decimal
 from django.db.models import Sum, Count, Avg, Q
 from django.http import HttpResponse
 from django.utils import timezone
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -196,6 +198,7 @@ def _build_daily_production_data(target_date):
     }
 
 
+@extend_schema(responses=OpenApiTypes.OBJECT)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def daily_production_report(request):
@@ -237,6 +240,7 @@ def daily_production_report(request):
     })
 
 
+@extend_schema(responses=OpenApiTypes.OBJECT)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def daily_production_export(request):
@@ -390,6 +394,7 @@ def _build_monthly_sales_data(year, month):
     }
 
 
+@extend_schema(responses=OpenApiTypes.OBJECT)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def monthly_sales_report(request):
@@ -435,6 +440,7 @@ def monthly_sales_report(request):
     })
 
 
+@extend_schema(responses=OpenApiTypes.OBJECT)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def monthly_sales_export(request):
@@ -567,6 +573,7 @@ def _build_waste_data(start_date, end_date):
     }
 
 
+@extend_schema(responses=OpenApiTypes.OBJECT)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def waste_analysis_report(request):
@@ -618,6 +625,7 @@ def waste_analysis_report(request):
     })
 
 
+@extend_schema(responses=OpenApiTypes.OBJECT)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def waste_analysis_export(request):

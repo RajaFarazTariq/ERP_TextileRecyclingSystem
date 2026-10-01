@@ -98,6 +98,7 @@ class AuditLog(models.Model):
     ACTION_DELETE = 'DELETE'
     ACTION_RESTORE = 'RESTORE'
     ACTION_LOGIN  = 'LOGIN'
+    ACTION_LOGIN_FAILED = 'LOGIN_FAILED'
     ACTION_EXPORT = 'EXPORT'
     ACTION_CHOICES = [
         (ACTION_CREATE,  'Create'),
@@ -105,6 +106,7 @@ class AuditLog(models.Model):
         (ACTION_DELETE,  'Delete (Soft)'),
         (ACTION_RESTORE, 'Restore'),
         (ACTION_LOGIN,   'Login'),
+        (ACTION_LOGIN_FAILED, 'Failed login'),
         (ACTION_EXPORT,  'Export'),
     ]
 

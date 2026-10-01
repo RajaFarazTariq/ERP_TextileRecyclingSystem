@@ -18,6 +18,8 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 from django.http import HttpResponse
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, viewsets, filters
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated
@@ -32,7 +34,7 @@ from .models import AuditLog
 class AuditLogSerializer(serializers.ModelSerializer):
     timestamp_display = serializers.SerializerMethodField()
 
-    def get_timestamp_display(self, obj):
+    def get_timestamp_display(self, obj) -> str:
         return obj.timestamp.strftime('%d %b %Y, %H:%M:%S')
 
     class Meta:
@@ -59,6 +61,7 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     Read-only. Admin-only access.
     Supports filtering by: model, user, action, start, end, search.
     """
+    queryset           = AuditLog.objects.none()   # real queryset: get_queryset()
     serializer_class   = AuditLogSerializer
     permission_classes = [IsAuthenticated]
     pagination_class   = AuditPagination
@@ -169,6 +172,7 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
 
 # ── Summary stats endpoint ────────────────────────────────────────────────────
 
+@extend_schema(responses=OpenApiTypes.OBJECT)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def audit_summary(request):

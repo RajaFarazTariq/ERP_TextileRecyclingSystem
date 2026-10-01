@@ -12,7 +12,7 @@ class FabricStock(models.Model):
     ]
 
     stock = models.ForeignKey(
-        Stock, on_delete=models.CASCADE, related_name='fabric_stocks'
+        Stock, on_delete=models.PROTECT, related_name='fabric_stocks'
     )
     material_type = models.CharField(max_length=255)
     initial_quantity = models.DecimalField(max_digits=10, decimal_places=2)
@@ -38,10 +38,10 @@ class SortingSession(models.Model):
     ]
 
     fabric = models.ForeignKey(
-        FabricStock, on_delete=models.CASCADE, related_name='sorting_sessions'
+        FabricStock, on_delete=models.PROTECT, related_name='sorting_sessions'
     )
     supervisor = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name='sorting_sessions'
+        CustomUser, on_delete=models.PROTECT, related_name='sorting_sessions'
     )
     unit = models.CharField(max_length=50)  # Unit 1, Unit 2, Unit 3
     quantity_taken = models.DecimalField(max_digits=10, decimal_places=2)
