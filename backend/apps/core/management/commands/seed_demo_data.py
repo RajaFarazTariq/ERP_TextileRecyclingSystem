@@ -33,6 +33,8 @@ from apps.sales.models import Customer
 from apps.procurement.models import (
     PurchaseOrder, PurchaseRequisition, PurchaseReturn, SupplierInvoice, SupplierPayment, SupplierQuotation,
 )
+from apps.production import services as production
+from apps.production.models import BillOfMaterials, BomLine, ProductionOrder, Routing
 from apps.quality.models import CorrectiveAction, Inspection, InspectionResult, QualityStandard, StandardCheck
 
 
@@ -123,6 +125,8 @@ class Command(SeedCommand):
             # Quality and purchasing records point at deliveries, lots and vendors
             Inspection.objects.all().delete()
             QualityStandard.objects.all().delete()
+            ProductionOrder.objects.all().delete()
+            BillOfMaterials.objects.all().delete()
             SupplierPayment.objects.all().delete()
             SupplierInvoice.objects.all().delete()
             SupplierQuotation.objects.all().delete()
@@ -623,6 +627,7 @@ class Command(SeedCommand):
         # orders plus a spare 2,000 kg so new demo orders can be confirmed.
         self.add_demo_opening_stock(admin)
         self.add_demo_quality(admin)
+        self.add_demo_production(admin)
 
         # ══════════════════════════════════════════════════════════════════════
         # SUMMARY
@@ -643,6 +648,7 @@ class Command(SeedCommand):
         self.stdout.write(f'  Dispatches:               {DispatchTracking.objects.count()}')
         self.stdout.write(f'  Payments:                 {Payment.objects.count()}')
         self.stdout.write(f'  Quality Inspections:      {Inspection.objects.count()}')
+        self.stdout.write(f'  Production Orders:        {ProductionOrder.objects.count()}')
         self.stdout.write('─' * 65)
 
         # Monthly order distribution bar chart
@@ -755,3 +761,58 @@ class Command(SeedCommand):
         self.stdout.write(f'  ✓ {QualityStandard.objects.count()} quality standards')
         self.stdout.write(f'  ✓ {Inspection.objects.count()} inspections '
                           f'({Inspection.objects.filter(result="Fail", released_at__isnull=True).count()} in quarantine)')
+
+    # ── Production ───────────────────────────────────────────────────────────
+
+    def add_demo_production(self, admin):
+        """A bill of materials and orders at every stage of their life: done, running, waiting, draft and late."""
+        self.stdout.write('\nCreating production orders...')
+        sorter = CustomUser.objects.get(username='sorting_user')
+        today = timezone.localdate()
+        routing = Routing.objects.get(name='Standard recycling')        # from the production migration
+        routing.steps.update(hourly_cost=d(450))
+
+        bom = BillOfMaterials.objects.create(name='Standard bleaching', product_name='White recycled fibre')
+        for chemical, per_100kg, cost in zip(ChemicalStock.objects.order_by('id')[:3], (4, 2.5, 1), (95, 140, 60)):
+            BomLine.objects.create(bom=bom, material=chemical.chemical_name, chemical=chemical,
+                                   quantity_per_100kg=d(per_100kg), unit=chemical.unit_of_measure, unit_cost=d(cost))
+
+        # Lots that are not held by a failed inspection
+        held = set(Inspection.objects.filter(result='Fail', released_at__isnull=True).values_list('stock_id', flat=True))
+        lots = [lot for lot in FabricStock.objects.order_by('-created_at') if lot.stock_id not in held][:6]
+        plans = [   # (days from today to start, length in days, input kg, how far it gets)
+            (-24, 4, 1800, 'Completed'), (-12, 5, 2400, 'Completed'), (-3, 5, 2000, 'In Progress'),
+            (1, 4, 1500, 'Released'), (6, 5, 2200, 'Draft'), (-9, 3, 1200, 'Late'),
+        ]
+        for lot, (offset, length, kg_in, state) in zip(lots, plans):
+            order = ProductionOrder.objects.create(
+                product_name=f'Recycled fibre ({lot.material_type})', fabric=lot, routing=routing, bom=bom,
+                planned_input_kg=d(kg_in), planned_output_kg=d(kg_in * 0.82),
+                planned_start=today + timedelta(days=offset), planned_end=today + timedelta(days=offset + length),
+                priority='High' if state == 'Late' else 'Normal', created_by=admin,
+            )
+            production.build_steps(order)
+            production.build_materials(order)
+            if state in ('Draft', 'Late'):
+                if state == 'Late':
+                    production.release(order, admin)
+                continue
+            production.release(order, admin)
+            steps = list(order.steps.all())
+            kg = d(kg_in)
+            for step in steps if state == 'Completed' else steps[:1] if state == 'In Progress' else []:
+                production.start_step(step, sorter)
+                out = (kg * d(0.93)).quantize(d('0.01'))
+                production.complete_step(step, kg, out, (kg * d(0.04)).quantize(d('0.01')),
+                                         actual_hours=step.planned_hours * d(1.1))
+                kg = out
+            if state == 'In Progress':
+                production.start_step(steps[1], sorter)
+            if state == 'Completed':
+                for use in order.materials.all():
+                    use.actual_quantity = (use.planned_quantity * d(1.05)).quantize(d('0.01'))
+                    use.save()
+                production.complete(order)
+                finished = timezone.now() + timedelta(days=offset + length)
+                ProductionOrder.objects.filter(pk=order.pk).update(completed_at=finished)
+        self.stdout.write(f'  ✓ {ProductionOrder.objects.count()} production orders')

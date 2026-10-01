@@ -17,6 +17,7 @@ const DESCRIPTIONS: Record<NavIconName, string> = {
   drying: "Dryers and drying batches; output becomes sellable.",
   procurement: "Purchase requests, orders, supplier invoices and payments.",
   quality: "Inspections, quarantine, corrective actions and standards.",
+  production: "Production orders, schedule, material needs and costs.",
   sales: "Orders, dispatches, payments and customers.",
   reports: "Production, sales and waste reports, and the audit log.",
   users: "Accounts, roles and access.",

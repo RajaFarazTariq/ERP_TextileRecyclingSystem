@@ -1,6 +1,7 @@
 import {
   ClipboardList,
   Droplets,
+  Factory,
   FileBarChart,
   LayoutDashboard,
   ListFilter,
@@ -22,6 +23,7 @@ const ICONS: Record<NavIconName, React.ComponentType<LucideProps>> = {
   drying: Wind,
   procurement: ClipboardList,
   quality: ShieldCheck,
+  production: Factory,
   sales: ShoppingCart,
   reports: FileBarChart,
   users: Users,

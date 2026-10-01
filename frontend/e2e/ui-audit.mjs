@@ -16,7 +16,7 @@ import { BASE, SHOTS, login } from './helpers.mjs'
 const OUT = `${SHOTS}audit/`
 mkdirSync(OUT, { recursive: true })
 
-const PAGES = ['dashboard', 'warehouse', 'sorting', 'decolorization', 'drying', 'quality', 'procurement', 'sales', 'reports', 'users']
+const PAGES = ['dashboard', 'warehouse', 'sorting', 'decolorization', 'drying', 'quality', 'production', 'procurement', 'sales', 'reports', 'users']
 // Forms are opened at the widest and narrowest size; the sizes in between check the pages
 const RUNS = [
   { name: 'desktop', width: 1440, height: 900, theme: 'dark', forms: true, dropdowns: true },

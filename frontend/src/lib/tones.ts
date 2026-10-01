@@ -4,7 +4,7 @@
 // the recycling process. Class names are spelled out so Tailwind can see them.
 
 export type StatusTone = "neutral" | "info" | "warning" | "success" | "running" | "danger"
-export type StageTone = "warehouse" | "sorting" | "decolorization" | "drying" | "sales" | "procurement" | "quality"
+export type StageTone = "warehouse" | "sorting" | "decolorization" | "drying" | "sales" | "procurement" | "quality" | "production"
 export type Tone = StatusTone | StageTone | "brand"
 
 export const TONE: Record<Tone, { text: string; soft: string; solid: string; border: string }> = {
@@ -22,6 +22,7 @@ export const TONE: Record<Tone, { text: string; soft: string; solid: string; bor
   sales: { text: "text-stage-sales", soft: "bg-stage-sales/14", solid: "bg-stage-sales", border: "border-stage-sales/30" },
   procurement: { text: "text-stage-procurement", soft: "bg-stage-procurement/14", solid: "bg-stage-procurement", border: "border-stage-procurement/30" },
   quality: { text: "text-stage-quality", soft: "bg-stage-quality/14", solid: "bg-stage-quality", border: "border-stage-quality/30" },
+  production: { text: "text-stage-production", soft: "bg-stage-production/14", solid: "bg-stage-production", border: "border-stage-production/30" },
 }
 
 /** CSS colour for charts and SVG (same palette as the classes above). */
@@ -40,4 +41,5 @@ export const TONE_VAR: Record<Tone, string> = {
   sales: "var(--stage-sales)",
   procurement: "var(--stage-procurement)",
   quality: "var(--stage-quality)",
+  production: "var(--stage-production)",
 }

@@ -10,6 +10,7 @@ export const NAV_TONES: Record<NavIcon, Tone> = {
   drying: "drying",
   procurement: "procurement",
   quality: "quality",
+  production: "production",
   sales: "sales",
   reports: "running",
   users: "info",

@@ -73,8 +73,11 @@ class Command(SeedCommand):
         from apps.procurement.models import (
             PurchaseOrder, PurchaseRequisition, PurchaseReturn, SupplierInvoice, SupplierPayment, SupplierQuotation,
         )
+        from apps.production.models import BillOfMaterials, ProductionOrder
         from apps.quality.models import Inspection
         Inspection.objects.all().delete()
+        ProductionOrder.objects.all().delete()
+        BillOfMaterials.objects.all().delete()
         SupplierPayment.objects.all().delete()
         SupplierInvoice.objects.all().delete()
         SupplierQuotation.objects.all().delete()

@@ -32,6 +32,7 @@ const SECTIONS: Record<string, string[]> = {
   "/decolorization": ["Tanks", "Chemicals", "Issuances", "Sessions"],
   "/drying": ["Sessions", "Dryers"],
   "/procurement": ["Purchase requests", "Purchase orders", "Supplier invoices", "Supplier payments", "Purchase returns", "Suppliers", "Price comparison"],
+  "/production": ["Production orders", "Schedule", "Material requirements", "Routings", "Bills of materials", "Process stages"],
   "/quality": ["Inspections", "Quarantine", "Corrective actions", "Quality standards"],
   "/sales": ["Orders", "Dispatches", "Payments", "Customers"],
   "/reports": ["Daily production", "Monthly sales", "Waste analysis", "Audit log"],

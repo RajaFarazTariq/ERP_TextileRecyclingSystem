@@ -688,3 +688,188 @@ export interface QualitySummary {
   defects: { name: string; checks: number; failures: number; failure_pct: number }[]
   suppliers: { vendor: number; name: string; inspections: number; failed: number; pass_pct: number }[]
 }
+
+// ─── Production ─────────────────────────────────────────────────────────────
+
+export type StageModule = "" | "sorting" | "decolorization" | "drying"
+
+export interface ProcessStage {
+  id: number
+  name: string
+  sequence: number
+  /** The module whose sessions do this work, if any */
+  module: StageModule
+  is_active: boolean
+}
+
+export interface RoutingStep {
+  id: number
+  stage: number
+  stage_name: string
+  sequence: number
+  planned_hours: Decimal
+  hourly_cost: Decimal
+}
+
+export interface Routing {
+  id: number
+  name: string
+  description: string
+  is_active: boolean
+  created_at: string
+  steps: RoutingStep[]
+  orders: number
+  planned_hours: Decimal
+}
+
+export interface BomLine {
+  id: number
+  material: string
+  chemical: number | null
+  chemical_name: string | null
+  quantity_per_100kg: Decimal
+  unit: string
+  unit_cost: Decimal
+}
+
+export interface Bom {
+  id: number
+  name: string
+  product_name: string
+  is_active: boolean
+  notes: string
+  created_at: string
+  lines: BomLine[]
+  orders: number
+}
+
+export type StepStatus = "Pending" | "In Progress" | "Done" | "Skipped"
+
+export interface OrderStep {
+  id: number
+  order: number
+  order_number: string
+  stage: number
+  stage_name: string
+  stage_module: StageModule
+  sequence: number
+  status: StepStatus
+  operator: number | null
+  operator_name: string | null
+  machine: string
+  planned_hours: Decimal
+  hourly_cost: Decimal
+  started_at: string | null
+  finished_at: string | null
+  actual_hours: Decimal | null
+  input_kg: Decimal | null
+  output_kg: Decimal | null
+  waste_kg: Decimal | null
+  notes: string
+  cost: Decimal
+}
+
+export interface MaterialUse {
+  id: number
+  order: number
+  material: string
+  chemical: number | null
+  chemical_name: string | null
+  unit: string
+  planned_quantity: Decimal
+  actual_quantity: Decimal | null
+  unit_cost: Decimal
+  planned_cost: Decimal
+  actual_cost: Decimal | null
+}
+
+export type ProductionStatus = "Draft" | "Released" | "In Progress" | "Completed" | "Cancelled"
+export type Priority = "Low" | "Normal" | "High"
+
+export interface ProductionOrder {
+  id: number
+  number: string
+  product_name: string
+  fabric: number
+  fabric_material: string
+  unit: number | null
+  unit_name: string | null
+  routing: number
+  routing_name: string
+  bom: number | null
+  bom_name: string | null
+  planned_input_kg: Decimal
+  planned_output_kg: Decimal
+  planned_start: string
+  planned_end: string
+  priority: Priority
+  status: ProductionStatus
+  actual_output_kg: Decimal | null
+  notes: string
+  created_by: number
+  created_by_name: string
+  released_by: number | null
+  released_by_name: string | null
+  released_at: string | null
+  started_at: string | null
+  completed_at: string | null
+  created_at: string
+  steps: OrderStep[]
+  materials: MaterialUse[]
+  // Planned against actual (computed by the server)
+  progress_pct: number
+  current_stage: string | null
+  planned_hours: Decimal
+  actual_hours: Decimal
+  actual_input_kg: Decimal | null
+  output_kg: Decimal | null
+  waste_kg: Decimal
+  yield_pct: number | null
+  planned_cost: Decimal
+  labour_cost: Decimal
+  material_cost: Decimal
+  total_cost: Decimal
+  cost_per_kg: Decimal | null
+  is_late: boolean
+}
+
+export interface ProductionSummary {
+  draft: number
+  released: number
+  in_progress: number
+  completed: number
+  late: number
+  wip_kg: Decimal
+  completed_this_month: number
+  output_this_month: Decimal
+  planned_output_completed: Decimal
+  actual_output_completed: Decimal
+  yield_pct: number | null
+  waste_kg: Decimal
+  planned_cost_completed: Decimal
+  actual_cost_completed: Decimal
+  cost_per_kg: Decimal | null
+  stages: { stage: string; steps: number; planned_hours: Decimal; actual_hours: Decimal; input_kg: Decimal; output_kg: Decimal; waste_kg: Decimal }[]
+}
+
+export interface MaterialRequirement {
+  material: string
+  chemical: number | null
+  unit: string
+  required: Decimal
+  /** Chemical stock on hand; null for materials that are not stocked chemicals */
+  in_stock: Decimal | null
+  shortage: Decimal | null
+  orders: string[]
+}
+
+export interface LotActivity {
+  module: "sorting" | "decolorization" | "drying"
+  id: number
+  status: string
+  supervisor: string
+  input_kg: Decimal
+  output_kg: Decimal
+  waste_kg: Decimal
+  date: string
+}
