@@ -30,6 +30,10 @@ from apps.sales.models import SalesOrder, DispatchTracking, Payment
 from apps.drying.models import DryingSession
 from apps.inventory.models import StockMovement
 from apps.sales.models import Customer
+from apps.procurement.models import (
+    PurchaseOrder, PurchaseRequisition, PurchaseReturn, SupplierInvoice, SupplierPayment, SupplierQuotation,
+)
+from apps.quality.models import CorrectiveAction, Inspection, InspectionResult, QualityStandard, StandardCheck
 
 
 # ─── Type-safe Decimal helpers ────────────────────────────────────────────────
@@ -116,6 +120,13 @@ class Command(SeedCommand):
         # ── STEP 0: Wipe ──────────────────────────────────────────────────────
         if not keep:
             self.stdout.write('Clearing existing data...')
+            # Quality and purchasing records point at deliveries, lots and vendors
+            Inspection.objects.all().delete()
+            QualityStandard.objects.all().delete()
+            SupplierPayment.objects.all().delete()
+            SupplierInvoice.objects.all().delete()
+            SupplierQuotation.objects.all().delete()
+            PurchaseReturn.objects.all().delete()
             Payment.objects.all().delete()
             DispatchTracking.objects.all().delete()
             SalesOrder.objects.all().delete()
@@ -129,6 +140,8 @@ class Command(SeedCommand):
             SortingSession.objects.all().delete()
             FabricStock.objects.all().delete()
             Stock.objects.all().delete()
+            PurchaseOrder.objects.all().delete()
+            PurchaseRequisition.objects.all().delete()
             FactoryUnit.objects.all().delete()
             Vendor.objects.all().delete()
             CustomUser.objects.filter(username__in=[
@@ -609,6 +622,7 @@ class Command(SeedCommand):
         # flag as oversold. Give each lot a labelled opening balance covering its
         # orders plus a spare 2,000 kg so new demo orders can be confirmed.
         self.add_demo_opening_stock(admin)
+        self.add_demo_quality(admin)
 
         # ══════════════════════════════════════════════════════════════════════
         # SUMMARY
@@ -628,6 +642,7 @@ class Command(SeedCommand):
         self.stdout.write(f'  Sales Orders:             {SalesOrder.objects.count()}')
         self.stdout.write(f'  Dispatches:               {DispatchTracking.objects.count()}')
         self.stdout.write(f'  Payments:                 {Payment.objects.count()}')
+        self.stdout.write(f'  Quality Inspections:      {Inspection.objects.count()}')
         self.stdout.write('─' * 65)
 
         # Monthly order distribution bar chart
@@ -651,3 +666,92 @@ class Command(SeedCommand):
         self.stdout.write('  Decolorization:  decolor_user   / Demo@1234')
         self.stdout.write('  Drying:          drying_user    / Demo@1234')
         self.stdout.write('─' * 65)
+
+    # ── Quality control ──────────────────────────────────────────────────────
+
+    def add_demo_quality(self, admin):
+        """Standards, six months of inspections, one delivery in quarantine and two follow-up actions."""
+        self.stdout.write('\nCreating quality inspections...')
+        keeper = CustomUser.objects.get(username='warehouse_user')
+        dryer = CustomUser.objects.get(username='drying_user')
+        today = timezone.localdate()
+
+        def standard(name, stage, checks):
+            std = QualityStandard.objects.create(name=name, stage=stage)
+            for check_name, kind, unit, low, high in checks:
+                StandardCheck.objects.create(standard=std, name=check_name, kind=kind, unit=unit,
+                                             min_value=low, max_value=high)
+            return std
+
+        incoming = standard('Incoming textile waste', 'Incoming', [
+            ('Moisture', 'Measure', '%', None, d(12)),
+            ('Contamination', 'Measure', '%', None, d(5)),
+            ('Free of oil and chemicals', 'Pass/Fail', '', None, None),
+        ])
+        finished = standard('Finished recycled fibre', 'Finished', [
+            ('Moisture', 'Measure', '%', None, d(8)),
+            ('Whiteness', 'Measure', 'index', d(70), None),
+            ('Colour consistency', 'Pass/Fail', '', None, None),
+        ])
+        standard('In-process check', 'In-process', [
+            ('Sorted to one colour group', 'Pass/Fail', '', None, None),
+            ('Foreign material removed', 'Pass/Fail', '', None, None),
+        ])
+
+        def inspect(std, user, days_ago, values, result, stock=None, fabric=None, reason='', notes=''):
+            inspection = Inspection.objects.create(
+                stage=std.stage, stock=stock, fabric=fabric, standard=std, inspector=user,
+                inspected_on=today - timedelta(days=days_ago), sample_kg=d(5), result=result,
+                rejection_reason=reason, notes=notes,
+            )
+            for check, value in zip(std.checks.all(), values):
+                if check.kind == 'Measure':
+                    passed = ((check.min_value is None or value >= check.min_value)
+                              and (check.max_value is None or value <= check.max_value))
+                    InspectionResult.objects.create(
+                        inspection=inspection, name=check.name, kind=check.kind, unit=check.unit,
+                        min_value=check.min_value, max_value=check.max_value, value=value, passed=passed)
+                else:
+                    InspectionResult.objects.create(inspection=inspection, name=check.name, kind=check.kind, passed=value)
+            return inspection
+
+        # Deliveries: mostly fine, some accepted with a condition, a few failed
+        deliveries = list(Stock.objects.exclude(status='Rejected').order_by('-created_at')[:24])
+        for n, stock in enumerate(deliveries):
+            days_ago = 4 + n * 7
+            if n % 8 == 5:
+                inspect(incoming, keeper, days_ago, [d(11), d(7), True], 'Conditional', stock=stock,
+                        notes='Contamination above the limit: sort out foreign material before use.')
+            elif n % 12 == 9:
+                failed = inspect(incoming, keeper, days_ago, [d(19), d(4), True], 'Fail', stock=stock,
+                                 reason='Material arrived wet (19% moisture).')
+                failed.released_by, failed.released_at = admin, timezone.now() - timedelta(days=days_ago - 2)
+                failed.release_note = 'Air-dried for two days and re-tested at 10% moisture.'
+                failed.save()
+                action = CorrectiveAction.objects.create(
+                    inspection=failed, kind='Preventive', owner=keeper, created_by=admin,
+                    description='Ask the supplier to cover loads in transit during the rainy season.',
+                    due_date=today - timedelta(days=days_ago - 14), status='Done',
+                    completion_note='Agreed with the supplier.')
+                CorrectiveAction.objects.filter(pk=action.pk).update(completed_at=timezone.now() - timedelta(days=days_ago - 10))
+            else:
+                inspect(incoming, keeper, days_ago, [d(7 + n % 5), d(1 + n % 4), True], 'Pass', stock=stock)
+
+        # One delivery that hasn't gone to sorting is held in quarantine
+        held = (Stock.objects.filter(fabric_stocks__isnull=True, inspections__isnull=True)
+                .exclude(status='Rejected').order_by('created_at').first())
+        if held:
+            failed = inspect(incoming, keeper, 1, [d(9), d(14), False], 'Fail', stock=held,
+                             reason='Oil-stained rags mixed in; contamination 14%.')
+            CorrectiveAction.objects.create(
+                inspection=failed, kind='Corrective', owner=keeper, created_by=admin,
+                description='Separate the oil-stained material and return it to the supplier.',
+                due_date=today + timedelta(days=5))
+
+        # Finished lots that are on sale
+        for n, fabric in enumerate(FabricStock.objects.filter(drying_sessions__status='Completed').distinct()[:8]):
+            inspect(finished, dryer, 3 + n * 9, [d(5 + n % 3), d(74 + n), True], 'Pass', fabric=fabric)
+
+        self.stdout.write(f'  ✓ {QualityStandard.objects.count()} quality standards')
+        self.stdout.write(f'  ✓ {Inspection.objects.count()} inspections '
+                          f'({Inspection.objects.filter(result="Fail", released_at__isnull=True).count()} in quarantine)')

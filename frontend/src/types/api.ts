@@ -52,6 +52,8 @@ export interface StockEntry {
   po_line: number | null
   po_number: string | null
   po_material: string | null
+  /** Latest quality inspection; null when the delivery was never inspected */
+  qc_status: "Pass" | "Conditional" | "Quarantined" | "Released" | null
   created_at: string
 }
 
@@ -79,6 +81,8 @@ export interface FabricLot {
   status: FabricStatus
   /** Sellable dried stock (inventory ledger), in kg */
   dried_available_kg: number
+  /** Held by a failed quality inspection until an admin releases it */
+  quarantined: boolean
   created_at: string
   updated_at: string
 }
@@ -570,6 +574,9 @@ export interface SupplierPerformance {
   rejected_pct: number | null
   on_time_pct: number | null
   avg_price_per_kg: Decimal | null
+  inspections: number
+  failed_inspections: number
+  quality_pass_pct: number | null
 }
 
 export interface PriceComparison {
@@ -581,4 +588,103 @@ export interface PriceComparison {
     avg_order_price: Decimal | null
     orders: number
   }[]
+}
+
+// ─── Quality control ────────────────────────────────────────────────────────
+
+export type QualityStage = "Incoming" | "In-process" | "Finished"
+export type CheckKind = "Measure" | "Pass/Fail"
+export type InspectionOutcome = "Pass" | "Conditional" | "Fail"
+
+export interface StandardCheck {
+  id: number
+  name: string
+  kind: CheckKind
+  unit: string
+  min_value: Decimal | null
+  max_value: Decimal | null
+}
+
+export interface QualityStandard {
+  id: number
+  name: string
+  stage: QualityStage
+  /** Empty = any material */
+  material_type: string
+  is_active: boolean
+  notes: string
+  created_at: string
+  checks: StandardCheck[]
+  inspections: number
+}
+
+export interface InspectionCheck extends StandardCheck {
+  value: Decimal | null
+  passed: boolean
+  note: string
+}
+
+export interface CorrectiveAction {
+  id: number
+  inspection: number
+  inspection_number: string
+  kind: "Corrective" | "Preventive"
+  description: string
+  owner: number | null
+  owner_name: string | null
+  due_date: string | null
+  status: "Open" | "Done"
+  completed_at: string | null
+  completion_note: string
+  created_by: number
+  created_by_name: string
+  created_at: string
+  overdue: boolean
+}
+
+export interface Inspection {
+  id: number
+  number: string
+  stage: QualityStage
+  /** The delivery (incoming inspections) */
+  stock: number | null
+  /** The fabric lot (in-process and finished inspections) */
+  fabric: number | null
+  target: string
+  material: string
+  vendor_name: string
+  standard: number | null
+  standard_name: string | null
+  inspector: number
+  inspector_name: string
+  inspected_on: string
+  sample_kg: Decimal | null
+  composition: string
+  result: InspectionOutcome
+  rejection_reason: string
+  notes: string
+  /** Failed and not yet released by an admin */
+  quarantined: boolean
+  released_by: number | null
+  released_by_name: string | null
+  released_at: string | null
+  release_note: string
+  created_at: string
+  results: InspectionCheck[]
+  failed_checks: number
+  actions: CorrectiveAction[]
+}
+
+export interface QualitySummary {
+  inspections_this_month: number
+  pass_pct_this_month: number | null
+  conditional_this_month: number
+  failed_this_month: number
+  quarantined: number
+  open_actions: number
+  overdue_actions: number
+  trend: { month: string; Pass: number; Conditional: number; Fail: number }[]
+  stages: { stage: QualityStage; Pass: number; Conditional: number; Fail: number }[]
+  defects: { name: string; checks: number; failures: number; failure_pct: number }[]
+  suppliers: { vendor: number; name: string; inspections: number; failed: number; pass_pct: number }[]
 }

@@ -34,6 +34,14 @@ const STATUS_TONES: Record<string, StatusTone> = {
   Paid: "success",
   Loading: "warning",
   Delivered: "success",
+  // quality
+  Pass: "success",
+  Conditional: "warning",
+  Fail: "danger",
+  Quarantined: "danger",
+  Released: "info",
+  Open: "warning",
+  Done: "success",
   // fabric lots
   "In Warehouse": "neutral",
   "In Sorting": "running",

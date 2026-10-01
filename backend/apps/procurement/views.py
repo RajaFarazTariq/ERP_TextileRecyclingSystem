@@ -268,6 +268,7 @@ class SupplierPerformanceView(APIView):
             'vendor': v.pk, 'name': v.name, 'category': v.category, 'is_active': v.is_active,
             'orders': 0, 'ordered_kg': ZERO, 'received_kg': ZERO, 'rejected_kg': ZERO, 'spend': ZERO,
             'on_time': 0, 'delivered_orders': 0, 'deliveries': 0, 'payable': ZERO,
+            'inspections': 0, 'failed_inspections': 0,
         } for v in Vendor.objects.all()}
 
         for order in _orders_with_lines().exclude(status__in=('Draft', 'Cancelled')):
@@ -295,12 +296,19 @@ class SupplierPerformanceView(APIView):
         for inv in SupplierInvoice.objects.prefetch_related('payments').exclude(status='Paid'):
             rows[inv.vendor_id]['payable'] += services.outstanding(inv)
 
+        from apps.quality.models import Inspection
+        for vendor_id, result in Inspection.objects.filter(stage='Incoming').values_list('stock__vendor_id', 'result'):
+            rows[vendor_id]['inspections'] += 1
+            rows[vendor_id]['failed_inspections'] += int(result == 'Fail')
+
         result = []
         for row in rows.values():
             delivered = row['received_kg'] + row['rejected_kg']
             row['rejected_pct'] = round(float(row['rejected_kg'] / delivered * 100), 1) if delivered else None
             row['on_time_pct'] = round(row['on_time'] / row['delivered_orders'] * 100, 1) if row['delivered_orders'] else None
             row['avg_price_per_kg'] = round(row['spend'] / row['ordered_kg'], 2) if row['ordered_kg'] else None
+            row['quality_pass_pct'] = (round((row['inspections'] - row['failed_inspections']) / row['inspections'] * 100, 1)
+                                       if row['inspections'] else None)
             result.append(row)
         result.sort(key=lambda r: (-r['received_kg'], r['name']))
         return Response(result)

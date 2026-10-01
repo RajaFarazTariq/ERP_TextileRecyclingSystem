@@ -31,7 +31,7 @@ export function canAccess(role: Role | undefined, pathname: string): boolean {
 }
 
 export type NavIcon =
-  | "dashboard" | "warehouse" | "sorting" | "decolorization" | "drying" | "procurement" | "sales" | "reports" | "users"
+  | "dashboard" | "warehouse" | "sorting" | "decolorization" | "drying" | "procurement" | "quality" | "sales" | "reports" | "users"
 
 export interface NavItem {
   title: string
@@ -56,6 +56,7 @@ export const NAV: NavGroup[] = [
       { title: "Sorting", href: "/sorting", icon: "sorting" },
       { title: "Decolorization", href: "/decolorization", icon: "decolorization" },
       { title: "Drying", href: "/drying", icon: "drying" },
+      { title: "Quality", href: "/quality", icon: "quality" },
     ],
   },
   {

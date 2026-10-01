@@ -12,6 +12,8 @@ class FabricStockSerializer(serializers.ModelSerializer):
 
     # Sellable dried stock for this lot (see apps.inventory)
     dried_available_kg = serializers.SerializerMethodField()
+    # Held by a failed quality inspection (see apps.quality)
+    quarantined = serializers.SerializerMethodField()
 
     class Meta:
         model = FabricStock
@@ -28,7 +30,19 @@ class FabricStockSerializer(serializers.ModelSerializer):
         row = figures.get(obj.pk)
         return float(row['available']) if row else 0.0
 
+    def get_quarantined(self, obj) -> bool:
+        held = self.context.get('quarantine')
+        if held is None:
+            from apps.quality.services import quarantined_ids
+            held = self.context['quarantine'] = quarantined_ids()
+        stock_ids, fabric_ids = held
+        return obj.pk in fabric_ids or obj.stock_id in stock_ids
+
     def validate(self, data):
+        stock = data.get('stock')
+        if stock is not None and (self.instance is None or self.instance.stock_id != stock.pk):
+            from apps.quality.services import check_usable
+            check_usable(stock=stock, field='stock', verb='sent to sorting')
         initial_quantity = data.get('initial_quantity', getattr(self.instance, 'initial_quantity', None))
         if initial_quantity is not None and initial_quantity <= 0:
             raise serializers.ValidationError(
@@ -67,4 +81,6 @@ class SortingSessionSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Quantity taken must be greater than zero."
             )
+        from apps.quality.services import check_lot_change
+        check_lot_change(self, data, 'sorted')
         return data

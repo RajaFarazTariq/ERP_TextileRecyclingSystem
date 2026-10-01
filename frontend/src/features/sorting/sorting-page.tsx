@@ -94,7 +94,12 @@ export function SortingPage() {
     { id: "initial", header: "Initial", accessorFn: (r) => n(r.initial_quantity), sortFn: "basic", cell: ({ row }) => <span className="tabular-nums">{kg(row.original.initial_quantity)}</span> },
     { id: "sorted", header: "Sorted", accessorFn: (r) => n(r.sorted_quantity), sortFn: "basic", cell: ({ row }) => <span className="tabular-nums">{kg(row.original.sorted_quantity)}</span> },
     { id: "remaining", header: "Remaining", accessorFn: (r) => n(r.remaining_quantity), sortFn: "basic", cell: ({ row }) => <span className="tabular-nums">{kg(row.original.remaining_quantity)}</span> },
-    { accessorKey: "status", header: "Status", cell: ({ getValue }) => <StatusBadge status={getValue<string>()} /> },
+    { accessorKey: "status", header: "Status", cell: ({ row }) => (
+      <span className="flex flex-col items-start gap-1">
+        <StatusBadge status={row.original.status} />
+        {row.original.quarantined && <StatusBadge status="Quarantined" />}
+      </span>
+    ) },
     {
       id: "actions", header: "", enableSorting: false, enableHiding: false,
       cell: ({ row }) => (

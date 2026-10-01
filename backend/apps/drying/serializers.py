@@ -26,3 +26,8 @@ class DryingSessionSerializer(serializers.ModelSerializer):
     class Meta:
         model  = DryingSession
         fields = '__all__'
+
+    def validate(self, data):
+        from apps.quality.services import check_lot_change
+        check_lot_change(self, data, 'dried')
+        return data

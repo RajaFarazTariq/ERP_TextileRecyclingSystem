@@ -26,6 +26,8 @@ A web-based ERP for textile recycling factories. It follows material from the su
 - **Decolorization:** tanks, chemical stock and issues (over-issuing is blocked), process sessions and efficiency.
 - **Drying:** dryers and drying sessions. Completed sessions add sellable stock.
 
+- **Quality:** standards with limits, inspections of deliveries and fabric lots, quarantine of failed material, corrective actions, defect analysis and supplier quality.
+
 **Commercial**
 - **Purchasing:** purchase requests and orders with admin approval, amendments with revision numbers, deliveries against orders, supplier invoices with tax, payments, returns, quotations, price comparison and supplier performance.
 - **Sales:** customers, orders with stock reservation, partial dispatches, payments, and oversell protection.
@@ -91,6 +93,7 @@ backend/
     users/                Custom user model, login, user management
     warehouse/            Suppliers, factory units, incoming deliveries
     procurement/          Requests, purchase orders, supplier invoices, payments, returns
+    quality/              Standards, inspections, quarantine, corrective actions
     sorting/              Fabric lots and sorting sessions
     decolorization/       Chemicals, tanks, issues, sessions
     drying/               Dryers and drying sessions
@@ -175,10 +178,10 @@ These logins exist after `python manage.py seed_demo_data`:
 | Role | Username | Password | Sees |
 |---|---|---|---|
 | Admin | `admin` | `Admin@1234` | Everything |
-| Warehouse supervisor | `warehouse_user` | `Demo@1234` | Warehouse, Purchasing |
-| Sorting supervisor | `sorting_user` | `Demo@1234` | Sorting |
-| Decolorization supervisor | `decolor_user` | `Demo@1234` | Decolorization |
-| Drying supervisor | `drying_user` | `Demo@1234` | Drying |
+| Warehouse supervisor | `warehouse_user` | `Demo@1234` | Warehouse, Purchasing, Quality |
+| Sorting supervisor | `sorting_user` | `Demo@1234` | Sorting, Quality |
+| Decolorization supervisor | `decolor_user` | `Demo@1234` | Decolorization, Quality |
+| Drying supervisor | `drying_user` | `Demo@1234` | Drying, Quality |
 
 Change these passwords, or don't seed demo data at all, on a real server.
 
@@ -241,6 +244,16 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main` or `upg
 - **Who does what:** admins and warehouse supervisors use Purchasing. Only admins approve, close orders and record supplier payments. A payment can't exceed what is still owed on the invoice.
 - **API:** `/api/v1/procurement/` (requisitions, orders, open-lines, invoices, payments, returns, quotations, summary, supplier-performance, price-comparison).
 
+### Quality
+
+- **Standards:** an admin sets up checklists. Each check is either measured against a minimum and/or maximum (for example, moisture of at most 12%) or answered yes/no. A standard belongs to one stage and, optionally, one material.
+- **Inspections:** deliveries are inspected as *Incoming*; fabric lots as *In-process* or *Finished*. The result is *Pass*, *Conditional* (accepted with a written condition) or *Fail* (with a reason). An inspection with a failed check can't be saved as Pass.
+- **Quarantine:** a failed inspection holds its delivery or lot. Held material can't be sent to sorting, can't start a sorting, decolorization or drying session, and can't be confirmed or dispatched on a sales order. Material that was never inspected works as before.
+- **Release:** only an admin releases material from quarantine, and must give a reason. A released inspection can't be changed afterwards.
+- **Who inspects what:** warehouse supervisors inspect incoming material; sorting, decolorization and drying supervisors inspect in-process material; drying supervisors inspect finished product. Admins can do all of it. Only admins change a failed inspection or delete records.
+- **Follow-up:** corrective and preventive actions can be added to an inspection, with a person responsible and a due date.
+- **API:** `/api/v1/quality/` (standards, inspections, actions, summary).
+
 ### Consistency checks
 
 ```bash
@@ -250,7 +263,7 @@ python manage.py customer_duplicates        # customers with near-identical name
 
 ## Roadmap
 
-Quality control, production planning, finance, maintenance, HR, sustainability and document management are next. See [docs/UPGRADE_AUDIT.md](docs/UPGRADE_AUDIT.md) for the full roadmap and per-phase status.
+Production planning, finance, maintenance, HR, sustainability and document management are next. See [docs/UPGRADE_AUDIT.md](docs/UPGRADE_AUDIT.md) for the full roadmap and per-phase status.
 
 ## Author
 

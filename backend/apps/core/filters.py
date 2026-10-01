@@ -3,6 +3,8 @@
 
 from datetime import date, timedelta
 
+from django.db.models import DateTimeField
+
 
 def filter_by_date_params(queryset, params, field):
     """
@@ -17,12 +19,15 @@ def filter_by_date_params(queryset, params, field):
     """
     today       = date.today()
     date_filter = params.get('date_filter')
+    # Compare by calendar day: DateTimeFields need __date, DateFields are days already
+    is_datetime = isinstance(queryset.model._meta.get_field(field), DateTimeField)
+    day = f'{field}__date' if is_datetime else field
 
     if date_filter == 'today':
-        queryset = queryset.filter(**{f'{field}__date': today})
+        queryset = queryset.filter(**{day: today})
     elif date_filter == 'this_week':
         week_start = today - timedelta(days=today.weekday())
-        queryset = queryset.filter(**{f'{field}__date__gte': week_start})
+        queryset = queryset.filter(**{f'{day}__gte': week_start})
     elif date_filter == 'this_month':
         queryset = queryset.filter(**{f'{field}__year': today.year, f'{field}__month': today.month})
     elif date_filter == 'this_year':
@@ -43,13 +48,13 @@ def filter_by_date_params(queryset, params, field):
 
     if st := params.get('start'):
         try:
-            queryset = queryset.filter(**{f'{field}__date__gte': date.fromisoformat(st)})
+            queryset = queryset.filter(**{f'{day}__gte': date.fromisoformat(st)})
         except ValueError:
             pass
 
     if en := params.get('end'):
         try:
-            queryset = queryset.filter(**{f'{field}__date__lte': date.fromisoformat(en)})
+            queryset = queryset.filter(**{f'{day}__lte': date.fromisoformat(en)})
         except ValueError:
             pass
 

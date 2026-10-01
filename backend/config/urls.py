@@ -13,6 +13,7 @@ api_patterns = [
     path('sales/', include('apps.sales.urls')),
     path('inventory/', include('apps.inventory.urls')),
     path('procurement/', include('apps.procurement.urls')),
+    path('quality/', include('apps.quality.urls')),
     path('reports/', include('apps.reports.urls')),
     path('', include('apps.audit.urls')),
 ]

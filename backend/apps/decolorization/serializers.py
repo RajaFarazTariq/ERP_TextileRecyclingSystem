@@ -97,3 +97,8 @@ class DecolorizationSessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = DecolorizationSession
         fields = '__all__'
+
+    def validate(self, data):
+        from apps.quality.services import check_lot_change
+        check_lot_change(self, data, 'decolorized')
+        return data
