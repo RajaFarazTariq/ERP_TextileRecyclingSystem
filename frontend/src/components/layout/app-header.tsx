@@ -28,15 +28,18 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { ROLE_LABELS } from "@/config/access"
+import { NAV, ROLE_LABELS } from "@/config/access"
 import { logout } from "@/features/auth/use-session"
 import type { SessionUser } from "@/types/api"
 import { CommandMenu } from "./command-menu"
 import { Notifications } from "./notifications"
 import { ThemeToggle } from "./theme-toggle"
 
+// Pages are named as in the menu ("/procurement" is "Purchasing")
+const NAV_TITLES = new Map(NAV.flatMap((g) => g.items.map((i) => [i.href.slice(1), i.title] as const)))
+
 function titleCase(segment: string) {
-  return segment.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  return NAV_TITLES.get(segment) ?? segment.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
 function Breadcrumbs() {

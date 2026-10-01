@@ -11,6 +11,7 @@ import { chromium } from 'playwright'
 
 import { decolorizationScenario } from './decolorization.mjs'
 import { dryingScenario } from './drying.mjs'
+import { procurementScenario } from './procurement.mjs'
 import { reportsScenario } from './reports.mjs'
 import { salesScenario } from './sales.mjs'
 import { usersScenario } from './users.mjs'
@@ -25,6 +26,7 @@ const scenarios = {
   sales: salesScenario,
   users: usersScenario,
   reports: reportsScenario,
+  procurement: procurementScenario,
 }
 const wanted = process.argv.slice(2).filter((a) => a in scenarios)
 

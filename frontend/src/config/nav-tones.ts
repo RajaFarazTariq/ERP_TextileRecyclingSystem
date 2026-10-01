@@ -8,6 +8,7 @@ export const NAV_TONES: Record<NavIcon, Tone> = {
   sorting: "sorting",
   decolorization: "decolorization",
   drying: "drying",
+  procurement: "procurement",
   sales: "sales",
   reports: "running",
   users: "info",

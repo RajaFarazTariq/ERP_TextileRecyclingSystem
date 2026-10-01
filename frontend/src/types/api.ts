@@ -23,6 +23,11 @@ export interface Vendor {
   name: string
   contact: string | null
   address: string | null
+  email: string
+  category: SupplierCategory | ""
+  specialties: string
+  payment_terms_days: number | null
+  is_active: boolean
   created_at: string
 }
 
@@ -43,6 +48,10 @@ export interface StockEntry {
   our_weight: Decimal
   unloading_weight: Decimal
   status: StockStatus
+  /** Purchase order line this delivery was received against (optional) */
+  po_line: number | null
+  po_number: string | null
+  po_material: string | null
   created_at: string
 }
 
@@ -386,4 +395,190 @@ export interface LotStock {
   on_hand_kg: string
   reserved_kg: string
   available_kg: string
+}
+
+// ── Procurement ─────────────────────────────────────────────────────────────
+
+export type RequisitionStatus = "Draft" | "Submitted" | "Approved" | "Rejected" | "Ordered" | "Cancelled"
+export type PurchaseOrderStatus = "Draft" | "Submitted" | "Approved" | "Partially Received" | "Received" | "Closed" | "Cancelled"
+export type SupplierCategory = "Textile waste" | "Post-consumer" | "Pre-consumer" | "Chemicals" | "Packaging" | "Other"
+
+export interface RequisitionLine {
+  id?: number
+  material: string
+  quantity_kg: Decimal
+  notes: string
+}
+
+export interface Requisition {
+  id: number
+  number: string
+  requested_by: number
+  requested_by_name: string
+  unit: number | null
+  unit_name: string | null
+  needed_by: string | null
+  status: RequisitionStatus
+  notes: string
+  decided_by: number | null
+  decided_by_name: string | null
+  decided_at: string | null
+  rejection_reason: string
+  created_at: string
+  lines: RequisitionLine[]
+  total_kg: Decimal
+  order_numbers: string[]
+}
+
+export interface PurchaseOrderLine {
+  id?: number
+  material: string
+  quantity_kg: Decimal
+  unit_price: Decimal
+  amount: Decimal
+  received_kg: Decimal
+  rejected_kg: Decimal
+  returned_kg: Decimal
+  remaining_kg: Decimal
+}
+
+export interface PurchaseOrder {
+  id: number
+  number: string
+  vendor: number
+  vendor_name: string
+  requisition: number | null
+  requisition_number: string | null
+  order_date: string
+  expected_date: string | null
+  status: PurchaseOrderStatus
+  revision: number
+  notes: string
+  created_by: number
+  created_by_name: string
+  approved_by: number | null
+  approved_by_name: string | null
+  approved_at: string | null
+  created_at: string
+  lines: PurchaseOrderLine[]
+  total_amount: Decimal
+  ordered_kg: Decimal
+  received_kg: Decimal
+  invoiced_amount: Decimal
+}
+
+export interface OpenPoLine {
+  id: number
+  order: number
+  order_number: string
+  vendor: number
+  material: string
+  quantity_kg: Decimal
+  unit_price: Decimal
+  remaining_kg: Decimal
+  expected_date: string | null
+}
+
+export interface PurchaseReturn {
+  id: number
+  number: string
+  receipt: number
+  receipt_label: string
+  vendor_name: string
+  order_number: string | null
+  quantity_kg: Decimal
+  reason: string
+  return_date: string
+  created_by: number
+  created_by_name: string
+  created_at: string
+}
+
+export interface SupplierQuotation {
+  id: number
+  vendor: number
+  vendor_name: string
+  requisition: number | null
+  requisition_number: string | null
+  material: string
+  price_per_kg: Decimal
+  min_quantity_kg: Decimal | null
+  quoted_on: string
+  valid_until: string | null
+  notes: string
+  created_at: string
+}
+
+export interface SupplierInvoice {
+  id: number
+  vendor: number
+  vendor_name: string
+  purchase_order: number | null
+  order_number: string | null
+  invoice_number: string
+  invoice_date: string
+  due_date: string | null
+  amount: Decimal
+  tax_amount: Decimal
+  total: Decimal
+  status: "Unpaid" | "Partial" | "Paid"
+  paid_amount: Decimal
+  outstanding: Decimal
+  is_overdue: boolean
+  notes: string
+  created_at: string
+}
+
+export interface SupplierPayment {
+  id: number
+  invoice: number
+  invoice_number: string
+  vendor_name: string
+  amount: Decimal
+  method: PaymentMethod
+  payment_date: string
+  reference: string
+  paid_by: number
+  paid_by_name: string
+  created_at: string
+}
+
+export interface ProcurementSummary {
+  pending_requisitions: number
+  pending_orders: number
+  open_orders: number
+  open_order_value: Decimal
+  late_orders: number
+  spend_this_month: Decimal
+  payables: Decimal
+  overdue_payables: Decimal
+  overdue_invoices: number
+}
+
+export interface SupplierPerformance {
+  vendor: number
+  name: string
+  category: SupplierCategory | ""
+  is_active: boolean
+  orders: number
+  ordered_kg: Decimal
+  received_kg: Decimal
+  rejected_kg: Decimal
+  spend: Decimal
+  deliveries: number
+  payable: Decimal
+  rejected_pct: number | null
+  on_time_pct: number | null
+  avg_price_per_kg: Decimal | null
+}
+
+export interface PriceComparison {
+  material: string
+  offers: {
+    vendor: string
+    best_quote: Decimal | null
+    last_order_price: Decimal | null
+    avg_order_price: Decimal | null
+    orders: number
+  }[]
 }

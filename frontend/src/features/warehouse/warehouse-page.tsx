@@ -49,7 +49,13 @@ export function WarehousePage() {
 
   const stockColumns = useMemo<TableColumn<StockEntry>[]>(() => [
     { accessorKey: "vendor_name", header: "Vendor", cell: ({ getValue }) => <NameWithAvatar name={getValue<string>()} /> },
-    { accessorKey: "fabric_type", header: "Fabric type" },
+    { accessorKey: "fabric_type", header: "Fabric type",
+      cell: ({ row }) => (
+        <span>
+          {row.original.fabric_type}
+          {row.original.po_number && <span className="block text-xs text-muted-foreground">{row.original.po_number}</span>}
+        </span>
+      ) },
     { accessorKey: "vehicle_no", header: "Vehicle no.", cell: ({ getValue }) => <PlateChip value={getValue<string>()} /> },
     {
       id: "our_weight", header: "Weight", accessorFn: (r) => Number(r.our_weight), sortFn: "basic",
@@ -74,8 +80,11 @@ export function WarehousePage() {
 
   const vendorColumns = useMemo<TableColumn<Vendor>[]>(() => [
     { accessorKey: "name", header: "Name", cell: ({ getValue }) => <NameWithAvatar name={getValue<string>()} /> },
+    { accessorKey: "category", header: "Category", cell: ({ getValue }) => getValue<string>() || <span className="text-muted-foreground">—</span> },
     { accessorKey: "contact", header: "Contact", cell: ({ getValue }) => getValue<string>() || "—" },
     { accessorKey: "address", header: "Address", cell: ({ getValue }) => getValue<string>() || "—" },
+    { id: "active", header: "Status", accessorFn: (r) => (r.is_active === false ? "Inactive" : "Active"),
+      cell: ({ row }) => <StatusBadge status={row.original.is_active === false ? "Inactive" : "Active"} tone={row.original.is_active === false ? "neutral" : "success"} /> },
     {
       id: "actions", header: "", enableSorting: false, enableHiding: false,
       cell: ({ row }) => (

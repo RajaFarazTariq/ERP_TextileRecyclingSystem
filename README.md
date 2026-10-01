@@ -139,6 +139,14 @@ Sessions use short-lived access tokens that the frontend renews automatically; l
 - Current figures per lot: `/api/inventory/movements/stock/`. The sales form's fabric list shows available kg.
 - Buyers are kept as a **customer list** (`/api/sales/customers/`). Typing a buyer name links the order to the matching customer, and new names create one. Similar names can be reviewed with `python manage.py customer_duplicates` and merged by an admin.
 
+## Purchasing rules
+
+- **Flow:** purchase request → admin approval → purchase order → admin approval → deliveries → supplier invoice → payment.
+- **Deliveries and orders:** a warehouse delivery can be booked against an open line of an approved order from the same supplier (the "Purchase order" field in the delivery form). Deliveries without an order work as before. The order becomes *Partially received* and then *Received* as weight arrives; deliveries marked *Rejected* don't count.
+- **Changes:** editing an approved order is an amendment. Its revision goes up and it needs approval again. A line can't be reduced below what has already arrived.
+- **Who does what:** admins and warehouse supervisors use Purchasing. Only admins approve, close orders and record supplier payments. A payment can't exceed what is still owed on the invoice.
+- API: `/api/v1/procurement/` (requisitions, orders, open-lines, invoices, payments, returns, quotations, summary, supplier-performance, price-comparison).
+
 Checks:
 
 ```bash

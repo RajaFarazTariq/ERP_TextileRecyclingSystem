@@ -13,13 +13,21 @@ export const stockSchema = z.object({
   our_weight: decimalString("our weight"),
   unloading_weight: decimalString("unloading weight", { allowZero: true }),
   status: z.enum(STOCK_STATUSES),
+  po_line: z.string(), // optional purchase order line
 })
 export type StockForm = z.infer<typeof stockSchema>
+
+export const SUPPLIER_CATEGORIES = ["Textile waste", "Post-consumer", "Pre-consumer", "Chemicals", "Packaging", "Other"] as const
 
 export const vendorSchema = z.object({
   name: z.string().trim().min(1, "Enter the vendor name.").max(255),
   contact: z.string().trim().max(100),
   address: z.string().trim(),
+  email: z.string().trim().email("Enter a valid email address.").or(z.literal("")),
+  category: z.string(),
+  specialties: z.string().trim().max(255),
+  payment_terms_days: z.string().trim().refine((v) => !v || /^\d{1,3}$/.test(v), "Enter a number of days."),
+  is_active: z.boolean(),
 })
 export type VendorForm = z.infer<typeof vendorSchema>
 

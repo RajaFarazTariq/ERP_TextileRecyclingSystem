@@ -19,6 +19,9 @@ This is the Phase 1 deliverable from `Upgradation.txt`. No application code was 
 > - **API:** opt-in pagination and no N+1 queries on list endpoints; Swagger docs; the `/api/v1/` prefix.
 > - **Deployment:** Docker Compose (PostgreSQL, gunicorn, nginx), and production security settings controlled by env.
 >
+> **Phase 5 (in progress): new business modules, built one at a time.** Decisions made with the owner on 2026-10-01: a delivery may be linked to a purchase order but doesn't have to be; only an admin approves; material that fails an incoming inspection is quarantined until released (deliveries without an inspection work as before); modules follow the order of §5.
+> - **Procurement (done):** `apps/procurement`. Purchase requisitions and purchase orders, each approved by an admin. Changing an approved order is an amendment (revision + 1) that needs approval again. Goods receipts are the existing warehouse deliveries, optionally linked to a PO line (`Stock.po_line`), and the order status follows what has arrived (partial deliveries supported; rejected deliveries don't count). Also: supplier invoices with tax, supplier payments (admin only, no overpayment), purchase returns, supplier quotations, price comparison, and supplier performance (delivered and rejected weight, on-time rate, average price, payables). Suppliers are the existing vendors with added profile fields. New page: **Purchasing** (admins and warehouse supervisors).
+>
 > **Phase 4 (done):** a new Next.js + TypeScript app in `frontend/` replaced the classic React app, which has been removed.
 > - **Login and API access:** the login is held in httpOnly cookies by the app's own server (the rest of S7), which forwards API calls to `/api/v1/`, renews the session, and blocks cross-site writes.
 > - **Role-aware layout** and shared components: data table, dialogs, and loading, empty and error states.

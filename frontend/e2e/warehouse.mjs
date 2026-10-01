@@ -30,8 +30,10 @@ export async function warehouseScenario(browser) {
     r.check('tokens are not readable by page scripts', !/erp_(access|refresh|user)/.test(jsCookies), JSON.stringify(jsCookies))
 
     // 4. Table
-    await page.getByText(/of 300$/).waitFor()
-    r.check('stock table shows all 300 entries, 20 per page', (await page.getByRole('row').count()) === 21)
+    // Other scenarios add deliveries, so compare with the live count rather than the seeded 300
+    const total = (await (await page.request.get(`${BASE}/api/django/warehouse/stock`)).json()).length
+    await page.getByText(new RegExp(`of ${total}$`)).waitFor()
+    r.check(`stock table shows all ${total} entries, 20 per page`, (await page.getByRole('row').count()) === 21)
     await page.screenshot({ path: `${SHOTS}/warehouse-1-warehouse-light.png`, fullPage: false })
 
     // 5. Search
@@ -114,7 +116,7 @@ export async function warehouseScenario(browser) {
     await page.getByRole('menuitemradio', { name: 'Dark' }).click()
     r.check('dark theme applies', await page.evaluate(() => document.documentElement.classList.contains('dark')))
     await page.goto(`${BASE}/warehouse`)
-    await page.getByText(/of 300$/).waitFor()
+    await page.getByText(new RegExp(`of ${total}$`)).waitFor()
     await page.screenshot({ path: `${SHOTS}/warehouse-4-warehouse-dark.png` })
 
     // 14. Mobile layout
