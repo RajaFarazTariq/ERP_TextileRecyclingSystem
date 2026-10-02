@@ -1,5 +1,5 @@
 """
-Demo records for the newer modules: finance, maintenance, workforce,
+Demo records for the newer modules: purchasing, finance, maintenance, workforce,
 sustainability and documents.
 
     python manage.py seed_demo_data
@@ -15,7 +15,7 @@ from django.db import transaction
 
 from apps.users.models import CustomUser
 
-MODULES = ['finance', 'maintenance', 'workforce', 'sustainability', 'documents']
+MODULES = ['procurement', 'finance', 'maintenance', 'workforce', 'sustainability', 'documents', 'search']
 
 
 def wipe_module_data():
