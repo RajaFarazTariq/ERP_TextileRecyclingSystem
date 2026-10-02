@@ -34,6 +34,11 @@ A web-based ERP for textile recycling factories. It follows material from the su
 - **Workforce:** employees, departments, shifts, a daily attendance sheet, leave, tasks and a productivity report (admins only).
 - **Sustainability:** waste records, utility readings, targets, and recovery, waste, water, energy and chemical figures worked out from the production records.
 - **Documents:** uploaded files by category with versions, expiry dates, role-based access and checked, authenticated downloads.
+- **Approvals:** one inbox for everything waiting for an admin's decision.
+- **Notifications:** alerts worked out on the server from configurable rules (stock, approvals, delays, quarantine, breakdowns, overdue invoices, expiring documents and more), shown in the bell.
+- **Traceability:** one page that follows a lot from the supplier's delivery through every stage to the customer.
+- **Search:** Ctrl + K finds pages and also records by name or number, limited to what your role may see.
+- **Report centre:** thirteen reports with a date range, chart, totals, and Excel, CSV and print output; plus a "Business at a glance" row on the dashboard.
 
 **Commercial**
 - **Purchasing:** purchase requests and orders with admin approval, amendments with revision numbers, deliveries against orders, supplier invoices with tax, payments, returns, quotations, price comparison and supplier performance.
@@ -378,6 +383,36 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main` or `upg
 - Downloads are written to the audit log.
 - **API:** `/api/v1/documents/`.
 
+### Notifications and approvals
+
+- **Rules:** each kind of alert is a rule that an admin can switch on or off, give a threshold (for example "25% of total" or "7 days ahead"), assign to roles, and mark for e-mail and escalation. Rules are edited on **Approvals → Rules**.
+- **Who sees what:** admins see every alert. Another role sees an alert only if the rule lists the role *and* the role can open the page the alert is about. Customer debts, credit limits, returns and leave are for admins only.
+- **Escalation:** an item older than the rule's escalation days is marked "Escalated" and listed first.
+- **Read state** is kept per user in the browser; ticking an item only hides it for you.
+- **E-mail:** nothing is sent by itself. `python manage.py send_alert_digest` sends one digest of the rules marked for e-mail to `MANAGEMENT_EMAIL` (see the deployment guide for running it daily).
+- **Approvals inbox (admin):** purchase requests and orders, quarantine releases, production orders waiting for release, sales returns, decolorization batches waiting for sign-off, and leave requests. Approving or rejecting there calls the same action as on the module's own page, so the same rules apply.
+- Custom approval chains (several approvers in sequence) are not built: each approval is one admin decision.
+- **API:** `/api/v1/alerts/` (`notifications`, `rules`, `approvals`).
+
+### Search and traceability
+
+- **Search:** type two or more characters in the Ctrl + K box. Numbers work with or without their prefix (`PO-00012`, `po-12`, `INV-3`, `#15`). A result opens the page the record lives on.
+- **What is searched depends on the role:** a group of results is returned only to roles that can open its page. Customers, sales records and employees are found by admins only; documents follow the documents access rules.
+- **Traceability:** pick a lot (or find it by supplier, purchase order, sales order or invoice) to see its delivery and incoming inspection, sorting, decolorization with the chemicals issued, drying, production orders, quality checks, stock movements and sales, with the weight at each stage and the overall yield.
+- **Sections follow permissions:** a stage your role cannot read is shown as "Not available for your role". Sales is shown to admins only.
+- **API:** `/api/v1/search/?q=` and `/api/v1/search/trace/?lot=` (also `order`, `stock`, `production`).
+
+### Report centre
+
+- **Reports → Report centre** lists the reports by group: stock (inventory valuation, stock movement), production (material recovery, sorting performance, production efficiency, chemical consumption), quality, commercial (supplier performance, customer sales), finance (production costing, profit and loss), sustainability and maintenance (machine utilisation).
+- **Same numbers as the modules:** each report calls the module's own calculation, and shows a note on how its figures are worked out.
+- **Inventory value** is kg on hand × the factory's production cost per kg for the chosen period (from Finance costing). It is one rate for the whole factory, not a cost per lot, and it is empty when nothing was dried in the period. Selling prices are never used.
+- **Supplier performance** covers all time; the purchasing calculation has no period.
+- **Output:** Excel, CSV and Print (use the browser's "Save as PDF").
+- **Scheduled reports:** the daily and monthly e-mail reports are management commands; nothing runs on a timer inside the app.
+- Admins only.
+- **API:** `/api/v1/reports/` (`catalogue`, `run/<key>`, `executive`, `schedules`).
+
 ### Consistency checks
 
 ```bash
@@ -385,9 +420,16 @@ python manage.py reconcile_inventory        # ledger vs. drying sessions/dispatc
 python manage.py customer_duplicates        # customers with near-identical names
 ```
 
+## Going live and daily use
+
+- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md):** server setup, HTTPS, the go-live checklist, backups and restore, monitoring and updates.
+- **[docs/USER_GUIDE.md](docs/USER_GUIDE.md):** how to do the daily work, by task.
+- **Backups:** `sh scripts/backup.sh` saves the database and the uploaded documents; `sh scripts/restore.sh` puts them back.
+- **Health check:** `GET /api/health/` answers 200 when the API can reach its database.
+
 ## Roadmap
 
-Finance, maintenance, HR, sustainability and document management are next. See [docs/UPGRADE_AUDIT.md](docs/UPGRADE_AUDIT.md) for the full roadmap and per-phase status.
+All planned modules are built. Not built, and listed so nobody relies on them: two-factor login and password-reset e-mails, multi-warehouse transfers, barcode and QR scanning, virus scanning of uploads, a report scheduler inside the app (cron lines are in the deployment guide), configurable approval chains, and the optional AI features. See [docs/UPGRADE_AUDIT.md](docs/UPGRADE_AUDIT.md) for the per-phase status.
 
 ## Author
 

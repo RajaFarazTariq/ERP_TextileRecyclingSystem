@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     'apps.sustainability',
     'apps.workforce',
     'apps.documents',
+    'apps.search',
+    'apps.alerts',
     'apps.reports',
     'apps.audit',
     'apps.notifications',

@@ -1,5 +1,6 @@
-// Dashboard and Reports: live figures, report tabs, Excel downloads, audit log filters and paging.
-import { BASE, SHOTS, createReport, login, logout } from './helpers.mjs'
+// Dashboard and Reports: live figures, business at a glance, report tabs, Excel downloads, audit log
+// filters and paging, and the report centre (catalogue, period, exports, scheduled reports).
+import { BASE, SHOTS, createReport, login, logout, settle } from './helpers.mjs'
 
 export async function reportsScenario(browser) {
   const r = createReport('reports')
@@ -22,6 +23,20 @@ export async function reportsScenario(browser) {
     r.check('dashboard shows live figures and a chart', (await page.locator('.recharts-bar-rectangle').count()) > 0)
     r.check('attention panel lists low chemicals', (await page.getByText(/is below 25%/).count()) > 0)
     r.check('recent activity comes from the audit log', (await page.locator('li', { hasText: /LOGIN|CREATE|UPDATE/ }).count()) > 0)
+    const glance = page.locator('section[aria-label="Business at a glance"]')
+    await glance.locator('[data-glance]').first().waitFor()
+    const figures = await glance.locator('[data-glance]').evaluateAll((links) => links.map((a) => ({
+      label: a.getAttribute('data-glance'), href: a.getAttribute('href'), text: a.textContent ?? '',
+    })))
+    const figure = (label) => figures.find((f) => f.label === label)
+    r.check('business at a glance shows a figure for every module', figures.length === 19
+      && /Rs\./.test(figure('Cash and bank')?.text ?? '') && figures.every((f) => !f.text.includes('Not available')),
+    `${figures.length} figures`)
+    r.check('each figure links to its module page', figure('Cash and bank')?.href === '/finance'
+      && figure('Overdue invoices')?.href === '/sales' && figure('Pending purchase orders')?.href === '/procurement'
+      && figure('In quarantine')?.href === '/quality' && figure('Machines broken down')?.href === '/maintenance'
+      && figure('Recovery rate')?.href === '/sustainability' && figure('Documents expired')?.href === '/documents'
+      && figure('People present today')?.href === '/workforce' && figure('Production in progress')?.href === '/production')
     await page.screenshot({ path: `${SHOTS}/reports-1-dashboard.png` })
 
     // Daily production + Excel
@@ -72,6 +87,45 @@ export async function reportsScenario(browser) {
     const audit = await download('Export (500 rows)')
     r.check('audit log exports to Excel', /\.xlsx$/.test(audit), audit)
     await page.screenshot({ path: `${SHOTS}/reports-3-audit.png` })
+
+    // Report centre: catalogue, two reports, period, exports, scheduled reports
+    await page.getByRole('tab', { name: 'Report centre' }).click()
+    const centre = page.getByRole('tabpanel')
+    await centre.getByRole('heading', { name: 'Inventory valuation' }).waitFor()
+    const catalogue = centre.getByRole('navigation', { name: 'Reports' })
+    const groups = await catalogue.innerText()
+    r.check('report centre lists the reports in groups', (await catalogue.getByRole('button').count()) === 13
+      && ['STOCK', 'PRODUCTION', 'QUALITY', 'COMMERCIAL', 'FINANCE', 'SUSTAINABILITY', 'MAINTENANCE'].every((g) => groups.toUpperCase().includes(g)))
+    r.check('inventory valuation shows stock columns and how the value is worked out',
+      (await centre.getByRole('columnheader', { name: 'On hand' }).count()) === 1
+      && (await centre.getByText('Value = kg on hand x production cost per kg', { exact: false }).count()) === 1)
+
+    await Promise.all([
+      page.waitForResponse((res) => res.url().includes('reports/run/customer-sales') && res.ok()),
+      catalogue.getByRole('button', { name: 'Customer sales', exact: true }).click(),
+    ])
+    await centre.getByRole('heading', { name: 'Customer sales' }).waitFor()
+    r.check('a second report opens in the same table', (await centre.getByRole('columnheader', { name: 'Order value' }).count()) === 1)
+
+    const yearLine = await centre.locator('[data-report-period]').innerText()
+    await centre.getByRole('combobox', { name: 'Period' }).click()
+    await Promise.all([
+      page.waitForResponse((res) => res.url().includes('reports/run/customer-sales') && res.url().includes('date_filter=this_month') && res.ok()),
+      page.getByRole('option', { name: 'This month', exact: true }).click(),
+    ])
+    await page.getByRole('listbox').waitFor({ state: 'detached' })
+    const monthLine = await settle(async () => (await centre.locator('[data-report-period]').innerText()) !== yearLine, true)
+      ? await centre.locator('[data-report-period]').innerText() : yearLine
+    r.check('the date filter changes the period of the report',
+      yearLine.includes('01 Jan') && monthLine !== yearLine && monthLine.includes(String(new Date().getFullYear())), monthLine)
+
+    const centreExcel = await download('Export Excel')
+    r.check('a report exports to Excel', /^customer_sales_.*\.xlsx$/.test(centreExcel), centreExcel)
+    const centreCsv = await download('Export CSV')
+    r.check('a report exports to CSV', /^customer_sales_.*\.csv$/.test(centreCsv), centreCsv)
+    r.check('scheduled e-mail reports are described', (await centre.getByText('Scheduled e-mail reports').count()) === 1
+      && (await centre.getByText('python manage.py send_daily_report').count()) === 1)
+    await page.screenshot({ path: `${SHOTS}/reports-4-centre.png`, fullPage: true })
 
     await logout(page)
   } catch (e) {

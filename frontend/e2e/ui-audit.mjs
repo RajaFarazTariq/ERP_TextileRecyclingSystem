@@ -16,7 +16,7 @@ import { BASE, SHOTS, login } from './helpers.mjs'
 const OUT = `${SHOTS}audit/`
 mkdirSync(OUT, { recursive: true })
 
-const PAGES = ['dashboard', 'warehouse', 'sorting', 'decolorization', 'drying', 'quality', 'production', 'procurement', 'sales', 'finance', 'maintenance', 'workforce', 'sustainability', 'documents', 'reports', 'users']
+const PAGES = ['dashboard', 'approvals', 'traceability', 'warehouse', 'sorting', 'decolorization', 'drying', 'quality', 'production', 'procurement', 'sales', 'finance', 'maintenance', 'workforce', 'sustainability', 'documents', 'reports', 'users']
 // Forms are opened at the widest and narrowest size; the sizes in between check the pages
 const RUNS = [
   { name: 'desktop', width: 1440, height: 900, theme: 'dark', forms: true, dropdowns: true },
@@ -158,6 +158,10 @@ try {
             await page.getByRole('tab', { name: tab, exact: true }).click()
             await settle()
           }
+          // Measure the page with its data, not its loading placeholders
+          await page.waitForFunction(() => !document.querySelector('main [data-slot="skeleton"]'), null, { timeout: 15000 })
+            .catch(() => note(where, tag, ['still showing loading placeholders after 15 s']))
+          await settle()
           note(where, tag, await page.evaluate(findProblems, 'main'))
           await page.screenshot({ path: `${OUT}${slug}-${tag}.png`, fullPage: true })
 

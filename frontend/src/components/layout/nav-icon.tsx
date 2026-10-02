@@ -1,4 +1,5 @@
 import {
+  ClipboardCheck,
   ClipboardList,
   Contact,
   Droplets,
@@ -9,6 +10,7 @@ import {
   LayoutDashboard,
   Leaf,
   ListFilter,
+  Route,
   type LucideProps,
   ShieldCheck,
   ShoppingCart,
@@ -22,6 +24,8 @@ import type { NavIcon as NavIconName } from "@/config/access"
 
 const ICONS: Record<NavIconName, React.ComponentType<LucideProps>> = {
   dashboard: LayoutDashboard,
+  approvals: ClipboardCheck,
+  traceability: Route,
   warehouse: Warehouse,
   sorting: ListFilter,
   decolorization: Droplets,

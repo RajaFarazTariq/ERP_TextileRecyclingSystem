@@ -12,6 +12,8 @@ import { cn } from "@/lib/utils"
 
 const DESCRIPTIONS: Record<NavIconName, string> = {
   dashboard: "Material flow, stock, sales and alerts at a glance.",
+  approvals: "Everything waiting for a decision, in one place.",
+  traceability: "Follow a lot from delivery to the customer, and back.",
   warehouse: "Record fabric deliveries, vendors and factory units.",
   sorting: "Run sorting sessions and track fabric lots.",
   decolorization: "Tanks, chemical stock and decolorization batches.",

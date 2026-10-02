@@ -4,6 +4,8 @@ import type { NavIcon } from "./access"
 /** Colour of each module's icon: process stages use their stage colour. */
 export const NAV_TONES: Record<NavIcon, Tone> = {
   dashboard: "brand",
+  approvals: "warning",
+  traceability: "running",
   warehouse: "warehouse",
   sorting: "sorting",
   decolorization: "decolorization",

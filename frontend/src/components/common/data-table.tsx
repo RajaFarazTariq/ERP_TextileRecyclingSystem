@@ -309,7 +309,8 @@ export function DataTable<T extends Record<string, any>>({
                       key={cell.id}
                       className={cn(
                         cellHeight,
-                        i === 0 && "sticky left-0 z-[1] bg-card group-hover/row:bg-[color-mix(in_oklab,var(--card),var(--foreground)_3.5%)]",
+                        // Pinned from tablet width up; on a phone a pinned column would cover the rest of the row
+                        i === 0 && "sm:sticky sm:left-0 sm:z-[1] bg-card group-hover/row:bg-[color-mix(in_oklab,var(--card),var(--foreground)_3.5%)]",
                         numeric(cell.column.columnDef.sortFn) && "text-right",
                         cell.column.id === "actions" && "w-12 text-right",
                       )}
