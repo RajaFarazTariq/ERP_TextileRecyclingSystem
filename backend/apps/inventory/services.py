@@ -185,6 +185,15 @@ def sync_dispatch(dispatch, deleted=False):
           note=f'Dispatch #{dispatch.pk} for order #{dispatch.sales_order_id}')
 
 
+def sync_sales_return(sales_return, deleted=False):
+    """An approved return marked "restock" puts its weight back on hand."""
+    expected = {}
+    if not deleted and sales_return.status == 'Approved' and sales_return.restock and sales_return.weight:
+        expected = {sales_return.order.fabric_id: Decimal(sales_return.weight)}
+    _sync('SalesReturn', sales_return.pk, StockMovement.SALES_RETURN, expected,
+          note=f'Return {sales_return.number} for order #{sales_return.order_id}')
+
+
 def post_adjustment(fabric_id, quantity, note, user):
     """Manual correction (admin only), e.g. after a physical stock count."""
     if not note or not note.strip():

@@ -5,6 +5,7 @@ from rest_framework.test import APITestCase
 from apps.users.models import CustomUser
 from apps.warehouse.models import Vendor, FactoryUnit, Stock
 from apps.sorting.models import FabricStock, SortingSession
+from apps.core.testing import client_for, make_user
 from .models import SalesOrder
 
 
@@ -223,3 +224,197 @@ class PaymentMethodTests(APITestCase):
                     'sales_order': order.id, 'amount': '1', 'payment_method': method,
                 }, format='json')
                 self.assertEqual(res.status_code, 201)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 5: price list, quotations, invoices, returns, credit and statements
+# ─────────────────────────────────────────────────────────────────────────────
+class SalesExtrasTests(APITestCase):
+    def setUp(self):
+        from decimal import Decimal as D
+        from apps.core.testing import make_dried_stock, make_fabric
+        from .models import Customer
+        self.D = D
+        self.admin_user = make_user('admin')
+        self.client = client_for(self.admin_user)
+        self.fabric = make_fabric()
+        make_dried_stock(self.fabric, '1000')
+        self.customer = Customer.objects.create(name='Ali Traders', category='Wholesaler', payment_terms_days=30)
+
+    # helpers
+    def order(self, weight='100', price='50', **extra):
+        res = self.client.post('/api/sales/orders/', {
+            'customer': self.customer.id, 'fabric': self.fabric.id, 'fabric_quality': 'A',
+            'weight_sold': weight, 'price_per_kg': price, **extra}, format='json')
+        self.assertEqual(res.status_code, 201, res.data)
+        return res.data
+
+    def dispatched_order(self, weight='100', shipped='100', **extra):
+        order = self.order(weight=weight, **extra)
+        self.client.post(f"/api/sales/orders/{order['id']}/confirm/")
+        res = self.client.post('/api/sales/dispatch/', {
+            'sales_order': order['id'], 'vehicle_number': 'LEA-1', 'dispatched_weight': shipped}, format='json')
+        self.assertEqual(res.status_code, 201, res.data)
+        return order
+
+    def on_hand(self):
+        from apps.inventory import services
+        return services.on_hand(self.fabric.id)
+
+    def test_discount_and_tax_change_the_total_only_when_given(self):
+        self.assertEqual(self.D(self.order()['total_price']), self.D('5000'))
+        order = self.order(discount_pct='10', tax_pct='5')
+        self.assertEqual(self.D(order['total_price']), self.D('4725.00'))     # 5000 - 500 = 4500, + 5%
+        self.assertEqual(self.client.post('/api/sales/orders/', {
+            'customer': self.customer.id, 'fabric': self.fabric.id, 'fabric_quality': 'A',
+            'weight_sold': '1', 'price_per_kg': '1', 'discount_pct': '101'}, format='json').status_code, 400)
+
+    def test_product_price_list(self):
+        res = self.client.post('/api/sales/products/', {
+            'name': 'White fibre A', 'grade': 'A', 'price_per_kg': '60',
+            'prices': [{'customer_category': 'Wholesaler', 'price_per_kg': '55'}]}, format='json')
+        self.assertEqual(res.status_code, 201, res.data)
+        self.assertEqual(res.data['prices'][0]['price_per_kg'], '55.00')
+        url = f"/api/sales/products/{res.data['id']}/"
+        res = self.client.patch(url, {'prices': [{'customer_category': 'Exporter', 'price_per_kg': '70'}]}, format='json')
+        self.assertEqual([p['customer_category'] for p in res.data['prices']], ['Exporter'])
+        twice = [{'customer_category': 'Exporter', 'price_per_kg': '70'}] * 2
+        self.assertEqual(self.client.patch(url, {'prices': twice}, format='json').status_code, 400)
+
+    def test_quotation_becomes_an_order(self):
+        res = self.client.post('/api/sales/quotations/', {
+            'customer': self.customer.id, 'fabric_quality': 'A', 'weight': '200', 'price_per_kg': '40',
+            'discount_pct': '5'}, format='json')
+        self.assertEqual(res.status_code, 201, res.data)
+        self.assertTrue(res.data['number'].startswith('QT-'))
+        self.assertEqual(res.data['total'], '7600.00')
+        url = f"/api/sales/quotations/{res.data['id']}/"
+        # not before the customer accepts
+        self.assertEqual(self.client.post(url + 'convert/', {'fabric': self.fabric.id}, format='json').status_code, 400)
+        self.assertEqual(self.client.post(url + 'send/').data['status'], 'Sent')
+        self.assertEqual(self.client.post(url + 'accept/').data['status'], 'Accepted')
+        # the lot has to be known
+        self.assertEqual(self.client.post(url + 'convert/').status_code, 400)
+        done = self.client.post(url + 'convert/', {'fabric': self.fabric.id}, format='json')
+        self.assertEqual(done.data['status'], 'Converted')
+        order = self.client.get(f"/api/sales/orders/{done.data['order']}/").data
+        self.assertEqual((order['status'], order['quotation_number']), ('Draft', res.data['number']))
+        self.assertEqual(self.D(order['total_price']), self.D('7600.00'))
+        # converted quotations are closed
+        self.assertEqual(self.client.patch(url, {'weight': '1'}, format='json').status_code, 400)
+        self.assertEqual(self.client.delete(url).status_code, 400)
+
+    def test_rejected_quotation_cannot_be_converted(self):
+        res = self.client.post('/api/sales/quotations/', {
+            'customer': self.customer.id, 'fabric': self.fabric.id, 'fabric_quality': 'A',
+            'weight': '10', 'price_per_kg': '40'}, format='json')
+        url = f"/api/sales/quotations/{res.data['id']}/"
+        rejected = self.client.post(url + 'reject/', {'reason': 'Too dear'}, format='json').data
+        self.assertEqual((rejected['status'], rejected['rejection_reason']), ('Rejected', 'Too dear'))
+        self.assertEqual(self.client.post(url + 'accept/').status_code, 400)
+        self.assertEqual(self.client.post(url + 'convert/').status_code, 400)
+
+    def test_invoice_covers_dispatched_weight_only(self):
+        order = self.order()
+        url = f"/api/sales/orders/{order['id']}/invoice/"
+        self.assertEqual(self.client.post(url).status_code, 400)             # nothing dispatched yet
+        order = self.dispatched_order(weight='100', shipped='60', discount_pct='10')
+        url = f"/api/sales/orders/{order['id']}/invoice/"
+        self.assertEqual(self.client.post(url, {'weight': '61'}, format='json').status_code, 400)
+        res = self.client.post(url, {'invoice_date': '2026-10-01'}, format='json')
+        self.assertEqual(res.status_code, 201, res.data)
+        self.assertTrue(res.data['number'].startswith('INV-'))
+        self.assertEqual((res.data['weight'], res.data['subtotal'], res.data['discount_amount'], res.data['total']),
+                         ('60.00', '3000.00', '300.00', '2700.00'))
+        self.assertEqual(res.data['due_date'], '2026-10-31')                 # the customer's 30-day terms
+        self.assertEqual(self.client.post(url).status_code, 400)             # all dispatched weight is invoiced
+        self.assertEqual(self.client.get(f"/api/sales/orders/{order['id']}/").data['invoiced_weight'], '60.00')
+
+    def test_invoice_status_follows_payments(self):
+        order = self.dispatched_order()
+        invoice = self.client.post(f"/api/sales/orders/{order['id']}/invoice/", {'invoice_date': '2020-01-01'}, format='json').data
+        self.assertEqual(invoice['status'], 'Overdue')
+        self.client.post('/api/sales/payments/', {'sales_order': order['id'], 'amount': '5000'}, format='json')
+        listed = self.client.get('/api/sales/invoices/').data[0]
+        self.assertEqual((listed['status'], listed['paid']), ('Paid', '5000.00'))
+
+    def test_return_is_limited_to_dispatched_weight(self):
+        order = self.dispatched_order(weight='100', shipped='40')
+        body = {'order': order['id'], 'return_date': '2026-10-02', 'reason': 'Damp', 'weight': '41'}
+        self.assertEqual(self.client.post('/api/sales/returns/', body, format='json').status_code, 400)
+        self.assertEqual(self.client.post('/api/sales/returns/', {**body, 'weight': '30'}, format='json').status_code, 201)
+        # a pending return already holds its weight
+        self.assertEqual(self.client.post('/api/sales/returns/', {**body, 'weight': '11'}, format='json').status_code, 400)
+
+    def test_approved_return_credits_and_restocks_when_chosen(self):
+        order = self.dispatched_order()
+        self.assertEqual(self.on_hand(), self.D('900'))
+        self.client.post('/api/sales/payments/', {'sales_order': order['id'], 'amount': '4000'}, format='json')
+        res = self.client.post('/api/sales/returns/', {
+            'order': order['id'], 'return_date': '2026-10-02', 'reason': 'Damp', 'weight': '20', 'restock': True}, format='json')
+        url = f"/api/sales/returns/{res.data['id']}/"
+        self.assertEqual(self.on_hand(), self.D('900'))                      # nothing moves until approved
+        other = client_for(make_user('warehouse_supervisor'))
+        self.assertEqual(other.post(url + 'approve/').status_code, 403)
+        approved = self.client.post(url + 'approve/').data
+        self.assertEqual((approved['status'], approved['credit_amount']), ('Approved', '1000.00'))
+        self.assertEqual(self.on_hand(), self.D('920'))
+        # 5000 - 1000 credit = 4000 due, and 4000 is paid
+        data = self.client.get(f"/api/sales/orders/{order['id']}/").data
+        self.assertEqual((data['payment_status'], data['credited'], data['returned_weight']), ('Paid', '1000.00', '20.00'))
+        self.assertEqual(self.client.post(url + 'approve/').status_code, 400)
+        self.assertEqual(self.client.delete(url).status_code, 400)
+
+    def test_return_without_restock_leaves_stock_alone(self):
+        order = self.dispatched_order()
+        res = self.client.post('/api/sales/returns/', {
+            'order': order['id'], 'return_date': '2026-10-02', 'reason': 'Contaminated', 'weight': '20'}, format='json')
+        self.client.post(f"/api/sales/returns/{res.data['id']}/approve/")
+        self.assertEqual(self.on_hand(), self.D('900'))
+
+    def test_rejected_return_frees_its_weight(self):
+        order = self.dispatched_order()
+        body = {'order': order['id'], 'return_date': '2026-10-02', 'reason': 'Damp', 'weight': '100'}
+        first = self.client.post('/api/sales/returns/', body, format='json').data
+        rejected = self.client.post(f"/api/sales/returns/{first['id']}/reject/", {'reason': 'No fault found'}, format='json').data
+        self.assertEqual((rejected['status'], rejected['credit_amount']), ('Rejected', '0.00'))
+        self.assertEqual(self.client.post('/api/sales/returns/', body, format='json').status_code, 201)
+
+    def test_credit_limit_warns_but_does_not_block(self):
+        self.customer.credit_limit = self.D('6000')
+        self.customer.save()
+        first = self.order()                                                 # Rs. 5,000
+        res = self.client.post(f"/api/sales/orders/{first['id']}/confirm/")
+        self.assertIsNone(res.data['credit_warning'])
+        second = self.order()
+        res = self.client.post(f"/api/sales/orders/{second['id']}/confirm/")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('over their credit limit', res.data['credit_warning'])
+        customer = next(c for c in self.client.get('/api/sales/customers/').data if c['id'] == self.customer.id)
+        self.assertEqual((customer['balance'], customer['over_limit']), ('10000.00', True))
+
+    def test_customer_statement_has_a_running_balance(self):
+        order = self.dispatched_order()
+        self.order()                                                         # a draft is not owed
+        self.client.post('/api/sales/payments/', {'sales_order': order['id'], 'amount': '1500'}, format='json')
+        data = self.client.get(f'/api/sales/customers/{self.customer.id}/statement/').data
+        self.assertEqual((data['billed'], data['paid'], data['balance']), ('5000.00', '1500.00', '3500.00'))
+        self.assertEqual([(t['kind'], t['balance']) for t in data['transactions']],
+                         [('Order', '5000.00'), ('Payment', '3500.00')])
+
+    def test_performance_report(self):
+        self.dispatched_order()
+        self.order()                                                         # drafts are not sales yet
+        data = self.client.get('/api/sales/performance/').data
+        self.assertEqual((data['orders'], data['revenue'], data['kg'], data['average_price']), (1, '5000.00', '100.00', '50.00'))
+        self.assertEqual(data['by_customer'][0]['name'], 'Ali Traders')
+        self.assertEqual(self.client.get('/api/sales/performance/?start=2030-01-01').data['orders'], 0)
+
+    def test_merging_customers_moves_their_quotations(self):
+        from .models import Customer, SalesQuotation
+        other = Customer.objects.create(name='Ali Trader')
+        self.client.post('/api/sales/quotations/', {
+            'customer': other.id, 'fabric_quality': 'A', 'weight': '10', 'price_per_kg': '40'}, format='json')
+        res = self.client.post(f'/api/sales/customers/{other.id}/merge/', {'into': self.customer.id}, format='json')
+        self.assertEqual(res.status_code, 200, res.data)
+        self.assertEqual(SalesQuotation.objects.get().customer_id, self.customer.id)

@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useState } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 
-import { Field, FormDialog } from "@/components/common/form-dialog"
+import { Field, FieldGroup, FormDialog } from "@/components/common/form-dialog"
 import { SelectField } from "@/components/common/select-field"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -13,8 +13,9 @@ import { api } from "@/lib/api"
 import { useSave } from "@/lib/crud"
 import { kg, rupees } from "@/lib/format"
 import { applyServerErrors } from "@/lib/forms"
-import type { Customer, Dispatch, FabricLot, Payment, SalesOrder, UserSummary } from "@/types/api"
+import type { Customer, Dispatch, FabricLot, Payment, Product, SalesOrder, UserSummary } from "@/types/api"
 import {
+  CUSTOMER_CATEGORIES,
   type CustomerForm,
   DISPATCH_STATUSES,
   type DispatchForm,
@@ -27,6 +28,7 @@ import {
   dispatchSchema,
   orderSchema,
   paymentSchema,
+  previewTotal,
 } from "./schemas"
 
 interface DialogProps<T> {
@@ -35,8 +37,14 @@ interface DialogProps<T> {
   record?: T | null
 }
 
-const SALES_LISTS = [["sales/orders"], ["sales/dispatch"], ["sales/payments"], ["sales/orders/summary"], ["sales/customers"],
+export const SALES_LISTS = [["sales/orders"], ["sales/dispatch"], ["sales/payments"], ["sales/orders/summary"], ["sales/customers"],
+  ["sales/quotations"], ["sales/invoices"], ["sales/returns"], ["sales/performance"],
   ["sorting/fabric-stock"], ["inventory/movements/stock"]]
+
+/** A product's price for a customer: the price for their category, else the list price. */
+export function priceFor(product: Product, customer?: Customer): string {
+  return product.prices.find((p) => p.customer_category === customer?.category)?.price_per_kg ?? product.price_per_kg
+}
 
 const userOptions = (users: UserSummary[]) =>
   users.filter((u) => u.is_active).map((u) => ({ value: String(u.id), label: `${u.username} (${ROLE_LABELS[u.role]})` }))
@@ -45,13 +53,13 @@ const orderLabel = (o: SalesOrder) => `#${o.id} — ${o.buyer_name} (${kg(o.weig
 
 // ─── Order ──────────────────────────────────────────────────────────────────
 
-type OrderDialogProps = DialogProps<SalesOrder> & { fabrics: FabricLot[]; customers: Customer[] }
+type OrderDialogProps = DialogProps<SalesOrder> & { fabrics: FabricLot[]; customers: Customer[]; products: Product[] }
 
 export function OrderDialog(props: OrderDialogProps) {
   return props.open ? <OrderDialogBody key={props.record?.id ?? "new"} {...props} /> : null
 }
 
-function OrderDialogBody({ open, onOpenChange, record, fabrics, customers }: OrderDialogProps) {
+function OrderDialogBody({ open, onOpenChange, record, fabrics, customers, products }: OrderDialogProps) {
   const save = useSave<SalesOrder>("sales/orders", { noun: "Order", invalidate: SALES_LISTS })
   const [formError, setFormError] = useState("")
   const form = useForm<OrderForm>({
@@ -66,17 +74,38 @@ function OrderDialogBody({ open, onOpenChange, record, fabrics, customers }: Ord
       status: record?.status ?? "Draft",
       payment_status: record?.payment_status ?? "Pending",
       notes: record?.notes ?? "",
+      product: record?.product ? String(record.product) : "",
+      discount_pct: record && Number(record.discount_pct) ? record.discount_pct : "",
+      tax_pct: record && Number(record.tax_pct) ? record.tax_pct : "",
     },
   })
   const { errors, isSubmitting } = form.formState
-  const [weight, price, fabricId] = useWatch({ control: form.control, name: ["weight_sold", "price_per_kg", "fabric"] })
-  const total = Number(weight) * Number(price)
+  const [weight, price, fabricId, discount, tax, buyer] = useWatch({
+    control: form.control, name: ["weight_sold", "price_per_kg", "fabric", "discount_pct", "tax_pct", "buyer_name"],
+  })
+  const total = previewTotal(weight, price, discount, tax)
   const fabric = fabrics.find((f) => String(f.id) === fabricId)
+  const customer = customers.find((c) => c.name.toLowerCase() === buyer.trim().toLowerCase())
+
+  /** Choosing a product fills in its grade and the price for this customer. */
+  const applyProduct = (id: string) => {
+    form.setValue("product", id)
+    const product = products.find((p) => String(p.id) === id)
+    if (!product) return
+    if (product.grade) form.setValue("fabric_quality", product.grade, { shouldValidate: true })
+    form.setValue("price_per_kg", priceFor(product, customer), { shouldValidate: true })
+  }
 
   const onSubmit = form.handleSubmit(async (values) => {
     setFormError("")
     try {
-      await save.mutateAsync({ id: record?.id, body: { ...values, fabric: Number(values.fabric) } })
+      await save.mutateAsync({
+        id: record?.id,
+        body: {
+          ...values, fabric: Number(values.fabric), product: values.product ? Number(values.product) : null,
+          discount_pct: values.discount_pct || "0", tax_pct: values.tax_pct || "0",
+        },
+      })
       onOpenChange(false)
     } catch (error) {
       setFormError(applyServerErrors(error, form.setError, Object.keys(values)))
@@ -98,6 +127,19 @@ function OrderDialogBody({ open, onOpenChange, record, fabrics, customers }: Ord
           <Input id="buyer_contact" {...form.register("buyer_contact")} />
         </Field>
       </div>
+      {customer?.over_limit && (
+        <p className="rounded-md border border-warning/30 bg-warning/8 px-3 py-2 text-sm">
+          {customer.name} owes {rupees(customer.balance)}, over their credit limit of {rupees(customer.credit_limit)}. The order can still be saved.
+        </p>
+      )}
+      {products.length > 0 && (
+        <Field id="order-product" label="Product" hint="Optional: fills in the quality and the price for this customer">
+          <Controller control={form.control} name="product" render={({ field }) => (
+            <SelectField id="order-product" value={field.value} onChange={applyProduct} placeholder="None" allowNone="None"
+              options={products.filter((p) => p.is_active || p.id === record?.product).map((p) => ({ value: String(p.id), label: p.name }))} />
+          )} />
+        </Field>
+      )}
       <Field id="order-fabric" label="Fabric lot" error={errors.fabric?.message}
         hint={fabric ? `${kg(fabric.dried_available_kg)} of dried stock available` : undefined}>
         <Controller control={form.control} name="fabric" render={({ field }) => (
@@ -115,6 +157,14 @@ function OrderDialogBody({ open, onOpenChange, record, fabrics, customers }: Ord
         </Field>
         <Field id="price_per_kg" label="Price per kg (Rs.)" error={errors.price_per_kg?.message}>
           <Input id="price_per_kg" inputMode="decimal" aria-invalid={!!errors.price_per_kg} {...form.register("price_per_kg")} />
+        </Field>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field id="discount_pct" label="Discount, %" hint="Optional" error={errors.discount_pct?.message}>
+          <Input id="discount_pct" inputMode="decimal" aria-invalid={!!errors.discount_pct} {...form.register("discount_pct")} />
+        </Field>
+        <Field id="tax_pct" label="Tax, %" hint="Optional; charged after the discount" error={errors.tax_pct?.message}>
+          <Input id="tax_pct" inputMode="decimal" aria-invalid={!!errors.tax_pct} {...form.register("tax_pct")} />
         </Field>
       </div>
       {Number.isFinite(total) && total > 0 && (
@@ -329,14 +379,26 @@ function CustomerDialogBody({ open, onOpenChange, record }: DialogProps<Customer
   const [formError, setFormError] = useState("")
   const form = useForm<CustomerForm>({
     resolver: zodResolver(customerSchema),
-    defaultValues: { name: record?.name ?? "", contact: record?.contact ?? "", address: record?.address ?? "", notes: record?.notes ?? "" },
+    defaultValues: {
+      name: record?.name ?? "", contact: record?.contact ?? "", address: record?.address ?? "", notes: record?.notes ?? "",
+      email: record?.email ?? "", category: record?.category ?? "",
+      credit_limit: record && Number(record.credit_limit) ? record.credit_limit : "",
+      payment_terms_days: record?.payment_terms_days ? String(record.payment_terms_days) : "",
+      is_active: record && !record.is_active ? "no" : "yes",
+    },
   })
   const { errors, isSubmitting } = form.formState
 
   const onSubmit = form.handleSubmit(async (values) => {
     setFormError("")
     try {
-      await save.mutateAsync({ id: record?.id, body: values })
+      await save.mutateAsync({
+        id: record?.id,
+        body: {
+          ...values, credit_limit: values.credit_limit || "0", payment_terms_days: Number(values.payment_terms_days) || 0,
+          is_active: values.is_active === "yes",
+        },
+      })
       onOpenChange(false)
     } catch (error) {
       setFormError(applyServerErrors(error, form.setError, Object.keys(values)))
@@ -349,7 +411,37 @@ function CustomerDialogBody({ open, onOpenChange, record }: DialogProps<Customer
       <Field id="customer-name" label="Name" error={errors.name?.message}>
         <Input id="customer-name" aria-invalid={!!errors.name} {...form.register("name")} />
       </Field>
-      <Field id="customer-contact" label="Contact"><Input id="customer-contact" {...form.register("contact")} /></Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field id="customer-contact" label="Contact"><Input id="customer-contact" {...form.register("contact")} /></Field>
+        <Field id="customer-email" label="Email" error={errors.email?.message}>
+          <Input id="customer-email" type="email" aria-invalid={!!errors.email} {...form.register("email")} />
+        </Field>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field id="customer-category" label="Category" hint="Decides which price list applies">
+          <Controller control={form.control} name="category" render={({ field }) => (
+            <SelectField id="customer-category" value={field.value} onChange={field.onChange} placeholder="None" allowNone="None"
+              options={CUSTOMER_CATEGORIES.map((c) => ({ value: c, label: c }))} />
+          )} />
+        </Field>
+        <Field id="customer-active" label="Status">
+          <Controller control={form.control} name="is_active" render={({ field }) => (
+            <SelectField id="customer-active" value={field.value} onChange={field.onChange} placeholder="Select status"
+              options={[{ value: "yes", label: "Active" }, { value: "no", label: "Not active" }]} />
+          )} />
+        </Field>
+      </div>
+      <FieldGroup title="Credit">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field id="credit_limit" label="Credit limit (Rs.)" hint="Empty = no limit. Going over it warns, it never blocks."
+            error={errors.credit_limit?.message}>
+            <Input id="credit_limit" inputMode="decimal" aria-invalid={!!errors.credit_limit} {...form.register("credit_limit")} />
+          </Field>
+          <Field id="payment_terms_days" label="Payment terms, days" hint="Sets the due date on invoices" error={errors.payment_terms_days?.message}>
+            <Input id="payment_terms_days" inputMode="numeric" aria-invalid={!!errors.payment_terms_days} {...form.register("payment_terms_days")} />
+          </Field>
+        </div>
+      </FieldGroup>
       <Field id="customer-address" label="Address"><Textarea id="customer-address" rows={2} {...form.register("address")} /></Field>
       <Field id="customer-notes" label="Notes"><Textarea id="customer-notes" rows={2} {...form.register("notes")} /></Field>
     </FormDialog>

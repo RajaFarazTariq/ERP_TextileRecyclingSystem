@@ -87,7 +87,12 @@ class Command(SeedCommand):
         SortingSession.objects.all().delete()
         Payment.objects.all().delete()
         DispatchTracking.objects.all().delete()
+        from apps.sales.models import Product, SalesInvoice, SalesQuotation, SalesReturn
+        SalesReturn.objects.all().delete()
+        SalesInvoice.objects.all().delete()
+        SalesQuotation.objects.all().delete()
         SalesOrder.objects.all().delete()
+        Product.objects.all().delete()
         Customer.objects.all().delete()
         DryingSession.objects.all().delete()
         StockMovement.objects.all().delete()   # demo reset only: the ledger is otherwise append-only

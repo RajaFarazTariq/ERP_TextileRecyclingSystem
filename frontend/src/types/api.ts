@@ -374,6 +374,8 @@ export interface Dispatch {
   dispatch_date: string
   delivery_date: string | null
   notes: string | null
+  /** Delivery challan number, e.g. DC-00012 */
+  challan_number: string
 }
 
 export interface Payment {
@@ -410,6 +412,160 @@ export interface SalesOrder {
   notes: string | null
   dispatches: Dispatch[]
   payments: Payment[]
+  product: number | null
+  product_name: string | null
+  discount_pct: Decimal
+  tax_pct: Decimal
+  /** The quotation this order came from */
+  quotation_number: string | null
+  invoiced_weight: Decimal
+  /** Weight on returns that are requested or approved */
+  returned_weight: Decimal
+  /** Credits from approved returns; they reduce what the order owes */
+  credited: Decimal
+}
+
+export type CustomerCategory = "Wholesaler" | "Manufacturer" | "Exporter" | "Retailer" | "Other"
+
+export interface ProductPrice {
+  id: number
+  customer_category: CustomerCategory
+  price_per_kg: Decimal
+}
+
+export interface Product {
+  id: number
+  name: string
+  material_type: string
+  grade: string
+  specification: string
+  /** List price; `prices` holds the price per customer category */
+  price_per_kg: Decimal
+  is_active: boolean
+  created_at: string
+  prices: ProductPrice[]
+}
+
+export type QuotationStatus = "Draft" | "Sent" | "Accepted" | "Rejected" | "Converted"
+
+export interface SalesQuotation {
+  id: number
+  number: string
+  customer: number
+  customer_name: string
+  product: number | null
+  product_name: string | null
+  fabric: number | null
+  fabric_material: string | null
+  fabric_quality: string
+  weight: Decimal
+  price_per_kg: Decimal
+  discount_pct: Decimal
+  tax_pct: Decimal
+  total: Decimal
+  valid_until: string | null
+  expired: boolean
+  status: QuotationStatus
+  notes: string
+  rejection_reason: string
+  decided_at: string | null
+  order: number | null
+  created_by: number
+  created_by_name: string
+  created_at: string
+}
+
+export type InvoiceStatus = "Paid" | "Partial" | "Unpaid" | "Overdue"
+
+export interface SalesInvoice {
+  id: number
+  number: string
+  order: number
+  customer_name: string
+  customer_contact: string | null
+  customer_address: string | null
+  fabric_material: string
+  fabric_quality: string
+  invoice_date: string
+  due_date: string
+  weight: Decimal
+  price_per_kg: Decimal
+  subtotal: Decimal
+  discount_pct: Decimal
+  discount_amount: Decimal
+  tax_pct: Decimal
+  tax_amount: Decimal
+  total: Decimal
+  /** Settled by the order's payments and return credits, oldest invoice first */
+  paid: Decimal
+  status: InvoiceStatus
+  notes: string
+  created_by: number
+  created_by_name: string
+  created_at: string
+}
+
+export type ReturnStatus = "Requested" | "Approved" | "Rejected"
+
+export interface SalesReturn {
+  id: number
+  number: string
+  order: number
+  customer_name: string
+  fabric_material: string
+  return_date: string
+  weight: Decimal
+  reason: string
+  /** Put the returned weight back into sellable stock when approved */
+  restock: boolean
+  status: ReturnStatus
+  credit_amount: Decimal
+  rejection_reason: string
+  decided_by: number | null
+  decided_by_name: string | null
+  decided_at: string | null
+  created_by: number
+  created_by_name: string
+  created_at: string
+}
+
+export interface CustomerStatement {
+  customer: number
+  name: string
+  as_of: string
+  billed: Decimal
+  paid: Decimal
+  credited: Decimal
+  balance: Decimal
+  overdue: Decimal
+  credit_limit: Decimal
+  over_limit: boolean
+  transactions: {
+    date: string; kind: "Order" | "Payment" | "Return"; reference: string; detail: string
+    debit: Decimal; credit: Decimal; balance: Decimal
+  }[]
+}
+
+export interface PerformanceRow {
+  name: string
+  orders: number
+  kg: Decimal
+  revenue: Decimal
+}
+
+export interface SalesPerformance {
+  orders: number
+  revenue: Decimal
+  kg: Decimal
+  average_price: Decimal | null
+  by_customer: PerformanceRow[]
+  by_product: PerformanceRow[]
+  /** `name` is the month, YYYY-MM, oldest first */
+  by_month: PerformanceRow[]
+  quotations: number
+  quotation_win_pct: number | null
+  returned_kg: Decimal
+  returned_credit: Decimal
 }
 
 export interface SalesSummary {
@@ -431,6 +587,15 @@ export interface Customer {
   notes: string | null
   created_at: string
   order_count: number
+  email: string
+  category: CustomerCategory | ""
+  /** 0 = no limit. Going over it warns; it never blocks. */
+  credit_limit: Decimal
+  payment_terms_days: number
+  is_active: boolean
+  /** Confirmed orders less payments and return credits */
+  balance: Decimal
+  over_limit: boolean
 }
 
 export interface CustomerDuplicate {

@@ -20,7 +20,7 @@ from django.db.models import Sum
 from apps.drying.models import DryingSession
 from apps.inventory import services
 from apps.inventory.models import StockMovement
-from apps.sales.models import DispatchTracking
+from apps.sales.models import DispatchTracking, SalesReturn
 
 
 class Command(BaseCommand):
@@ -39,6 +39,9 @@ class Command(BaseCommand):
         for fabric_id, total in (DispatchTracking.objects.values_list('sales_order__fabric_id')
                                  .annotate(t=Sum('dispatched_weight'))):
             expected[fabric_id] = expected.get(fabric_id, zero) - (total or zero)
+        for fabric_id, total in (SalesReturn.objects.filter(status='Approved', restock=True)
+                                 .values_list('order__fabric_id').annotate(t=Sum('weight'))):
+            expected[fabric_id] = expected.get(fabric_id, zero) + (total or zero)
         for fabric_id, total in (StockMovement.objects.filter(movement_type=StockMovement.ADJUSTMENT)
                                  .values_list('fabric_id').annotate(t=Sum('quantity'))):
             expected[fabric_id] = expected.get(fabric_id, zero) + (total or zero)
@@ -46,8 +49,11 @@ class Command(BaseCommand):
         figures = services.availability_map()
         fabric_ids = sorted(set(expected) | set(figures))
 
+        # Compare to the paisa: SQLite adds up decimals as floats, which leaves tiny differences
+        cent = Decimal('0.01')
         mismatched = [(f, expected.get(f, zero), figures.get(f, {}).get('on_hand', zero))
-                      for f in fabric_ids if expected.get(f, zero) != figures.get(f, {}).get('on_hand', zero)]
+                      for f in fabric_ids
+                      if Decimal(expected.get(f, zero)).quantize(cent) != Decimal(figures.get(f, {}).get('on_hand', zero)).quantize(cent)]
         negative = [(f, v['on_hand']) for f, v in figures.items() if v['on_hand'] < 0]
         oversold = [(f, v['available']) for f, v in figures.items() if v['available'] < 0]
 
@@ -64,7 +70,9 @@ class Command(BaseCommand):
                 services.sync_drying_session(session)
             for dispatch in DispatchTracking.objects.select_related('sales_order'):
                 services.sync_dispatch(dispatch)
-            self.stdout.write(self.style.SUCCESS('Ledger re-synced with drying sessions and dispatches.'))
+            for sales_return in SalesReturn.objects.select_related('order'):
+                services.sync_sales_return(sales_return)
+            self.stdout.write(self.style.SUCCESS('Ledger re-synced with drying sessions, dispatches and returns.'))
 
     def _report(self, title, rows, fmt):
         if not rows:

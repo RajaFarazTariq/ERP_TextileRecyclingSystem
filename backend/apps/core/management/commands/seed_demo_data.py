@@ -28,7 +28,9 @@ from apps.sorting.models import FabricStock, SortingSession
 from apps.decolorization.models import (
     ChemicalIssuance, ChemicalLot, ChemicalStock, DecolorizationSession, Recipe, RecipeLine, RecipeVersion, Tank,
 )
-from apps.sales.models import SalesOrder, DispatchTracking, Payment
+from apps.sales.models import (
+    Customer, DispatchTracking, Payment, Product, ProductPrice, SalesInvoice, SalesOrder, SalesQuotation, SalesReturn,
+)
 from apps.drying.models import DryingSession
 from apps.inventory.models import StockMovement
 from apps.sales.models import Customer
@@ -135,7 +137,11 @@ class Command(SeedCommand):
             PurchaseReturn.objects.all().delete()
             Payment.objects.all().delete()
             DispatchTracking.objects.all().delete()
+            SalesReturn.objects.all().delete()
+            SalesInvoice.objects.all().delete()
+            SalesQuotation.objects.all().delete()
             SalesOrder.objects.all().delete()
+            Product.objects.all().delete()
             Customer.objects.all().delete()
             DryingSession.objects.all().delete()
             StockMovement.objects.all().delete()   # demo reset only: the ledger is otherwise append-only
@@ -633,6 +639,7 @@ class Command(SeedCommand):
         self.add_demo_quality(admin)
         self.add_demo_production(admin)
         self.add_demo_chemicals(admin)
+        self.add_demo_sales_extras(admin)
 
         # ══════════════════════════════════════════════════════════════════════
         # SUMMARY
@@ -766,6 +773,80 @@ class Command(SeedCommand):
         self.stdout.write(f'  ✓ {QualityStandard.objects.count()} quality standards')
         self.stdout.write(f'  ✓ {Inspection.objects.count()} inspections '
                           f'({Inspection.objects.filter(result="Fail", released_at__isnull=True).count()} in quarantine)')
+
+    # ── Sales: price list, quotations, invoices and returns ──────────────────
+
+    def add_demo_sales_extras(self, admin):
+        """Customer profiles, a price list, quotations at each stage, invoices for dispatched orders and returns."""
+        from apps.sales import services as sales
+        self.stdout.write('\nAdding the price list, quotations, invoices and returns...')
+        today = timezone.localdate()
+        categories = ('Wholesaler', 'Manufacturer', 'Exporter', 'Retailer')
+        customers = list(Customer.objects.order_by('id'))
+        balances = sales.customer_balances()
+        for i, customer in enumerate(customers):
+            customer.category = categories[i % len(categories)]
+            customer.payment_terms_days = (15, 30, 45)[i % 3]
+            # Every fourth customer has a limit below what they owe, to show the warning
+            owed = balances[customer.pk]['balance'] if customer.pk in balances else d(0)
+            customer.credit_limit = (owed * d('0.8')).quantize(d('1')) if i % 4 == 0 and owed > 0 else d(0)
+            customer.save()
+
+        products = []
+        for name, material, grade, price, special in (
+            ('White recycled fibre A', 'Cotton', 'Grade A', 185, {'Wholesaler': 175, 'Exporter': 195}),
+            ('White recycled fibre B', 'Cotton', 'Grade B', 150, {'Wholesaler': 142}),
+            ('Polyester staple', 'Polyester', 'Grade A', 210, {'Manufacturer': 200}),
+            ('Mixed fibre fill', 'Mixed', 'Grade C', 95, {}),
+        ):
+            product = Product.objects.create(name=name, material_type=material, grade=grade, price_per_kg=d(price),
+                                             specification='Baled, moisture below 8%')
+            for category, value in special.items():
+                ProductPrice.objects.create(product=product, customer_category=category, price_per_kg=d(value))
+            products.append(product)
+
+        lots = list(FabricStock.objects.order_by('id')[:6])
+        states = ('Draft', 'Sent', 'Sent', 'Accepted', 'Rejected', 'Converted')
+        for i, (customer, state) in enumerate(zip(customers, states)):
+            product = products[i % len(products)]
+            quotation = SalesQuotation.objects.create(
+                customer=customer, product=product, fabric=lots[i % len(lots)], fabric_quality=product.grade,
+                weight=d(800 + 250 * i), price_per_kg=product.price_per_kg, discount_pct=d(5 if i % 2 else 0),
+                valid_until=today + timedelta(days=14 - 9 * (i % 3)), created_by=admin,
+            )
+            if state in ('Sent', 'Accepted', 'Converted'):
+                sales.send_quotation(quotation)
+            if state in ('Accepted', 'Converted'):
+                sales.accept_quotation(quotation)
+            if state == 'Rejected':
+                sales.reject_quotation(quotation, 'Went with a cheaper supplier')
+            if state == 'Converted':
+                sales.convert_quotation(quotation, admin)
+
+        # Invoice what has been dispatched on the latest orders; date the older ones so some are overdue
+        invoiced = 0
+        for i, order in enumerate(SalesOrder.objects.filter(dispatches__isnull=False).distinct().order_by('-created_at')[:25]):
+            try:
+                sales.create_invoice(order, admin, invoice_date=today - timedelta(days=4 + 6 * i))
+                invoiced += 1
+            except Exception:      # nothing left to invoice on this order
+                continue
+
+        returned = 0
+        for i, order in enumerate(SalesOrder.objects.filter(status='Completed').order_by('-created_at')[:3]):
+            shipped = sum((x.dispatched_weight for x in order.dispatches.all()), d(0))
+            if shipped <= 0:
+                continue
+            sales_return = SalesReturn.objects.create(
+                order=order, return_date=today - timedelta(days=2 + i), weight=(shipped * d('0.05')).quantize(d('0.01')),
+                reason=('Bales arrived damp', 'Colour not as agreed', 'Contaminated with plastic')[i],
+                restock=i == 0, created_by=admin,
+            )
+            if i < 2:              # the last one is left waiting for approval
+                sales.approve_return(sales_return, admin)
+            returned += 1
+        self.stdout.write(f'  ✓ {len(products)} products, {SalesQuotation.objects.count()} quotations, '
+                          f'{invoiced} invoices, {returned} returns')
 
     # ── Chemicals: cost, safety, lots and recipes ────────────────────────────
 

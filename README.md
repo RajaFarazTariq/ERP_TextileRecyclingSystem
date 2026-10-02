@@ -32,7 +32,7 @@ A web-based ERP for textile recycling factories. It follows material from the su
 
 **Commercial**
 - **Purchasing:** purchase requests and orders with admin approval, amendments with revision numbers, deliveries against orders, supplier invoices with tax, payments, returns, quotations, price comparison and supplier performance.
-- **Sales:** customers, orders with stock reservation, partial dispatches, payments, and oversell protection.
+- **Sales:** quotations that become orders, orders with stock reservation, partial dispatches with printable delivery challans, printable invoices, payments, returns with credit, customer profiles with credit limits and statements, a product price list, and a sales performance report.
 - **Inventory:** a ledger of every stock change, with reservations and admin adjustments.
 
 **Administration**
@@ -283,6 +283,21 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main` or `upg
 - **Approval:** an admin can approve a batch record. It is a sign-off only; nothing is blocked while a batch is unapproved.
 - **Usage report:** the Usage tab totals quantity and cost per chemical for a period. Cost per kg treated counts only issuances tied to a batch.
 - **API:** `/api/v1/decolorization/` (`lots`, `recipes`, `sessions/<id>/consumption`, `sessions/<id>/approve`, `usage`).
+
+### Sales: quotations, invoices and returns
+
+- **Flow:** quotation → the customer accepts → sales order (Draft) → confirm (reserves stock) → dispatch → invoice → payment. A quotation is optional: orders can still be entered directly, as before.
+- **Customers:** a customer has a category (wholesaler, manufacturer, exporter, retailer, other), payment terms in days, and an optional credit limit. The Customers tab shows what each one owes.
+- **What a customer owes:** confirmed, dispatched and completed orders, less payments received, less credits for approved returns. "Statement" on a customer lists these with a running balance.
+- **Credit limit:** going over it shows a warning when the order is entered and when it is confirmed. It never blocks the order.
+- **Products and prices:** a product has a list price per kg and can have a different price per customer category. Choosing a product on an order or quotation fills in the grade and the price for that customer; both can still be changed.
+- **Discount and tax:** an order or quotation can have a discount % and a tax %. The total is weight × price, less the discount, plus tax on the rest. With neither, the total is weight × price as before.
+- **Quotations:** Draft → Sent → Accepted or Rejected. An accepted quotation is turned into a Draft order with the same terms; the fabric lot is chosen then if it wasn't before. A converted quotation can't be changed or deleted.
+- **Invoices:** an invoice is raised from an order for goods that have been dispatched and not yet invoiced, so partial deliveries are invoiced one by one. Its amounts are fixed when it is raised, and the due date comes from the customer's payment terms. Payments stay recorded against the order; they settle its invoices oldest first, which gives each invoice its status (Unpaid, Partial, Paid, Overdue).
+- **Delivery challans:** each dispatch has a challan number (DC-00012) and can be printed, as can each invoice.
+- **Returns:** a return records the weight sent back (never more than was dispatched), the reason, and whether the goods go back into sellable stock or are written off. Nothing changes until an admin approves it. Approval credits the customer at the order's price, updates the order's payment status, and, if chosen, adds the weight back to the stock ledger. An approved return can't be deleted.
+- **Performance:** the Performance tab shows sales, weight, average price, quotations won and returns for a period, by month, customer and material.
+- **API:** `/api/v1/sales/` (`products`, `quotations`, `invoices`, `returns`, `orders/<id>/invoice`, `customers/<id>/statement`, `performance`).
 
 ### Consistency checks
 
