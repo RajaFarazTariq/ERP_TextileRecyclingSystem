@@ -118,3 +118,10 @@ class ReseedTests(TestCase):
             'weight_sold': '100', 'price_per_kg': '50', 'status': 'Confirmed',
         }, format='json')
         self.assertEqual(res.status_code, 201)
+
+
+class HealthCheckTests(TestCase):
+    def test_health_needs_no_login_and_reports_the_database(self):
+        res = self.client.get('/api/health/')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json(), {'status': 'ok', 'database': 'ok'})
