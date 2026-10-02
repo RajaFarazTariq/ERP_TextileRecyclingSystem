@@ -3,29 +3,46 @@
 import { useQuery } from "@tanstack/react-query"
 
 import { canAccess } from "@/config/access"
-import { chemicalShareLeft, isLowStock } from "@/features/decolorization/decolorization-dashboard"
 import { api } from "@/lib/api"
-import type { Chemical, Inspection, LotStock, Role } from "@/types/api"
+import type { AlertItem, AlertSeverity } from "@/types/alerts"
+import type { Chemical, LotStock, Role } from "@/types/api"
 
 export interface AttentionItem {
   id: string
   severity: "critical" | "warning"
+  /** The server's three-step severity; `severity` folds "info" into "warning" */
+  level: AlertSeverity
   title: string
   detail: string
   /** Share left (0–100), for chemicals */
   share?: number
   href: string
   action: string
+  /** Open longer than its rule allows */
+  escalated: boolean
+  rule: string
+  /** The day the problem started, when known */
+  created: string | null
 }
 
-const n = (v: string | number | null | undefined) => Number(v) || 0
+/** The query behind the bell and the dashboard panel; pages that change what is listed can invalidate it. */
+export const ALERTS_KEY = ["alerts/notifications"]
 
 /**
- * Things someone should act on: chemicals below the reorder level, lots with
- * more reserved than on hand, and material in quarantine. Uses the same lists
- * (and cache) as the module pages; only fetches what the role may see.
+ * Things someone should act on, worked out by the server from the notification
+ * rules (low stock, quarantine, overdue invoices, pending approvals, ...) for
+ * the user's role. The list is already in order: escalated first, then the
+ * most serious. The chemical and lot lists are the ones the dashboard shows
+ * figures from; they are only fetched for roles that may see them.
  */
 export function useAttention(role: Role | undefined) {
+  const alerts = useQuery<AlertItem[]>({
+    queryKey: ALERTS_KEY,
+    queryFn: () => api("alerts/notifications"),
+    enabled: !!role,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  })
   const chemicals = useQuery<Chemical[]>({
     queryKey: ["decolorization/chemicals", {}],
     queryFn: () => api("decolorization/chemicals"),
@@ -36,47 +53,30 @@ export function useAttention(role: Role | undefined) {
     queryFn: () => api("inventory/movements/stock"),
     enabled: canAccess(role, "/sales"),
   })
-  const inspections = useQuery<Inspection[]>({
-    queryKey: ["quality/inspections", {}],
-    queryFn: () => api("quality/inspections"),
-    enabled: canAccess(role, "/quality"),
-  })
 
-  const items: AttentionItem[] = [
-    ...(inspections.data ?? []).filter((i) => i.quarantined).map((i): AttentionItem => ({
-      id: `quarantine-${i.id}`,
-      severity: "critical",
-      title: `${i.material} (${i.target.toLowerCase()})`,
-      detail: `is in quarantine after failing ${i.number}`,
-      href: "/quality",
-      action: "Review",
-    })),
-    ...(chemicals.data ?? []).filter(isLowStock).map((c): AttentionItem => {
-      const share = chemicalShareLeft(c) * 100
-      return {
-        id: `chemical-${c.id}`,
-        severity: share < 10 ? "critical" : "warning",
-        title: c.chemical_name,
-        detail: `is below 25% (${n(c.remaining_stock).toLocaleString()} ${c.unit_of_measure} left)`,
-        share,
-        href: "/decolorization",
-        action: "Restock",
-      }
-    }),
-    ...(lots.data ?? []).filter((l) => n(l.available_kg) < 0).map((l): AttentionItem => ({
-      id: `lot-${l.fabric}`,
-      severity: "critical",
-      title: l.material_type,
-      detail: `has more reserved than on hand (${(-n(l.available_kg)).toLocaleString("en-PK", { maximumFractionDigits: 2 })} kg short)`,
-      href: "/sales",
-      action: "View",
-    })),
-  ].sort((a, b) => (a.severity === b.severity ? (a.share ?? -1) - (b.share ?? -1) : a.severity === "critical" ? -1 : 1))
+  const items: AttentionItem[] = (alerts.data ?? []).map((a) => ({
+    id: a.id,
+    severity: a.severity === "danger" ? "critical" : "warning",
+    level: a.severity,
+    title: a.title,
+    detail: a.message,
+    ...(a.share === null ? {} : { share: a.share }),
+    href: a.href,
+    action: a.action,
+    escalated: a.escalated,
+    rule: a.rule,
+    created: a.created,
+  }))
+
+  // The dashboard waits for the chemical list before it draws. Hold that list back until the
+  // alerts have arrived too, so its "Needs attention" panel never shows "All clear" by mistake.
+  const loadingAlerts = alerts.isPending && alerts.fetchStatus !== "idle"
 
   return {
     items,
+    alerts,
     lots,
-    chemicals,
-    isPending: (chemicals.isPending && chemicals.fetchStatus !== "idle") || (lots.isPending && lots.fetchStatus !== "idle"),
+    chemicals: loadingAlerts ? ({ ...chemicals, data: undefined } as typeof chemicals) : chemicals,
+    isPending: [alerts, chemicals, lots].some((q) => q.isPending && q.fetchStatus !== "idle"),
   }
 }

@@ -9,12 +9,14 @@
 //   BASE=http://host:port        another address; SHOTS=<folder> for screenshots
 import { chromium } from 'playwright'
 
+import { approvalsScenario } from './approvals.mjs'
 import { decolorizationScenario } from './decolorization.mjs'
 import { dryingScenario } from './drying.mjs'
 import { documentsScenario } from './documents.mjs'
 import { financeScenario } from './finance.mjs'
 import { maintenanceScenario } from './maintenance.mjs'
 import { sustainabilityScenario } from './sustainability.mjs'
+import { traceabilityScenario } from './traceability.mjs'
 import { workforceScenario } from './workforce.mjs'
 import { procurementScenario } from './procurement.mjs'
 import { productionScenario } from './production.mjs'
@@ -41,6 +43,8 @@ const scenarios = {
   workforce: workforceScenario,
   sustainability: sustainabilityScenario,
   documents: documentsScenario,
+  traceability: traceabilityScenario,
+  approvals: approvalsScenario,
 }
 const wanted = process.argv.slice(2).filter((a) => a in scenarios)
 

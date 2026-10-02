@@ -27,12 +27,13 @@ import { useSession } from "@/features/auth/use-session"
 import { revenueByMonth } from "@/features/sales/sales-dashboard"
 import { api } from "@/lib/api"
 import { useList } from "@/lib/crud"
-import { displayName, kg, plural, relativeTime, rupees } from "@/lib/format"
+import { compact, displayName, kg, plural, relativeTime, rupees } from "@/lib/format"
 import { monthlyTotals } from "@/lib/series"
 import { cn } from "@/lib/utils"
 import type {
   AuditEntry, DecolorizationSession, DryingSession, Page, SalesOrder, SalesSummary, SortingSession, StockEntry,
 } from "@/types/api"
+import type { ExecutiveSummary } from "@/types/reports"
 import { useAttention } from "./use-attention"
 
 const n = (v: string | number | null | undefined) => Number(v) || 0
@@ -45,6 +46,81 @@ const PERIOD_LABEL: Record<DateFilterValue["type"], string> = {
 
 const ACTION_TONES: Record<string, StatusTone> = {
   CREATE: "success", UPDATE: "info", DELETE: "danger", LOGIN: "neutral", LOGIN_FAILED: "warning", EXPORT: "neutral",
+}
+
+interface GlanceItem {
+  label: string
+  /** undefined: that module's figures are not available */
+  value: string | undefined
+  hint?: string
+  href: string
+  /** Something to act on: shown in the warning colour */
+  alert?: boolean
+}
+
+const money = (v: string) => `Rs. ${compact(Number(v))}`
+
+function glanceItems(e: ExecutiveSummary): GlanceItem[] {
+  const count = (v: number | undefined) => (v === undefined ? undefined : v.toLocaleString("en-PK"))
+  return [
+    { label: "Cash and bank", href: "/finance", value: e.finance ? money(e.finance.cash) : undefined, hint: e.finance ? rupees(e.finance.cash) : undefined },
+    { label: "Customers owe us", href: "/finance", value: e.finance ? money(e.finance.receivable) : undefined, hint: e.finance ? rupees(e.finance.receivable) : undefined },
+    { label: "We owe suppliers", href: "/finance", value: e.finance ? money(e.finance.payable) : undefined, hint: e.finance ? rupees(e.finance.payable) : undefined },
+    { label: "Profit this month", href: "/finance", value: e.finance ? money(e.finance.profit_month) : undefined, hint: e.finance ? rupees(e.finance.profit_month) : undefined,
+      alert: !!e.finance && Number(e.finance.profit_month) < 0 },
+    { label: "Open sales orders", href: "/sales", value: count(e.sales?.open_orders), hint: e.sales ? rupees(e.sales.open_order_value) : undefined },
+    { label: "Overdue invoices", href: "/sales", value: count(e.sales?.overdue_invoices), hint: e.sales ? `${rupees(e.sales.overdue_amount)} unpaid` : undefined,
+      alert: !!e.sales?.overdue_invoices },
+    { label: "Pending purchase orders", href: "/procurement", value: count(e.procurement?.pending_orders),
+      hint: e.procurement ? `${e.procurement.awaiting_approval} to approve · ${e.procurement.late_orders} late` : undefined, alert: !!e.procurement?.late_orders },
+    { label: "Production in progress", href: "/production", value: count(e.production?.in_progress), hint: "production orders" },
+    { label: "Production orders late", href: "/production", value: count(e.production?.late), hint: "past their planned end", alert: !!e.production?.late },
+    { label: "In quarantine", href: "/quality", value: count(e.quality?.quarantined), hint: "failed inspections not released", alert: !!e.quality?.quarantined },
+    { label: "Corrective actions open", href: "/quality", value: count(e.quality?.open_actions),
+      hint: e.quality ? `${e.quality.overdue_actions} overdue` : undefined, alert: !!e.quality?.overdue_actions },
+    { label: "Machines broken down", href: "/maintenance", value: count(e.maintenance?.broken_down), alert: !!e.maintenance?.broken_down },
+    { label: "Maintenance overdue", href: "/maintenance", value: count(e.maintenance?.overdue_schedules), hint: "scheduled tasks", alert: !!e.maintenance?.overdue_schedules },
+    { label: "Recovery rate", href: "/sustainability", hint: "this month",
+      value: e.sustainability ? (e.sustainability.recovery_pct === null ? "—" : `${Number(e.sustainability.recovery_pct).toFixed(1)}%`) : undefined },
+    { label: "Waste to landfill", href: "/sustainability", value: e.sustainability ? kg(e.sustainability.landfill_kg) : undefined,
+      hint: e.sustainability ? `of ${kg(e.sustainability.waste_kg)} this month` : undefined },
+    { label: "Documents expired", href: "/documents", value: count(e.documents?.expired), alert: !!e.documents?.expired },
+    { label: "Documents expiring", href: "/documents", value: count(e.documents?.expiring_soon),
+      hint: e.documents ? `within ${e.documents.expiring_days} days` : undefined, alert: !!e.documents?.expiring_soon },
+    { label: "People present today", href: "/workforce", value: count(e.workforce?.present_today),
+      hint: e.workforce ? `of ${e.workforce.employees}` : undefined },
+    { label: "On leave today", href: "/workforce", value: count(e.workforce?.on_leave_today) },
+  ]
+}
+
+/** Key figures of every module, each linking to its page. Loads on its own, so it never holds the dashboard back. */
+function BusinessGlance() {
+  const executive = useQuery<ExecutiveSummary>({ queryKey: ["reports/executive"], queryFn: () => api("reports/executive") })
+  return (
+    <section className="surface animate-rise rounded-xl p-4 md:p-5" aria-label="Business at a glance">
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-heading text-base font-semibold tracking-tight">Business at a glance</h2>
+        <p className="text-xs text-muted-foreground">Money, orders, quality, machines and people, as of now</p>
+      </div>
+      {executive.isError ? <p className="text-sm text-muted-foreground">These figures could not be loaded. {executive.error.message}</p>
+        : executive.isPending ? <Skeleton className="h-40 w-full" />
+        : (
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+            {glanceItems(executive.data).map((item) => (
+              <Link key={item.label} href={item.href} data-glance={item.label}
+                className="flex min-w-0 flex-col rounded-xl border bg-[color-mix(in_oklab,var(--card),var(--foreground)_2%)] p-3 transition-colors hover:border-border-strong">
+                <span className="text-xs font-medium text-muted-foreground">{item.label}</span>
+                <span className={cn("mt-1 font-heading text-lg leading-tight font-bold tracking-tight wrap-anywhere",
+                  item.value === undefined ? "text-muted-foreground" : item.alert && "text-warning-fg")}>
+                  {item.value ?? "—"}
+                </span>
+                <span className="mt-0.5 min-h-4 truncate text-xs text-muted-foreground">{item.value === undefined ? "Not available" : item.hint}</span>
+              </Link>
+            ))}
+          </div>
+        )}
+    </section>
+  )
 }
 
 export function DashboardPage() {
@@ -198,6 +274,8 @@ export function DashboardPage() {
             <StatCard label="Chemicals" icon={FlaskConical} tone={lowChemicals ? "warning" : "decolorization"} value={(attention.chemicals.data ?? []).length}
               hint={lowChemicals ? `${lowChemicals} running low` : "All above 25%"} />
           </div>
+
+          <BusinessGlance />
 
           <div className="grid gap-4 lg:grid-cols-3">
             <ChartCard className="lg:col-span-2" title="Order value by month" description="Cancelled orders excluded" contentClassName="h-72"

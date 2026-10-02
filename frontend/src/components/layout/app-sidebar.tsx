@@ -25,7 +25,6 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
@@ -39,7 +38,6 @@ import { cn } from "@/lib/utils"
 import type { SessionUser } from "@/types/api"
 import { BrandMark } from "./brand-mark"
 import { NavIcon } from "./nav-icon"
-import { useNavCounts } from "./use-nav-counts"
 
 function UserCard({ user }: { user: SessionUser }) {
   const { theme, setTheme } = useTheme()
@@ -82,7 +80,6 @@ function UserCard({ user }: { user: SessionUser }) {
 
 export function AppSidebar({ user }: { user: SessionUser }) {
   const pathname = usePathname()
-  const counts = useNavCounts(user.role)
 
   return (
     <Sidebar collapsible="icon">
@@ -108,7 +105,6 @@ export function AppSidebar({ user }: { user: SessionUser }) {
               <SidebarMenu className="gap-0.5">
                 {group.items.map((item) => {
                   const active = pathname.startsWith(item.href)
-                  const count = counts[item.icon]
                   return (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
@@ -123,15 +119,6 @@ export function AppSidebar({ user }: { user: SessionUser }) {
                           <span>{item.title}</span>
                         </Link>
                       </SidebarMenuButton>
-                      {count && (
-                        <SidebarMenuBadge
-                          title={count.label}
-                          aria-label={count.label}
-                          className={cn("top-2! rounded-full px-1.5 text-[11px] font-semibold", TONE[NAV_TONES[item.icon]].soft, TONE[NAV_TONES[item.icon]].text)}
-                        >
-                          {count.count}
-                        </SidebarMenuBadge>
-                      )}
                     </SidebarMenuItem>
                   )
                 })}

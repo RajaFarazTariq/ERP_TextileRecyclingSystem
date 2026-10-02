@@ -1,8 +1,14 @@
 # reports/urls.py
 from django.urls import path
-from . import views
+from . import centre, views
 
 urlpatterns = [
+    # Report centre and executive dashboard
+    path('catalogue/',                centre.CatalogueView.as_view(), name='report-catalogue'),
+    path('run/<slug:key>/',           centre.RunReportView.as_view(), name='report-run'),
+    path('schedules/',                centre.SchedulesView.as_view(), name='report-schedules'),
+    path('executive/',                centre.ExecutiveView.as_view(), name='report-executive'),
+
     # JSON data endpoints
     path('daily-production/',         views.daily_production_report,  name='report-daily-production'),
     path('monthly-sales/',            views.monthly_sales_report,     name='report-monthly-sales'),
