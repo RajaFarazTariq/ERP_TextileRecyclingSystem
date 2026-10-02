@@ -23,7 +23,7 @@ A web-based ERP for textile recycling factories. It follows material from the su
 **Operations**
 - **Warehouse:** suppliers, factory units and incoming deliveries (vendor slip, vehicle, our weight vs. unloading weight). Approve or reject deliveries, and optionally link one to a purchase order.
 - **Sorting:** fabric lots and sorting sessions, with progress tracked against the weight taken.
-- **Decolorization:** tanks, chemical stock and issues (over-issuing is blocked), process sessions and efficiency.
+- **Decolorization:** tanks, chemical stock and issues (over-issuing is blocked), process sessions and efficiency. Chemicals carry cost and safety data, arrive in lots, and are planned with versioned recipes; each batch shows planned against issued chemicals and its cost.
 - **Drying:** dryers and drying sessions. Completed sessions add sellable stock.
 
 - **Quality:** standards with limits, inspections of deliveries and fabric lots, quarantine of failed material, corrective actions, defect analysis and supplier quality.
@@ -270,6 +270,19 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main` or `upg
 - **Material needs:** the Materials tab adds up what open orders still need and compares it with the chemical stock on hand.
 - **Who does what:** admins plan, release and cancel. Sorting, decolorization and drying supervisors run stages, record materials and complete orders.
 - **API:** `/api/v1/production/` (stages, routings, boms, orders, steps, materials, summary, requirements).
+
+### Chemicals and recipes
+
+- **Chemical record:** besides stock, a chemical has a cost per unit, a usual supplier, a hazard class, handling notes and a reference to its safety data sheet (a link, or where the sheet is filed).
+- **Restricted chemicals:** a chemical marked "admins only" can be issued by an admin only.
+- **Lots:** receiving a lot (lot number, quantity, cost, supplier, expiry date) adds its quantity to the chemical's stock and makes its cost the chemical's current cost. The chemical and quantity of a lot can't be edited afterwards. Deleting a lot takes the quantity back out, and is refused once that stock has been issued.
+- **Recipes:** a recipe lists chemicals per 100 kg of material, with temperature, duration and water. Changing the chemicals or the process saves a new version; the old versions stay, and each batch keeps the version it ran.
+- **Batches:** a decolorization session can record its recipe, temperature, duration and water. All of these are optional, so sessions work as before without them.
+- **Issuances and cost:** an issuance is tied to the batch running in its tank (when exactly one is running) and keeps the cost per unit at that moment, so later price changes don't rewrite past batches.
+- **Planned against actual:** "Chemicals used" on a session compares the recipe, scaled to the batch's input weight, with what was issued, and shows the cost and the cost per kg.
+- **Approval:** an admin can approve a batch record. It is a sign-off only; nothing is blocked while a batch is unapproved.
+- **Usage report:** the Usage tab totals quantity and cost per chemical for a period. Cost per kg treated counts only issuances tied to a batch.
+- **API:** `/api/v1/decolorization/` (`lots`, `recipes`, `sessions/<id>/consumption`, `sessions/<id>/approve`, `usage`).
 
 ### Consistency checks
 

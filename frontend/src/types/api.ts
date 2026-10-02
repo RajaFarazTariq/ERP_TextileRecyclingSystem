@@ -133,6 +133,115 @@ export interface Chemical {
   remaining_stock: Decimal
   unit_of_measure: string
   last_updated: string
+  /** Rs. per unit of measure */
+  unit_cost: Decimal
+  supplier: number | null
+  supplier_name: string | null
+  hazard_class: string
+  handling_notes: string
+  /** Where the safety data sheet is kept: a link or a file reference */
+  sds_reference: string
+  /** Only an admin may issue it */
+  is_restricted: boolean
+}
+
+export interface ChemicalLot {
+  id: number
+  chemical: number
+  chemical_name: string
+  unit_of_measure: string
+  lot_number: string
+  supplier: number | null
+  supplier_name: string | null
+  received_on: string
+  quantity: Decimal
+  unit_cost: Decimal
+  expiry_date: string | null
+  expired: boolean
+  notes: string
+  received_by: number
+  received_by_name: string
+  created_at: string
+}
+
+export interface RecipeLine {
+  id: number
+  chemical: number
+  chemical_name: string
+  unit_of_measure: string
+  quantity_per_100kg: Decimal
+}
+
+export interface RecipeVersion {
+  id: number
+  version: number
+  temperature_c: Decimal | null
+  duration_minutes: number | null
+  water_liters_per_100kg: Decimal | null
+  notes: string
+  created_by: number
+  created_by_name: string
+  created_at: string
+  lines: RecipeLine[]
+  /** Sessions run with this version */
+  sessions: number
+}
+
+export interface Recipe {
+  id: number
+  name: string
+  material_type: string
+  is_active: boolean
+  created_at: string
+  /** Newest first */
+  versions: RecipeVersion[]
+}
+
+export interface ConsumptionLine {
+  chemical: number
+  chemical_name: string
+  unit: string
+  planned: Decimal
+  actual: Decimal
+  variance: Decimal
+  planned_cost: Decimal
+  actual_cost: Decimal
+}
+
+/** Planned (recipe) against issued chemicals for one decolorization session. */
+export interface Consumption {
+  session: number
+  recipe: string | null
+  input_quantity: Decimal
+  lines: ConsumptionLine[]
+  planned_cost: Decimal
+  actual_cost: Decimal
+  cost_per_kg: Decimal | null
+  process: {
+    planned_temperature_c: Decimal | null
+    temperature_c: Decimal | null
+    planned_duration_minutes: number | null
+    duration_minutes: number | null
+    planned_water_liters: Decimal | null
+    water_liters: Decimal | null
+  }
+}
+
+export interface ChemicalUsage {
+  chemicals: { chemical: number; chemical_name: string; unit: string; quantity: Decimal; cost: Decimal; issuances: number }[]
+  total_cost: Decimal
+  issuances: number
+  batches: number
+  treated_kg: Decimal
+  /** Cost of the issuances that are tied to a batch */
+  batch_cost: Decimal
+  cost_per_kg: Decimal | null
+}
+
+export interface SupplierOption {
+  id: number
+  name: string
+  is_active: boolean
 }
 
 export interface ChemicalIssuance {
@@ -146,6 +255,12 @@ export interface ChemicalIssuance {
   quantity: Decimal
   issued_at: string
   notes: string | null
+  /** The batch it was used on, when the tank had one running */
+  session: number | null
+  unit_of_measure: string
+  /** Cost per unit when issued */
+  unit_cost: Decimal
+  cost: Decimal
 }
 
 export type ProcessStatus = "In Progress" | "Completed" | "Failed" | "On Hold"
@@ -165,6 +280,17 @@ export interface DecolorizationSession {
   start_date: string
   end_date: string | null
   notes: string | null
+  recipe_version: number | null
+  /** e.g. "Cotton bleach v2" */
+  recipe_name: string | null
+  temperature_c: Decimal | null
+  duration_minutes: number | null
+  water_liters: Decimal | null
+  approved_by: number | null
+  approved_by_name: string | null
+  approved_at: string | null
+  /** Cost of the chemicals issued to this batch */
+  chemical_cost: Decimal
 }
 
 /** Lightweight fabric list for decolorization dropdowns. */

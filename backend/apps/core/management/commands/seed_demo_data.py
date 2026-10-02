@@ -25,7 +25,9 @@ import calendar
 from apps.users.models import CustomUser
 from apps.warehouse.models import Vendor, FactoryUnit, Stock
 from apps.sorting.models import FabricStock, SortingSession
-from apps.decolorization.models import ChemicalStock, Tank, ChemicalIssuance, DecolorizationSession
+from apps.decolorization.models import (
+    ChemicalIssuance, ChemicalLot, ChemicalStock, DecolorizationSession, Recipe, RecipeLine, RecipeVersion, Tank,
+)
 from apps.sales.models import SalesOrder, DispatchTracking, Payment
 from apps.drying.models import DryingSession
 from apps.inventory.models import StockMovement
@@ -140,6 +142,8 @@ class Command(SeedCommand):
             DecolorizationSession.objects.all().delete()
             ChemicalIssuance.objects.all().delete()
             Tank.objects.all().delete()
+            Recipe.objects.all().delete()
+            ChemicalLot.objects.all().delete()
             ChemicalStock.objects.all().delete()
             SortingSession.objects.all().delete()
             FabricStock.objects.all().delete()
@@ -628,6 +632,7 @@ class Command(SeedCommand):
         self.add_demo_opening_stock(admin)
         self.add_demo_quality(admin)
         self.add_demo_production(admin)
+        self.add_demo_chemicals(admin)
 
         # ══════════════════════════════════════════════════════════════════════
         # SUMMARY
@@ -761,6 +766,74 @@ class Command(SeedCommand):
         self.stdout.write(f'  ✓ {QualityStandard.objects.count()} quality standards')
         self.stdout.write(f'  ✓ {Inspection.objects.count()} inspections '
                           f'({Inspection.objects.filter(result="Fail", released_at__isnull=True).count()} in quarantine)')
+
+    # ── Chemicals: cost, safety, lots and recipes ────────────────────────────
+
+    def add_demo_chemicals(self, admin):
+        """Costs and safety data on the chemicals, received lots, two recipes, and batches that used them."""
+        self.stdout.write('\nAdding chemical costs, lots and recipes...')
+        today = timezone.localdate()
+        supplier = Vendor.objects.order_by('id').first()
+        safety = {   # name: (Rs. per unit, hazard class, handling, restricted)
+            'Hydrogen Peroxide': (95, 'Oxidizer', 'Gloves and goggles. Keep cool and away from anything that burns.', False),
+            'Sodium Hypochlorite': (70, 'Corrosive', 'Never mix with acids: it releases chlorine gas.', False),
+            'Caustic Soda': (140, 'Corrosive', 'Face shield and apron. Add to water slowly, never the reverse.', True),
+            'Acetic Acid': (120, 'Flammable', 'Use with the extraction fan on.', False),
+        }
+        chemicals = list(ChemicalStock.objects.order_by('id'))
+        for i, chemical in enumerate(chemicals):
+            cost, hazard, handling, restricted = safety.get(chemical.chemical_name, (60 + 15 * i, '', '', False))
+            chemical.unit_cost = d(cost)
+            chemical.hazard_class = hazard
+            chemical.handling_notes = handling
+            chemical.is_restricted = restricted
+            chemical.sds_reference = 'Safety binder, store room' if hazard else ''
+            chemical.supplier = supplier
+            chemical.save()
+            # Earlier deliveries; the stock figures above already include them
+            for n, (days_ago, share) in enumerate(((75, 0.6), (20, 0.4)), start=1):
+                ChemicalLot.objects.create(
+                    chemical=chemical, lot_number=f'{chemical.chemical_name[:3].upper()}-{2600 + i * 10 + n}',
+                    supplier=supplier, received_on=today - timedelta(days=days_ago),
+                    quantity=(chemical.total_stock * d(share)).quantize(d('0.01')), unit_cost=d(cost),
+                    expiry_date=today + timedelta(days=300 - days_ago * 4), received_by=admin,
+                )
+
+        # Issuances made before costs were tracked get the current cost
+        for issuance in ChemicalIssuance.objects.select_related('chemical'):
+            ChemicalIssuance.objects.filter(pk=issuance.pk).update(unit_cost=issuance.chemical.unit_cost)
+
+        def recipe(name, material, versions):
+            r = Recipe.objects.create(name=name, material_type=material)
+            last = None
+            for number, (temp, minutes, water, note, lines) in enumerate(versions, start=1):
+                last = RecipeVersion.objects.create(recipe=r, version=number, temperature_c=d(temp), duration_minutes=minutes,
+                                                    water_liters_per_100kg=d(water), notes=note, created_by=admin)
+                for chemical, qty in lines:
+                    RecipeLine.objects.create(version=last, chemical=chemical, quantity_per_100kg=d(qty))
+            return last
+
+        a, b, c = chemicals[:3]
+        bleach = recipe('Cotton bleach', 'Cotton', [
+            (85, 100, 320, '', [(a, 4), (b, 2.5)]),
+            (80, 90, 300, 'Less peroxide and a cooler bath after the trial batches', [(a, 3.5), (b, 2.5), (c, 1)]),
+        ])
+        recipe('Polyester strip', 'Polyester', [(95, 120, 280, '', [(b, 3), (c, 1.5)])])
+
+        # Recent batches ran the bleach recipe; the finished ones are signed off
+        sessions = list(DecolorizationSession.objects.order_by('-start_date')[:8])
+        for session in sessions:
+            session.recipe_version = bleach
+            session.temperature_c = d(80 + session.pk % 5)
+            session.duration_minutes = 85 + session.pk % 4 * 5
+            session.water_liters = (session.input_quantity * d(3)).quantize(d('0.01'))
+            if session.status == 'Completed':
+                session.approved_by, session.approved_at = admin, session.end_date or timezone.now()
+            session.save()
+            # Tie this tank's unlinked issuances to the batch, so it has a cost
+            ids = list(ChemicalIssuance.objects.filter(tank=session.tank, session__isnull=True).values_list('pk', flat=True)[:3])
+            ChemicalIssuance.objects.filter(pk__in=ids).update(session=session)
+        self.stdout.write(f'  ✓ {ChemicalLot.objects.count()} lots, {Recipe.objects.count()} recipes')
 
     # ── Production ───────────────────────────────────────────────────────────
 
