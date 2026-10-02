@@ -6,7 +6,7 @@ and yields the items that need attention now. A collector runs a fixed, small
 number of queries however many records there are.
 
 Who sees a rule's items: admins always; another role only when the rule lists
-it AND that role can read the source module (`READERS`). So adding a role to a
+it AND the user has the page the rule is about (`RULE_PAGES`). So adding a role to a
 rule can never show it records its own pages would refuse.
 """
 from datetime import date, timedelta
@@ -16,7 +16,7 @@ from django.db.models import F, Q, Sum
 from django.utils import timezone
 from django.utils.functional import cached_property
 
-from apps.core.permissions import get_role, is_admin
+from apps.core.permissions import get_role, has_page, is_admin
 from apps.decolorization.models import ChemicalStock
 from apps.documents import services as documents
 from apps.documents.models import Document
@@ -33,32 +33,35 @@ from apps.workforce.models import LeaveRequest
 from .models import NotificationRule
 
 ZERO = Decimal('0')
-WAREHOUSE, SORTING, DECOLOR, DRYING = (
-    'warehouse_supervisor', 'sorting_supervisor', 'decolorization_supervisor', 'drying_supervisor',
-)
-EVERYONE = {WAREHOUSE, SORTING, DECOLOR, DRYING}
-
-# Roles (besides admin) that can open the module a rule reads from.
-# Sales, finance, workforce and the stock ledger are for admins only.
-READERS = {
-    'chemical-low': {DECOLOR},
-    'spare-part-low': EVERYONE,
-    'dried-stock-low': {DRYING},
-    'stock-oversold': set(),
-    'purchase-approval': {WAREHOUSE},
-    'production-delayed': {SORTING, DECOLOR, DRYING},
-    'quality-quarantine': EVERYONE,
-    'quality-action-overdue': EVERYONE,
-    'machine-breakdown': EVERYONE,
-    'maintenance-overdue': EVERYONE,
-    'invoice-overdue': set(),
-    'credit-limit': set(),
-    'supplier-invoice-due': {WAREHOUSE},
-    'document-expiry': EVERYONE,      # and only documents in the categories the role may see
-    'stock-adjustment': set(),
-    'sales-return-pending': set(),
-    'leave-pending': set(),
+# The page behind each rule. A rule's items reach a user who has that page;
+# the roles that can be chosen for a rule are the roles that have it.
+RULE_PAGES = {
+    'chemical-low': 'decolorization',
+    'spare-part-low': 'maintenance',
+    'dried-stock-low': 'drying',
+    'stock-oversold': 'sales',
+    'purchase-approval': 'procurement',
+    'production-delayed': 'production',
+    'quality-quarantine': 'quality',
+    'quality-action-overdue': 'quality',
+    'machine-breakdown': 'maintenance',
+    'maintenance-overdue': 'maintenance',
+    'invoice-overdue': 'sales',
+    'credit-limit': 'sales',
+    'supplier-invoice-due': 'procurement',
+    'document-expiry': 'documents',      # and only documents in the categories the role may see
+    'stock-adjustment': 'sales',
+    'sales-return-pending': 'sales',
+    'leave-pending': 'workforce',
 }
+
+
+def allowed_roles(rule_key):
+    """Roles (besides admin) that can be given a rule: those whose pages include the rule's page."""
+    from apps.access.services import roles_with
+    page = RULE_PAGES.get(rule_key)
+    return roles_with(page) if page else set()
+
 
 SEVERITY_ORDER = {'danger': 0, 'warning': 1, 'info': 2}
 ADJUSTMENT_WINDOW_DAYS = 7
@@ -74,7 +77,10 @@ class Context:
         self.today = today or timezone.localdate()
 
     def receives(self, rule):
-        return self.admin or (self.role in (rule.roles or []) and self.role in READERS.get(rule.key, set()))
+        if self.admin:
+            return True
+        page = RULE_PAGES.get(rule.key)
+        return self.role in (rule.roles or []) and bool(page) and has_page(self.user, page)
 
     def approvals(self, fallback):
         """Admins decide on the Approvals page; other roles follow the item in its own module."""

@@ -165,7 +165,9 @@ class AdjustmentAndReportingTests(TestCase):
 
     def test_stock_endpoint_and_fabric_list(self):
         make_order(fabric=self.fabric, created_by=self.admin, weight='30', status='Confirmed')
-        client = client_for(make_user('sorting_supervisor'))
+        # The stock ledger is read by the Sales page and the dashboard, which supervisors don't have
+        self.assertEqual(client_for(make_user('sorting_supervisor')).get('/api/inventory/movements/stock/').status_code, 403)
+        client = client_for(self.admin)
         rows = client.get('/api/inventory/movements/stock/').data
         row = next(r for r in rows if r['fabric'] == self.fabric.id)
         self.assertEqual((D(row['on_hand_kg']), D(row['reserved_kg']), D(row['available_kg'])),

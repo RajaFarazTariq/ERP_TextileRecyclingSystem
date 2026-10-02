@@ -12,20 +12,15 @@ from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 
-from apps.core.permissions import (
-    IsAdminUser, IsDecolorizationOrAdmin, IsDryingSupervisor, IsSortingOrAdmin, IsWarehouseOrAdmin,
-    SharedReadPermission,
-)
+from apps.core.permissions import has_page
 from apps.decolorization.models import ChemicalIssuance, DecolorizationSession
 from apps.drying.models import DryingSession
 from apps.inventory import services as inventory
 from apps.inventory.models import StockMovement
-from apps.procurement.views import IsProcurementUser
 from apps.production import services as production
 from apps.production.models import ProductionOrder
 from apps.quality import services as quality
 from apps.quality.models import Inspection
-from apps.quality.views import IsQualityUser
 from apps.sales import services as sales
 from apps.sales.models import SalesOrder
 from apps.sorting.models import FabricStock, SortingSession
@@ -34,24 +29,25 @@ ZERO = Decimal('0')
 RESTRICTED = {'restricted': True}
 SOLD_STATUSES = ('Confirmed', 'Dispatched', 'Completed')
 
-# The permission of each section's own list endpoint. Sales and customer data
-# are for admins only here, the same as the Sales page.
-SECTION_PERMISSIONS = {
-    'source': IsWarehouseOrAdmin,
-    'purchase_order': IsProcurementUser,
-    'lot': IsSortingOrAdmin,
-    'sorting': IsSortingOrAdmin,
-    'decolorization': IsDecolorizationOrAdmin,
-    'drying': IsDryingSupervisor,
-    'production': SharedReadPermission,
-    'quality': IsQualityUser,
-    'stock': SharedReadPermission,
-    'sales': IsAdminUser,
+# A section is shown to users who have one of its pages. Empty means every
+# user who can open Traceability. Drying, purchase orders and sales keep the
+# limits they have on their own pages.
+SECTION_PAGES = {
+    'source': (),
+    'purchase_order': ('procurement',),
+    'lot': (),
+    'sorting': (),
+    'decolorization': (),
+    'drying': ('drying',),
+    'production': (),
+    'quality': (),
+    'stock': (),
+    'sales': ('sales',),
 }
 
 
 def allowed_sections(request):
-    return {name for name, permission in SECTION_PERMISSIONS.items() if permission().has_permission(request, None)}
+    return {name for name, pages in SECTION_PAGES.items() if not pages or has_page(request.user, *pages)}
 
 
 def _fixed(value):

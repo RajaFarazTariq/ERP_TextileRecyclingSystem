@@ -3,7 +3,7 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from .models import NotificationRule
-from .rules import READERS
+from .rules import allowed_roles
 
 
 class NotificationRuleSerializer(serializers.ModelSerializer):
@@ -17,12 +17,12 @@ class NotificationRuleSerializer(serializers.ModelSerializer):
         read_only_fields = ['key', 'title', 'description', 'threshold_label']
 
     def get_allowed_roles(self, obj) -> list[str]:
-        return sorted(READERS.get(obj.key, set()))
+        return sorted(allowed_roles(obj.key))
 
     def validate_roles(self, roles):
         if not isinstance(roles, list) or any(not isinstance(role, str) for role in roles):
             raise serializers.ValidationError('Give the roles as a list.')
-        allowed = READERS.get(self.instance.key, set())
+        allowed = allowed_roles(self.instance.key)
         refused = sorted(set(roles) - allowed)
         if refused:
             names = ', '.join(role.replace('_', ' ') for role in refused)

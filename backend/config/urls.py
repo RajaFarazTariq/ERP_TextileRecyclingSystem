@@ -24,6 +24,7 @@ api_patterns = [
     path('documents/', include('apps.documents.urls')),
     path('search/', include('apps.search.urls')),
     path('alerts/', include('apps.alerts.urls')),
+    path('access/', include('apps.access.urls')),
     path('reports/', include('apps.reports.urls')),
     path('', include('apps.audit.urls')),
 ]

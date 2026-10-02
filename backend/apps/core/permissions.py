@@ -57,6 +57,24 @@ def is_admin(user):
     return get_role(user) == 'admin'
 
 
+def has_page(user, *pages):
+    """True when the user may open one of these pages (see apps.access.services)."""
+    from apps.access.services import has_page as _has_page
+    return _has_page(user, *pages)
+
+
+def HasPage(*pages):
+    """Permission class: the module belongs to whoever has one of these pages."""
+    class _HasPage(permissions.BasePermission):
+        message = 'You do not have access to this part of the system.'
+
+        def has_permission(self, request, view):
+            return bool(request.user and request.user.is_authenticated and has_page(request.user, *pages))
+
+    _HasPage.__name__ = 'HasPage_' + '_'.join(pages)
+    return _HasPage
+
+
 # ── Base mixin ────────────────────────────────────────────────────────────────
 
 class RolePermissionBase(permissions.BasePermission):
@@ -102,6 +120,9 @@ class IsDecolorizationSupervisor(RolePermissionBase):
 class IsDryingSupervisor(RolePermissionBase):
     message = 'You do not have permission to access the Drying module.'
     allowed_roles = {'drying_supervisor'}
+
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated and has_page(request.user, 'drying'))
 
 
 # ── KEY PERMISSION: SharedReadPermission ──────────────────────────────────────
@@ -158,7 +179,7 @@ class IsWarehouseOrAdmin(RolePermissionBase):
             return False
         if request.method in SAFE_METHODS:
             return True           # all roles can read warehouse data
-        return role in {'admin', 'warehouse_supervisor'}
+        return has_page(request.user, 'warehouse')   # whoever has the page may change its records
 
 
 class IsSortingOrAdmin(RolePermissionBase):
@@ -176,7 +197,7 @@ class IsSortingOrAdmin(RolePermissionBase):
             return False
         if request.method in SAFE_METHODS:
             return True
-        return role in {'admin', 'sorting_supervisor'}
+        return has_page(request.user, 'sorting')   # whoever has the page may change its records
 
 
 class IsDecolorizationOrAdmin(RolePermissionBase):
@@ -194,7 +215,7 @@ class IsDecolorizationOrAdmin(RolePermissionBase):
             return False
         if request.method in SAFE_METHODS:
             return True
-        return role in {'admin', 'decolorization_supervisor'}
+        return has_page(request.user, 'decolorization')   # whoever has the page may change its records
 
 
 class IsDryingOrAdmin(RolePermissionBase):
@@ -212,7 +233,7 @@ class IsDryingOrAdmin(RolePermissionBase):
             return False
         if request.method in SAFE_METHODS:
             return True
-        return role in {'admin', 'drying_supervisor'}
+        return has_page(request.user, 'drying')   # whoever has the page may change its records
 
 
 class IsSalesOrAdmin(RolePermissionBase):
@@ -227,7 +248,7 @@ class IsSalesOrAdmin(RolePermissionBase):
             return False
         if request.method in SAFE_METHODS:
             return True
-        return role == 'admin'
+        return has_page(request.user, 'sales')
 
 
 class IsUsersOrAdmin(permissions.BasePermission):

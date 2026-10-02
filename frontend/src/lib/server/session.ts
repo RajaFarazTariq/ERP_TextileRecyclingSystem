@@ -52,10 +52,22 @@ export function parseUserCookie(value: string | undefined): SessionUser | null {
   if (!value) return null
   try {
     const user = JSON.parse(value)
-    return user && typeof user.role === "string" ? (user as SessionUser) : null
+    if (!user || typeof user.role !== "string") return null
+    // Sessions from before page access was configurable have no list yet; it is filled in on the next request
+    return { ...user, pages: Array.isArray(user.pages) ? user.pages : [] } as SessionUser
   } catch {
     return null
   }
+}
+
+/** The user as Django sees them right now, with their current pages. Null if the token is not accepted. */
+export async function fetchSessionUser(access: string): Promise<SessionUser | null> {
+  const res = await fetch(`${DJANGO_API_URL}access/me/`, {
+    headers: { Authorization: `Bearer ${access}`, Accept: "application/json" },
+    cache: "no-store",
+  })
+  if (!res.ok) return null
+  return res.json()
 }
 
 /** Exchange a refresh token for a new (rotated) pair. Returns null if it is no longer valid. */

@@ -12,15 +12,15 @@ from rest_framework.views import APIView
 
 from apps.audit.middleware import AuditedModelMixin
 from apps.core.filters import filter_by_date_params
-from apps.core.permissions import IsAdminUser
+from apps.core.permissions import HasPage
 from . import services
 from .models import Account, Expense, FinancialPeriod, JournalEntry, TaxRate
 from .serializers import (
     AccountSerializer, ExpenseSerializer, FinancialPeriodSerializer, JournalEntrySerializer, TaxRateSerializer,
 )
 
-# Money matters are for admins only
-ADMIN = [IsAuthenticated, IsAdminUser]
+# Finance belongs to whoever has the Finance page (admins only, unless an admin gives it to someone)
+ADMIN = [IsAuthenticated, HasPage('finance')]
 
 
 def _day(params, name, default):

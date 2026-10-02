@@ -21,6 +21,8 @@ A short guide to doing the daily work in the ERP. The business rules behind each
 | Decolorization supervisor | Decolorization, Production, Quality, Maintenance, Sustainability, Documents, Traceability |
 | Drying supervisor | Drying, Production, Quality, Maintenance, Sustainability, Documents, Traceability |
 
+These are the pages each role starts with. An admin can change them, for a role or for one person, under **Users → Access**.
+
 ## The flow of material
 
 **Buy → receive → inspect → sort → decolorize → dry → sell.**
@@ -66,6 +68,9 @@ Open **Approvals**. Each tab lists one kind: purchase requests and orders, quara
 ### Print something
 Sales: *Print challan* on a dispatch and *Print invoice* on an invoice. Reports and Traceability have a *Print* button. Use the browser's "Save as PDF" to keep a copy.
 
+### Give someone access to a page (admin)
+**Users → Access.** To change a whole role, tick or untick the page in the grid and press *Save changes*. To change one person, choose them under "Exceptions for one person", set the page to *Give access* or *Take away*, and press *Save exceptions*. It applies from that person's next page; they don't need to sign in again. A page lets someone use that part of the system, but approvals stay with admins.
+
 ### Find out who changed a record (admin)
 **Reports → Audit log.** Filter by person, module or date.
 
@@ -78,4 +83,4 @@ The system stops a few things on purpose and says why:
 - **"Not enough stock"** when issuing a chemical or using a spare part: receive more first.
 - **"… is closed"** in Finance: the date falls in a closed period. Use a later date or reopen the period.
 - **"Records that depend on it can't be deleted"**: the record is used elsewhere. Mark it as not in use instead.
-- **You can't see a page**: your role doesn't include it. Ask an admin.
+- **You can't see a page, or you are sent back to the home page**: you don't have that page. Ask an admin (Users → Access).

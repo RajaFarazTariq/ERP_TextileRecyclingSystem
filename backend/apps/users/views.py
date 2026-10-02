@@ -14,6 +14,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.access.services import PAGE_KEYS, pages_for
 from apps.audit.models import AuditLog, log_action
 from apps.core.permissions import IsUsersOrAdmin
 from .models import CustomUser
@@ -42,6 +43,15 @@ def _log_failed_login(request, identifier, user=None):
         user_agent=request.META.get('HTTP_USER_AGENT', '')[:300],
         endpoint=request.path[:300],
     )
+
+
+def _keep_one_admin(user, role=None, is_active=None, removing=False):
+    """Refuse a change that would leave no active admin: admins are the only ones with full access."""
+    if user.role != 'admin' or not user.is_active:
+        return
+    losing = removing or (role is not None and role != 'admin') or is_active is False
+    if losing and not CustomUser.objects.filter(role='admin', is_active=True).exclude(pk=user.pk).exists():
+        raise ValidationError({'detail': 'This is the only active admin. Make another user an admin first.'})
 
 
 def _password_errors(password, user=None):
@@ -111,6 +121,7 @@ class LoginView(APIView):
                 'username': user.username,
                 'email':    user.email,
                 'role':     user.role,
+                'pages':    sorted(pages_for(user), key=PAGE_KEYS.index),
             },
         }, status=status.HTTP_200_OK)
 
@@ -206,6 +217,8 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
                 return Response({'is_active': ["You can't deactivate your own account."]}, status=status.HTTP_400_BAD_REQUEST)
             if serializer.validated_data.get('role', instance.role) != instance.role:
                 return Response({'role': ["You can't change your own role."]}, status=status.HTTP_400_BAD_REQUEST)
+        _keep_one_admin(instance, role=serializer.validated_data.get('role'),
+                        is_active=serializer.validated_data.get('is_active'))
         if password:
             errors = _password_errors(password, user=instance)
             if errors:
@@ -229,6 +242,7 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     def perform_destroy(self, instance):
         if instance.pk == self.request.user.pk:
             raise ValidationError({'detail': "You can't delete your own account."})
+        _keep_one_admin(instance, removing=True)
         with transaction.atomic():   # a blocked delete rolls the log entry back
             log_action(self.request.user, AuditLog.ACTION_DELETE, instance, request=self.request)
             instance.delete()
@@ -252,6 +266,7 @@ class ToggleActiveView(APIView):
         if user.pk == request.user.pk:
             return Response({'detail': "You can't deactivate your own account."}, status=status.HTTP_400_BAD_REQUEST)
 
+        _keep_one_admin(user, is_active=not user.is_active)
         user.is_active = not user.is_active
         user.save(update_fields=['is_active'])
         log_action(request.user, AuditLog.ACTION_UPDATE, user, request=request,

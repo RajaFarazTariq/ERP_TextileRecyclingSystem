@@ -11,7 +11,7 @@ import re
 from django.db.models import Case, IntegerField, Q, When
 from django.utils import timezone
 
-from apps.core.permissions import ALL_ROLES, get_role
+from apps.core.permissions import has_page
 from apps.decolorization.models import ChemicalStock
 from apps.documents import services as document_services
 from apps.maintenance.models import Machine, WorkOrder
@@ -26,12 +26,10 @@ from apps.workforce.models import Employee
 LIMIT = 6
 MIN_LENGTH = 2
 
-# Who gets each kind of result
-EVERYONE = frozenset(ALL_ROLES)
-ADMIN = frozenset({'admin'})
-STORE = frozenset({'admin', 'warehouse_supervisor'})                 # Warehouse and Purchasing pages
-FLOOR = frozenset(ALL_ROLES - {'warehouse_supervisor'})              # Production page
-DECOLOR = frozenset({'admin', 'decolorization_supervisor'})          # Decolorization page
+# The pages a kind of result lives on: it is shown to users who have one of them
+EVERYONE = ()                                    # no page needed
+STORE = ('warehouse', 'procurement')
+SALES = ('sales',)
 
 # "PO-00012", "INV-3", "wo 4", "#15" or "15": an optional prefix and a record number
 NUMBER = re.compile(r'^#?\s*(?:([A-Za-z]{2,4})\s*[-#]?\s*)?0*(\d{1,9})$')
@@ -285,25 +283,25 @@ def find_lots_by_purchase_order(user, q, pk):
     ]
 
 
-# (type, heading, roles, number prefixes, finder). A prefix of '' means a bare number ("#15") finds it too.
+# (type, heading, pages, number prefixes, finder). A prefix of '' means a bare number ("#15") finds it too.
 GROUPS = [
     ('lots', 'Fabric lots', EVERYONE, ('', 'LOT'), find_lots),
     ('deliveries', 'Deliveries', STORE, ('', 'DEL'), find_deliveries),
     ('suppliers', 'Suppliers', STORE, (), find_suppliers),
-    ('customers', 'Customers', ADMIN, (), find_customers),
-    ('requisitions', 'Purchase requests', STORE, ('', 'PR'), find_requisitions),
-    ('purchase_orders', 'Purchase orders', STORE, ('', 'PO'), find_purchase_orders),
-    ('sales_orders', 'Sales orders', ADMIN, ('', 'SO', 'ORD'), find_sales_orders),
-    ('quotations', 'Quotations', ADMIN, ('', 'QT'), find_quotations),
-    ('invoices', 'Invoices', ADMIN, ('', 'INV'), find_invoices),
-    ('returns', 'Sales returns', ADMIN, ('', 'SR'), find_returns),
-    ('production_orders', 'Production orders', FLOOR, ('', 'MO'), find_production_orders),
-    ('inspections', 'Inspections', EVERYONE, ('', 'QC'), find_inspections),
-    ('chemicals', 'Chemicals', DECOLOR, (), find_chemicals),
-    ('machines', 'Machines', EVERYONE, (), find_machines),
-    ('work_orders', 'Work orders', EVERYONE, ('', 'WO'), find_work_orders),
-    ('employees', 'Employees', ADMIN, ('', 'EMP'), find_employees),
-    ('documents', 'Documents', EVERYONE, ('', 'DOC'), find_documents),
+    ('customers', 'Customers', SALES, (), find_customers),
+    ('requisitions', 'Purchase requests', ('procurement',), ('', 'PR'), find_requisitions),
+    ('purchase_orders', 'Purchase orders', ('procurement',), ('', 'PO'), find_purchase_orders),
+    ('sales_orders', 'Sales orders', SALES, ('', 'SO', 'ORD'), find_sales_orders),
+    ('quotations', 'Quotations', SALES, ('', 'QT'), find_quotations),
+    ('invoices', 'Invoices', SALES, ('', 'INV'), find_invoices),
+    ('returns', 'Sales returns', SALES, ('', 'SR'), find_returns),
+    ('production_orders', 'Production orders', ('production',), ('', 'MO'), find_production_orders),
+    ('inspections', 'Inspections', ('quality',), ('', 'QC'), find_inspections),
+    ('chemicals', 'Chemicals', ('decolorization',), (), find_chemicals),
+    ('machines', 'Machines', ('maintenance',), (), find_machines),
+    ('work_orders', 'Work orders', ('maintenance',), ('', 'WO'), find_work_orders),
+    ('employees', 'Employees', ('workforce',), ('', 'EMP'), find_employees),
+    ('documents', 'Documents', ('documents',), ('', 'DOC'), find_documents),
 ]
 
 # Picking a lot to trace: only records that lead to a fabric lot. Tracing by a
@@ -311,10 +309,10 @@ GROUPS = [
 LOT_GROUPS = [
     ('lots', 'Fabric lots', EVERYONE, ('', 'LOT'), find_lots),
     ('deliveries', 'Deliveries', EVERYONE, ('', 'DEL'), find_lots_by_delivery),
-    ('purchase_orders', 'Purchase orders', STORE, ('', 'PO'), find_lots_by_purchase_order),
+    ('purchase_orders', 'Purchase orders', ('procurement',), ('', 'PO'), find_lots_by_purchase_order),
     ('production_orders', 'Production orders', EVERYONE, ('', 'MO'), find_production_orders),
-    ('sales_orders', 'Sales orders', ADMIN, ('', 'SO', 'ORD'), find_sales_orders),
-    ('invoices', 'Invoices', ADMIN, ('', 'INV'), find_invoices),
+    ('sales_orders', 'Sales orders', SALES, ('', 'SO', 'ORD'), find_sales_orders),
+    ('invoices', 'Invoices', SALES, ('', 'INV'), find_invoices),
 ]
 
 
@@ -323,10 +321,9 @@ def search(user, query, lots_only=False):
     q = ' '.join((query or '').split())[:100]
     groups = []
     if len(q) >= MIN_LENGTH:
-        role = get_role(user)
         prefix, number = parse_number(q)
-        for kind, heading, roles, prefixes, finder in (LOT_GROUPS if lots_only else GROUPS):
-            if role not in roles:
+        for kind, heading, pages, prefixes, finder in (LOT_GROUPS if lots_only else GROUPS):
+            if pages and not has_page(user, *pages):
                 continue
             results = finder(user, q, number if prefix in prefixes else None)
             if lots_only:

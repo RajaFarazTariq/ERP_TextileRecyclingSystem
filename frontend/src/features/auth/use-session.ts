@@ -12,7 +12,10 @@ export function useSession() {
       if (!res.ok) throw new Error("Not logged in")
       return res.json()
     },
-    staleTime: Infinity,
+    // Asked again regularly so a change to the user's page access reaches an open tab
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
   })
 }
 
