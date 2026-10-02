@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.audit.models import AuditLog, log_action
-from apps.core.permissions import IsAdminUser, SharedReadPermission
+from apps.core.permissions import HasDuty, SharedReadPermission
 from apps.sorting.models import FabricStock
 from . import services
 from .models import StockMovement
@@ -32,7 +32,7 @@ class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
         return qs
 
     @extend_schema(request=AdjustmentSerializer, responses=StockMovementSerializer)
-    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsAdminUser])
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, HasDuty('adjust_stock', message='Your role is not allowed to adjust stock.')])
     def adjust(self, request):
         """Admin-only manual correction with a required reason."""
         data = AdjustmentSerializer(data=request.data)

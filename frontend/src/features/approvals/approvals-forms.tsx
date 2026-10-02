@@ -10,7 +10,7 @@ import { Field, FieldGroup, FormDialog } from "@/components/common/form-dialog"
 import { SelectField } from "@/components/common/select-field"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { ROLE_LABELS } from "@/config/access"
+import { useRoles } from "@/features/auth/use-roles"
 import { type ApiError, api } from "@/lib/api"
 import { useSave } from "@/lib/crud"
 import { applyServerErrors } from "@/lib/forms"
@@ -82,6 +82,7 @@ export function RuleDialog({ rule, onOpenChange }: { rule: NotificationRule | nu
 function RuleDialogBody({ rule, onOpenChange }: { rule: NotificationRule; onOpenChange: (o: boolean) => void }) {
   const save = useSave<NotificationRule>("alerts/rules", { noun: "Rule", invalidate: [["alerts/notifications"]] })
   const [formError, setFormError] = useState("")
+  const { label: roleLabel } = useRoles()
   const form = useForm<RuleForm>({
     resolver: zodResolver(ruleSchema),
     defaultValues: {
@@ -136,7 +137,7 @@ function RuleDialogBody({ rule, onOpenChange }: { rule: NotificationRule; onOpen
         {rule.allowed_roles.length > 0 && (
           <div className="grid gap-4 sm:grid-cols-2">
             {rule.allowed_roles.map((role) => (
-              <Field key={role} id={`rule-role-${role}`} label={ROLE_LABELS[role]}>
+              <Field key={role} id={`rule-role-${role}`} label={roleLabel(role)}>
                 <Controller control={form.control} name={`roles.${role}`} render={({ field }) => (
                   <SelectField id={`rule-role-${role}`} value={field.value} onChange={field.onChange} placeholder="Select" options={YES_NO} />
                 )} />

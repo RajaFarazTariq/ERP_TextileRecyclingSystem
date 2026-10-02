@@ -37,13 +37,31 @@ HOW TO USE
 from rest_framework import permissions
 
 # ── All valid roles ───────────────────────────────────────────────────────────
-ALL_ROLES = {
-    'admin',
-    'warehouse_supervisor',
-    'sorting_supervisor',
-    'decolorization_supervisor',
-    'drying_supervisor',
-}
+class _AllRoles:
+    """
+    The keys of every role, built-in or added by an admin (apps.access.Role).
+    Behaves like the set it used to be: `role in ALL_ROLES`, iteration and
+    `ALL_ROLES - {...}` all work.
+    """
+
+    def _keys(self):
+        from apps.access.services import role_keys
+        return set(role_keys())
+
+    def __contains__(self, role):
+        return role in self._keys()
+
+    def __iter__(self):
+        return iter(self._keys())
+
+    def __len__(self):
+        return len(self._keys())
+
+    def __sub__(self, other):
+        return self._keys() - set(other)
+
+
+ALL_ROLES = _AllRoles()
 
 SAFE_METHODS = ('GET', 'HEAD', 'OPTIONS')
 
@@ -57,19 +75,52 @@ def is_admin(user):
     return get_role(user) == 'admin'
 
 
+def has_duty(user, *duties):
+    """True when the user's role carries one of these duties (see apps.access.services.DUTIES). Admins carry all."""
+    from apps.access.services import has_duty as _has_duty
+    return _has_duty(user, *duties)
+
+
+def HasDuty(*duties, message='Your role is not allowed to do this.'):
+    """Permission class for an action that needs a duty, e.g. approving purchases."""
+    text = message
+
+    class _HasDuty(permissions.BasePermission):
+        message = text
+
+        def has_permission(self, request, view):
+            return bool(request.user and request.user.is_authenticated and has_duty(request.user, *duties))
+
+    _HasDuty.__name__ = 'HasDuty_' + '_'.join(duties)
+    return _HasDuty
+
+
 def has_page(user, *pages):
     """True when the user may open one of these pages (see apps.access.services)."""
     from apps.access.services import has_page as _has_page
     return _has_page(user, *pages)
 
 
+def can_edit(user, *pages):
+    """True when the user has one of these pages in full (not view-only)."""
+    from apps.access.services import can_edit as _can_edit
+    return _can_edit(user, *pages)
+
+
+def page_allows(request, *pages):
+    """Reading needs one of these pages at any level; changing needs one in full."""
+    if not request.user or not request.user.is_authenticated:
+        return False
+    return has_page(request.user, *pages) if request.method in SAFE_METHODS else can_edit(request.user, *pages)
+
+
 def HasPage(*pages):
-    """Permission class: the module belongs to whoever has one of these pages."""
+    """Permission class: the module belongs to whoever has one of these pages (in full, to change anything)."""
     class _HasPage(permissions.BasePermission):
         message = 'You do not have access to this part of the system.'
 
         def has_permission(self, request, view):
-            return bool(request.user and request.user.is_authenticated and has_page(request.user, *pages))
+            return page_allows(request, *pages)
 
     _HasPage.__name__ = 'HasPage_' + '_'.join(pages)
     return _HasPage
@@ -122,7 +173,12 @@ class IsDryingSupervisor(RolePermissionBase):
     allowed_roles = {'drying_supervisor'}
 
     def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and has_page(request.user, 'drying'))
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if request.method in SAFE_METHODS:
+            # Who may read is decided by the pages that show drying data (Drying, Dashboard): see access.PAGE_API
+            return get_role(request.user) in ALL_ROLES
+        return can_edit(request.user, 'drying')
 
 
 # ── KEY PERMISSION: SharedReadPermission ──────────────────────────────────────
@@ -179,7 +235,7 @@ class IsWarehouseOrAdmin(RolePermissionBase):
             return False
         if request.method in SAFE_METHODS:
             return True           # all roles can read warehouse data
-        return has_page(request.user, 'warehouse')   # whoever has the page may change its records
+        return can_edit(request.user, 'warehouse')   # whoever has the page in full may change its records
 
 
 class IsSortingOrAdmin(RolePermissionBase):
@@ -197,7 +253,7 @@ class IsSortingOrAdmin(RolePermissionBase):
             return False
         if request.method in SAFE_METHODS:
             return True
-        return has_page(request.user, 'sorting')   # whoever has the page may change its records
+        return can_edit(request.user, 'sorting')   # whoever has the page in full may change its records
 
 
 class IsDecolorizationOrAdmin(RolePermissionBase):
@@ -215,7 +271,7 @@ class IsDecolorizationOrAdmin(RolePermissionBase):
             return False
         if request.method in SAFE_METHODS:
             return True
-        return has_page(request.user, 'decolorization')   # whoever has the page may change its records
+        return can_edit(request.user, 'decolorization')   # whoever has the page in full may change its records
 
 
 class IsDryingOrAdmin(RolePermissionBase):
@@ -233,7 +289,7 @@ class IsDryingOrAdmin(RolePermissionBase):
             return False
         if request.method in SAFE_METHODS:
             return True
-        return has_page(request.user, 'drying')   # whoever has the page may change its records
+        return can_edit(request.user, 'drying')   # whoever has the page in full may change its records
 
 
 class IsSalesOrAdmin(RolePermissionBase):
@@ -248,7 +304,7 @@ class IsSalesOrAdmin(RolePermissionBase):
             return False
         if request.method in SAFE_METHODS:
             return True
-        return has_page(request.user, 'sales')
+        return can_edit(request.user, 'sales')
 
 
 class IsUsersOrAdmin(permissions.BasePermission):

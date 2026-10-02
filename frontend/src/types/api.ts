@@ -1,20 +1,33 @@
 // Types for the Django API (/api/v1/). Decimal fields arrive as strings.
 
-export type Role =
-  | "admin"
-  | "warehouse_supervisor"
-  | "sorting_supervisor"
-  | "decolorization_supervisor"
-  | "drying_supervisor"
+/** A role's key: one of the five built-in roles, or one an admin added under Users → Access */
+export type Role = string
+
+/** Something a role may do beyond opening a page; set per role under Users → Access */
+export type Duty =
+  | "approve_purchases" | "pay_suppliers"
+  | "inspect_incoming" | "inspect_in_process" | "inspect_finished" | "release_quarantine"
+  | "plan_production" | "run_production"
+  | "approve_batches" | "issue_restricted_chemicals"
+  | "approve_sales_returns" | "adjust_stock"
+  | "manage_maintenance"
 
 export interface SessionUser {
   id: number
   username: string
   email: string
   role: Role
+  /** What the role is called ("Warehouse Supervisor") */
+  role_label: string
+  /** What this user's role may do beyond opening pages; admins have every duty */
+  duties: Duty[]
   /** Pages this user may open ("sales", "finance", ...). Decided by Django; see /users → Access. */
   pages: string[]
+  /** How far each of those pages goes: "view" to look only, "full" to change things too */
+  levels: Record<string, AccessLevel>
 }
+
+export type AccessLevel = "view" | "full"
 
 export type Decimal = string
 
@@ -64,6 +77,7 @@ export interface UserSummary {
   username: string
   email: string
   role: Role
+  role_label: string
   is_active: boolean
   last_login: string | null
   last_login_display: string

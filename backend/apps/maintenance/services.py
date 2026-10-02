@@ -6,7 +6,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from apps.core.permissions import is_admin
+from apps.core.permissions import has_duty
 from apps.decolorization.models import DecolorizationSession
 from apps.drying.models import DryingSession
 from .models import Machine, PartUse, SparePart, WorkOrder
@@ -43,7 +43,7 @@ def refresh_machine(machine):
 
 def check_may_work(user, order):
     """Admins, the assigned person, or anyone when nobody is assigned."""
-    if not is_admin(user) and order.assigned_to_id not in (None, user.pk):
+    if not has_duty(user, 'manage_maintenance') and order.assigned_to_id not in (None, user.pk):
         raise PermissionDenied('This work order is assigned to someone else.')
 
 

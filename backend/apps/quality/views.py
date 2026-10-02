@@ -14,7 +14,7 @@ from rest_framework.views import APIView
 from apps.audit.middleware import AuditedModelMixin
 from apps.audit.models import AuditLog, log_action
 from apps.core.filters import filter_by_date_params
-from apps.core.permissions import ALL_ROLES, SharedReadPermission, get_role, is_admin
+from apps.core.permissions import ALL_ROLES, SharedReadPermission, get_role, has_duty, is_admin
 from . import services
 from .models import CorrectiveAction, Inspection, QualityStandard
 from .serializers import CorrectiveActionSerializer, InspectionSerializer, StandardSerializer
@@ -31,10 +31,10 @@ class IsQualityUser(permissions.BasePermission):
 
 
 class IsAdminAction(permissions.BasePermission):
-    message = 'Only an admin can release material from quarantine.'
+    message = 'Your role is not allowed to release material from quarantine.'
 
     def has_permission(self, request, view):
-        return is_admin(request.user)
+        return has_duty(request.user, 'release_quarantine')
 
 
 note_request = inline_serializer('QualityNoteRequest', {'note': serializers.CharField(required=False)})

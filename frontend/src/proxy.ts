@@ -19,6 +19,9 @@ const USER_COOKIE_OPTIONS = {
 interface CookieUser {
   role?: string
   pages?: string[]
+  levels?: Record<string, string>
+  duties?: string[]
+  role_label?: string
 }
 
 function userFrom(request: NextRequest): CookieUser | undefined {
@@ -62,7 +65,8 @@ export async function proxy(request: NextRequest) {
   // Link prefetches are guesses, not visits: they use the list in the cookie
   const fresh = request.headers.has("next-router-prefetch") ? undefined : await currentUser(request)
   const user = fresh ?? cached
-  const changed = !!fresh && JSON.stringify(fresh.pages) !== JSON.stringify(cached?.pages)
+  const state = (u?: CookieUser) => JSON.stringify([u?.pages, u?.levels, u?.duties, u?.role, u?.role_label])
+  const changed = !!fresh && state(fresh) !== state(cached)
 
   const keep = (response: NextResponse) => {
     if (changed) response.cookies.set(USER_COOKIE, JSON.stringify(fresh), USER_COOKIE_OPTIONS)

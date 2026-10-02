@@ -29,7 +29,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { ROLE_LABELS, navFor } from "@/config/access"
+import { navFor } from "@/config/access"
 import { NAV_TONES } from "@/config/nav-tones"
 import { logout } from "@/features/auth/use-session"
 import { displayName } from "@/lib/format"
@@ -52,7 +52,7 @@ function UserCard({ user }: { user: SessionUser }) {
           <InitialsAvatar name={user.username} size="md" className="ring-2 ring-sidebar" />
           <span className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
             <span className="block truncate text-sm font-semibold">{displayName(user.username)}</span>
-            <span className="block truncate text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</span>
+            <span className="block truncate text-xs text-muted-foreground">{user.role_label}</span>
           </span>
           <ChevronsUpDown className="size-4 text-muted-foreground group-data-[collapsible=icon]:hidden" aria-hidden />
         </button>
@@ -60,7 +60,7 @@ function UserCard({ user }: { user: SessionUser }) {
       <DropdownMenuContent side="top" align="start" className="w-60">
         <DropdownMenuLabel className="font-normal">
           <p className="font-medium">{displayName(user.username)}</p>
-          <p className="text-xs text-muted-foreground">{user.email || ROLE_LABELS[user.role]}</p>
+          <p className="text-xs text-muted-foreground">{user.email || user.role_label}</p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="text-xs text-muted-foreground">Theme</DropdownMenuLabel>

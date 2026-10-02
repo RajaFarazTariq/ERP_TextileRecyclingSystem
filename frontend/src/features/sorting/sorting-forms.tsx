@@ -8,7 +8,6 @@ import { Field, FormDialog } from "@/components/common/form-dialog"
 import { SelectField } from "@/components/common/select-field"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { ROLE_LABELS } from "@/config/access"
 import { useAction, useSave } from "@/lib/crud"
 import { kg } from "@/lib/format"
 import { applyServerErrors } from "@/lib/forms"
@@ -89,7 +88,7 @@ function SessionDialogBody({ open, onOpenChange, record, fabrics, users, units }
           <Controller control={form.control} name="supervisor" render={({ field }) => (
             <SelectField id="supervisor" value={field.value} onChange={field.onChange} invalid={!!errors.supervisor}
               placeholder="Select supervisor"
-              options={users.filter((u) => u.is_active).map((u) => ({ value: String(u.id), label: `${u.username} (${ROLE_LABELS[u.role]})` }))} />
+              options={users.filter((u) => u.is_active).map((u) => ({ value: String(u.id), label: `${u.username} (${u.role_label})` }))} />
           )} />
         </Field>
         <Field id="unit" label="Unit" error={errors.unit?.message}>

@@ -212,12 +212,12 @@ class SearchTests(SearchTestCase):
         self.assertEqual(self.find(self.as_admin, self.invoice.number, scope='lots')['invoices'][0]['lot'], self.fabric.pk)
 
     def test_the_number_of_queries_does_not_grow_with_the_results(self):
-        with self.assertNumQueries(17):
+        with self.assertNumQueries(18):
             self.find(self.as_admin, 'zephyr')
         for n in range(5):
             make_fabric(stock=self.stock, material_type=f'Zephyr blend {n}')
             Customer.objects.create(name=f'Zephyr buyer {n}')
-        with self.assertNumQueries(17):
+        with self.assertNumQueries(18):
             self.find(self.as_admin, 'zephyr')
 
 
@@ -422,7 +422,7 @@ class TraceTests(SearchTestCase):
         self.assertEqual(self.as_admin.get(TRACE, {'stock': make_stock().pk}).status_code, 404)
 
     def test_the_number_of_queries_does_not_grow_with_the_records(self):
-        with self.assertNumQueries(26):
+        with self.assertNumQueries(27):
             self.trace()
         for _ in range(3):
             make_sorting_session(fabric=self.fabric, supervisor=self.sorter)
@@ -432,5 +432,5 @@ class TraceTests(SearchTestCase):
             order = make_order(fabric=self.fabric, created_by=self.admin, weight='1')
             DispatchTracking.objects.create(sales_order=order, vehicle_number='X', dispatched_weight=Decimal('1'),
                                             dispatched_by=self.admin)
-        with self.assertNumQueries(26):
+        with self.assertNumQueries(27):
             self.trace()

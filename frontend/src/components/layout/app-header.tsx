@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { NAV, ROLE_LABELS } from "@/config/access"
+import { NAV } from "@/config/access"
 import { logout } from "@/features/auth/use-session"
 import { displayName } from "@/lib/format"
 import type { SessionUser } from "@/types/api"
@@ -90,7 +90,7 @@ function UserMenu({ user }: { user: SessionUser }) {
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="font-normal">
           <p className="font-medium">{displayName(user.username)}</p>
-          <p className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</p>
+          <p className="text-xs text-muted-foreground">{user.role_label}</p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="text-xs text-muted-foreground">Theme</DropdownMenuLabel>

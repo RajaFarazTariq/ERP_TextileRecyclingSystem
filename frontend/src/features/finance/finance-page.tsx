@@ -118,7 +118,7 @@ export function FinancePage() {
         const e = row.original
         const canReverse = e.source === "Manual" && !e.reverses && !e.reversed_by_number
         return <RowActions extra={[
-          { label: expanded === e.id ? "Hide lines" : "Show lines", icon: <BookOpen className="size-4" />, onSelect: () => setExpanded((id) => (id === e.id ? null : e.id)) },
+          { label: expanded === e.id ? "Hide lines" : "Show lines", view: true, icon: <BookOpen className="size-4" />, onSelect: () => setExpanded((id) => (id === e.id ? null : e.id)) },
           ...(canReverse ? [{ label: "Reverse", icon: <Undo2 className="size-4" />, onSelect: () => reverseEntry({ id: e.id }) }] : []),
         ]} />
       } },
@@ -157,7 +157,7 @@ export function FinancePage() {
         ? <span className="tabular-nums">{money(row.original.balance)}</span> : <span className="text-muted-foreground">—</span> },
     { id: "actions", header: "", enableSorting: false, enableHiding: false,
       cell: ({ row }) => <RowActions
-        extra={[{ label: "Ledger", icon: <BookOpen className="size-4" />, onSelect: () => setLedgerOf(row.original) }]}
+        extra={[{ label: "Ledger", view: true, icon: <BookOpen className="size-4" />, onSelect: () => setLedgerOf(row.original) }]}
         onEdit={() => setEditing({ kind: "account", record: row.original })}
         onDelete={row.original.is_system ? undefined : () => setDeleting({ kind: "account", id: row.original.id, label: `${row.original.code} ${row.original.name}` })} /> },
   ], [])

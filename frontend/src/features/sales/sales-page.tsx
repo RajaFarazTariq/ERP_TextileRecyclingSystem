@@ -1,5 +1,7 @@
 "use client"
 
+import { useDuties } from "@/features/auth/use-duty"
+import { useSession } from "@/features/auth/use-session"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   Ban, CheckCircle2, FilePlus2, FileText, GitMerge, PackageCheck, Plus, Printer, Send, ThumbsDown, ThumbsUp, Truck, Undo2,
@@ -121,6 +123,8 @@ export function SalesPage() {
   const { mutate: sendQuotation } = useAction("sales/quotations", "send", { success: "Quotation marked as sent.", invalidate: LISTS })
   const { mutate: acceptQuotation } = useAction("sales/quotations", "accept", { success: "Quotation accepted.", invalidate: LISTS })
   const { mutate: rejectQuotation } = useAction("sales/quotations", "reject", { success: "Quotation rejected.", invalidate: LISTS })
+  const approver = useDuties()("approve_sales_returns")
+  const isAdmin = useSession().data?.role === "admin"
   const { mutate: approveReturn } = useAction("sales/returns", "approve", { success: "Return approved; the customer is credited.", invalidate: LISTS })
   const { mutate: rejectReturn } = useAction("sales/returns", "reject", { success: "Return rejected.", invalidate: LISTS })
   const { mutate: cancelOrder } = useAction("sales/orders", "cancel", { success: "Order cancelled; reservation released.", invalidate: LISTS })
@@ -186,7 +190,7 @@ export function SalesPage() {
         return <RowActions
           extra={[
             ...(d.dispatch_status !== "Delivered" ? [{ label: "Mark delivered", icon: <PackageCheck className="size-4" />, onSelect: () => markDelivered({ id: d.id }) }] : []),
-            { label: "Print challan", icon: <Printer className="size-4" />,
+            { label: "Print challan", view: true, icon: <Printer className="size-4" />,
               onSelect: () => { if (!printChallan(d, orderOf.get(d.sales_order))) blocked() } },
           ]}
           onEdit={() => setEditing({ kind: "dispatch", record: d })}
@@ -223,12 +227,12 @@ export function SalesPage() {
     { id: "actions", header: "", enableSorting: false, enableHiding: false,
       cell: ({ row }) => <RowActions
         extra={[
-          { label: "Statement", icon: <FileText className="size-4" />, onSelect: () => setStatementOf(row.original) },
-          { label: "Merge into…", icon: <GitMerge className="size-4" />, onSelect: () => setMerging(row.original) },
+          { label: "Statement", view: true, icon: <FileText className="size-4" />, onSelect: () => setStatementOf(row.original) },
+          ...(isAdmin ? [{ label: "Merge into…", icon: <GitMerge className="size-4" />, onSelect: () => setMerging(row.original) }] : []),
         ]}
         onEdit={() => setEditing({ kind: "customer", record: row.original })}
         onDelete={() => setDeleting({ kind: "customer", id: row.original.id, label: row.original.name })} /> },
-  ], [])
+  ], [isAdmin])
 
   const quotationColumns = useMemo<TableColumn<SalesQuotation>[]>(() => [
     { accessorKey: "number", header: "Number", cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span> },
@@ -273,7 +277,7 @@ export function SalesPage() {
     { accessorKey: "status", header: "Status", cell: ({ getValue }) => <StatusBadge status={getValue<string>()} /> },
     { id: "actions", header: "", enableSorting: false, enableHiding: false,
       cell: ({ row }) => <RowActions
-        extra={[{ label: "Print invoice", icon: <Printer className="size-4" />, onSelect: () => { if (!printInvoice(row.original)) blocked() } }]}
+        extra={[{ label: "Print invoice", view: true, icon: <Printer className="size-4" />, onSelect: () => { if (!printInvoice(row.original)) blocked() } }]}
         onDelete={() => setDeleting({ kind: "invoice", id: row.original.id, label: `${row.original.number} (${row.original.customer_name})` })} /> },
   ], [])
 
@@ -292,14 +296,14 @@ export function SalesPage() {
         const r = row.original
         const pending = r.status === "Requested"
         return <RowActions
-          extra={pending ? [
+          extra={pending && approver ? [
             { label: "Approve", icon: <ThumbsUp className="size-4" />, onSelect: () => approveReturn({ id: r.id }) },
             { label: "Reject", icon: <ThumbsDown className="size-4" />, onSelect: () => rejectReturn({ id: r.id }) },
           ] : []}
           onEdit={pending ? () => setEditing({ kind: "return", record: r }) : undefined}
           onDelete={r.status !== "Approved" ? () => setDeleting({ kind: "return", id: r.id, label: `${r.number} (${r.customer_name})` }) : undefined} />
       } },
-  ], [approveReturn, rejectReturn])
+  ], [approver, approveReturn, rejectReturn])
 
   const productColumns = useMemo<TableColumn<Product>[]>(() => [
     { accessorKey: "name", header: "Product", cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span> },

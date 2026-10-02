@@ -8,7 +8,6 @@ import { Field, FieldGroup, FormDialog } from "@/components/common/form-dialog"
 import { SelectField } from "@/components/common/select-field"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { ROLE_LABELS } from "@/config/access"
 import { useAction, useSave } from "@/lib/crud"
 import { kg } from "@/lib/format"
 import { applyServerErrors } from "@/lib/forms"
@@ -44,7 +43,7 @@ export const supplierOptions = (suppliers: SupplierOption[], current?: number | 
   suppliers.filter((s) => s.is_active || s.id === current).map((s) => ({ value: String(s.id), label: s.name }))
 
 const userOptions = (users: UserSummary[]) =>
-  users.filter((u) => u.is_active).map((u) => ({ value: String(u.id), label: `${u.username} (${ROLE_LABELS[u.role]})` }))
+  users.filter((u) => u.is_active).map((u) => ({ value: String(u.id), label: `${u.username} (${u.role_label})` }))
 
 // ─── Tank ───────────────────────────────────────────────────────────────────
 
@@ -204,7 +203,7 @@ function ChemicalDialogBody({ open, onOpenChange, record, suppliers }: ChemicalD
           <Field id="is_restricted" label="Who may issue it">
             <Controller control={form.control} name="is_restricted" render={({ field }) => (
               <SelectField id="is_restricted" value={field.value} onChange={field.onChange} placeholder="Select"
-                options={[{ value: "no", label: "Supervisors and admins" }, { value: "yes", label: "Admins only (restricted)" }]} />
+                options={[{ value: "no", label: "Anyone on this page" }, { value: "yes", label: "Restricted (needs the duty)" }]} />
             )} />
           </Field>
         </div>

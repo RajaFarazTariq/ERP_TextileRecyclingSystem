@@ -10,6 +10,8 @@ class CustomUserManager(UserManager):
 
 
 class CustomUser(AbstractUser):
+    # The key of the user's role (apps.access.Role). The built-in keys are listed
+    # for reference; admins can add more roles, so the field takes any key.
     ROLE_CHOICES = [
         ('admin', 'Admin'),
         ('warehouse_supervisor', 'Warehouse Supervisor'),
@@ -17,7 +19,7 @@ class CustomUser(AbstractUser):
         ('decolorization_supervisor', 'Decolorization Supervisor'),
         ('drying_supervisor', 'Drying Supervisor'),
     ]
-    role = models.CharField(max_length=50, choices=ROLE_CHOICES)
+    role = models.CharField(max_length=50)
 
     objects = CustomUserManager()
 

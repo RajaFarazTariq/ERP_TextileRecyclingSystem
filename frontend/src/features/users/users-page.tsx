@@ -23,9 +23,9 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ROLE_LABELS } from "@/config/access"
 import { NAV_TONES } from "@/config/nav-tones"
 import { NavIcon } from "@/components/layout/nav-icon"
+import { type RoleName, useRoles } from "@/features/auth/use-roles"
 import { useSession } from "@/features/auth/use-session"
 import { ApiError, api } from "@/lib/api"
 import { useList } from "@/lib/crud"
@@ -36,20 +36,19 @@ import { cn } from "@/lib/utils"
 import type { Role, UserSummary } from "@/types/api"
 import { AccessPanel } from "./access-panel"
 
-const ROLES = Object.keys(ROLE_LABELS) as Role[]
-// Each role takes the colour and icon of the module it runs
-const ROLE_ICONS = {
+// Each built-in role takes the colour and icon of the module it runs; roles an admin added share one
+const ROLE_ICONS: Record<Role, keyof typeof NAV_TONES> = {
   admin: "dashboard", warehouse_supervisor: "warehouse", sorting_supervisor: "sorting",
   decolorization_supervisor: "decolorization", drying_supervisor: "drying",
-} as const satisfies Record<Role, keyof typeof NAV_TONES>
-const ROLE_TONES = Object.fromEntries(ROLES.map((r) => [r, NAV_TONES[ROLE_ICONS[r]]])) as Record<Role, (typeof NAV_TONES)[keyof typeof NAV_TONES]>
+}
+const roleIcon = (role: Role) => ROLE_ICONS[role] ?? "users"
 
-function RoleBadge({ role }: { role: Role }) {
-  const tone = TONE[ROLE_TONES[role]]
+function RoleBadge({ role, label }: { role: Role; label: string }) {
+  const tone = TONE[NAV_TONES[roleIcon(role)]]
   return (
     <span className={cn("inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium whitespace-nowrap", tone.soft, tone.text, tone.border)}>
-      <NavIcon name={ROLE_ICONS[role]} className="size-3" />
-      {ROLE_LABELS[role]}
+      <NavIcon name={roleIcon(role)} className="size-3" />
+      {label}
     </span>
   )
 }
@@ -59,18 +58,20 @@ const userSchema = z.object({
   username: z.string().trim().min(1, "Enter a username.").max(150),
   email: z.string().trim().email("Enter a valid email address.").or(z.literal("")),
   password: z.string(),
-  role: z.enum(ROLES as [Role, ...Role[]], { message: "Choose a role." }),
+  role: z.string().min(1, "Choose a role."),
   is_active: z.boolean(),
 })
 type UserForm = z.infer<typeof userSchema>
 
-function UserDialog({ record, open, onOpenChange, isSelf }: {
-  record: UserSummary | null; open: boolean; onOpenChange: (o: boolean) => void; isSelf: boolean
+function UserDialog({ record, open, onOpenChange, isSelf, roles }: {
+  record: UserSummary | null; open: boolean; onOpenChange: (o: boolean) => void; isSelf: boolean; roles: RoleName[]
 }) {
-  return open ? <UserDialogBody key={record?.id ?? "new"} record={record} onOpenChange={onOpenChange} isSelf={isSelf} /> : null
+  return open ? <UserDialogBody key={record?.id ?? "new"} record={record} onOpenChange={onOpenChange} isSelf={isSelf} roles={roles} /> : null
 }
 
-function UserDialogBody({ record, onOpenChange, isSelf }: { record: UserSummary | null; onOpenChange: (o: boolean) => void; isSelf: boolean }) {
+function UserDialogBody({ record, onOpenChange, isSelf, roles }: {
+  record: UserSummary | null; onOpenChange: (o: boolean) => void; isSelf: boolean; roles: RoleName[]
+}) {
   const qc = useQueryClient()
   const [formError, setFormError] = useState("")
   const form = useForm<UserForm>({
@@ -81,7 +82,7 @@ function UserDialogBody({ record, onOpenChange, isSelf }: { record: UserSummary 
       username: record?.username ?? "",
       email: record?.email ?? "",
       password: "",
-      role: record?.role ?? ("" as Role),
+      role: record?.role ?? "",
       is_active: record?.is_active ?? true,
     },
   })
@@ -125,7 +126,7 @@ function UserDialogBody({ record, onOpenChange, isSelf }: { record: UserSummary 
         <Controller control={form.control} name="role" render={({ field }) => (
           <div aria-disabled={isSelf} className={isSelf ? "pointer-events-none opacity-60" : undefined}>
             <SelectField id="role" value={field.value} onChange={field.onChange} invalid={!!errors.role}
-              placeholder="Select role" options={ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r] }))} />
+              placeholder="Select role" options={roles.map((r) => ({ value: r.key, label: r.name }))} />
           </div>
         )} />
       </Field>
@@ -143,6 +144,7 @@ export function UsersPage() {
   const qc = useQueryClient()
   const me = useSession()
   const users = useList<UserSummary>("users/list")
+  const { roles } = useRoles()
   const [editing, setEditing] = useState<{ record: UserSummary | null } | null>(null)
   const [deleting, setDeleting] = useState<UserSummary | null>(null)
   const [tab, setTab] = useState<"users" | "access">("users")
@@ -167,7 +169,7 @@ export function UsersPage() {
         </span>
       ) },
     { accessorKey: "email", header: "Email", cell: ({ getValue }) => getValue<string>() || "—" },
-    { id: "role", header: "Role", accessorFn: (r) => ROLE_LABELS[r.role], cell: ({ row }) => <RoleBadge role={row.original.role} /> },
+    { id: "role", header: "Role", accessorFn: (r) => r.role_label, cell: ({ row }) => <RoleBadge role={row.original.role} label={row.original.role_label} /> },
     { id: "status", header: "Status", accessorFn: (r) => (r.is_active ? "Active" : "Inactive"),
       cell: ({ row }) => <StatusBadge status={row.original.is_active ? "Active" : "Inactive"} tone={row.original.is_active ? "success" : "neutral"} /> },
     { id: "last_login", header: "Last login", accessorFn: (r) => (r.last_login ? new Date(r.last_login) : new Date(0)), sortFn: "datetime",
@@ -191,11 +193,11 @@ export function UsersPage() {
       } },
   ], [myId, toggleActive])
 
-  const counts = ROLES.map((r) => ({ role: r, count: (users.data ?? []).filter((u) => u.role === r).length }))
+  const counts = roles.map((r) => ({ role: r.key, name: r.name, count: (users.data ?? []).filter((u) => u.role === r.key).length }))
 
   return (
     <div className="mx-auto max-w-[1440px]">
-      <PageHeader title="Users" icon="users" description="Who can sign in, and which pages each role and person can open."
+      <PageHeader title="Users" icon="users" description="Who can sign in, the roles, and what each role and person can open and do."
         actions={<Button onClick={() => setEditing({ record: null })}><Plus className="size-4" /> Add user</Button>} />
 
       {users.isError ? <ErrorState message={users.error.message} onRetry={() => users.refetch()} />
@@ -212,16 +214,16 @@ export function UsersPage() {
             <TabsContent value="users" className="mt-4 space-y-4">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               {counts.map((c) => {
-                const tone = TONE[ROLE_TONES[c.role]]
+                const tone = TONE[NAV_TONES[roleIcon(c.role)]]
                 return (
                   <Card key={c.role} className="animate-rise gap-0 py-4">
                     <CardContent className="flex items-center gap-3 px-4">
                       <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", tone.soft, tone.text)}>
-                        <NavIcon name={ROLE_ICONS[c.role]} className="size-4" />
+                        <NavIcon name={roleIcon(c.role)} className="size-4" />
                       </span>
                       <div className="min-w-0">
                         <p className="font-heading text-2xl leading-tight font-bold">{c.count}</p>
-                        <p className="truncate text-xs text-muted-foreground">{ROLE_LABELS[c.role]}</p>
+                        <p className="truncate text-xs text-muted-foreground">{c.name}</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -234,7 +236,7 @@ export function UsersPage() {
         )}
 
       <UserDialog open={!!editing} record={editing?.record ?? null} onOpenChange={(o) => !o && setEditing(null)}
-        isSelf={!!editing?.record && editing.record.id === myId} />
+        isSelf={!!editing?.record && editing.record.id === myId} roles={roles} />
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={(o) => !o && setDeleting(null)}

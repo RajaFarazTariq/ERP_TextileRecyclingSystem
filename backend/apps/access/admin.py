@@ -1,5 +1,5 @@
 from django.contrib import admin
 
-from .models import RolePage, UserPageOverride
+from .models import Role, RoleDuty, RolePage, UserPageOverride
 
-admin.site.register([RolePage, UserPageOverride])
+admin.site.register([Role, RoleDuty, RolePage, UserPageOverride])

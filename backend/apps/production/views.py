@@ -14,7 +14,7 @@ from rest_framework.views import APIView
 from apps.audit.middleware import AuditedModelMixin
 from apps.audit.models import AuditLog, log_action
 from apps.core.filters import filter_by_date_params
-from apps.core.permissions import ALL_ROLES, SharedReadPermission, get_role, is_admin
+from apps.core.permissions import ALL_ROLES, get_role, has_duty
 from apps.core.quantities import parse_kg
 from apps.decolorization.models import DecolorizationSession
 from apps.drying.models import DryingSession
@@ -37,14 +37,24 @@ class IsAnyRole(permissions.BasePermission):
 
 
 class IsAdminAction(permissions.BasePermission):
-    message = 'Only an admin can do this.'
+    message = 'Your role is not allowed to plan production.'
 
     def has_permission(self, request, view):
-        return is_admin(request.user)
+        return has_duty(request.user, 'plan_production')
 
 
-# Planning data: everyone reads it, admins maintain it
-PLANNING = [IsAuthenticated, SharedReadPermission]
+class IsPlannerForWrites(permissions.BasePermission):
+    """Planning data: everyone with the page reads it; planners maintain it."""
+    message = 'Your role is not allowed to plan production.'
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return request.method in ('GET', 'HEAD', 'OPTIONS') or has_duty(request.user, 'plan_production')
+
+
+# Planning data: everyone reads it, planners maintain it
+PLANNING = [IsAuthenticated, IsPlannerForWrites]
 ADMIN_ACTION = [IsAuthenticated, IsAdminAction]
 
 
@@ -158,8 +168,8 @@ class OrderStepViewSet(AuditedModelMixin, mixins.ListModelMixin, mixins.Retrieve
         return qs
 
     def perform_update(self, serializer):
-        if not is_admin(self.request.user):
-            raise PermissionDenied('Only an admin can change how a step is planned.')
+        if not has_duty(self.request.user, 'plan_production'):
+            raise PermissionDenied('Only a production planner can change how a step is planned.')
         return super().perform_update(serializer)
 
     def _act(self, request, fn, *args):
@@ -205,8 +215,8 @@ class MaterialUseViewSet(AuditedModelMixin, viewsets.ModelViewSet):
         return qs
 
     def perform_destroy(self, instance):
-        if not is_admin(self.request.user):
-            raise PermissionDenied('Only an admin can change the planned materials.')
+        if not has_duty(self.request.user, 'plan_production'):
+            raise PermissionDenied('Only a production planner can change the planned materials.')
         return super().perform_destroy(instance)
 
 

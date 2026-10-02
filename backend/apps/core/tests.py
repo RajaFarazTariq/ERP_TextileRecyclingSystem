@@ -41,7 +41,8 @@ MATRIX = {
     '/api/decolorization/tanks/':     (ALL, {'admin', 'decolorization_supervisor'}),
     '/api/decolorization/issuances/': (ALL, {'admin', 'decolorization_supervisor'}),
     '/api/decolorization/sessions/':  (ALL, {'admin', 'decolorization_supervisor'}),
-    '/api/drying/dryers/':            ({'admin', 'drying_supervisor'}, {'admin', 'drying_supervisor'}),
+    # The dryer list is read by everyone with the Maintenance page (a machine can be linked to a dryer); sessions are not
+    '/api/drying/dryers/':            (ALL, {'admin', 'drying_supervisor'}),
     '/api/drying/sessions/':          ({'admin', 'drying_supervisor'}, {'admin', 'drying_supervisor'}),
     '/api/sales/orders/':             (ADMIN, ADMIN),
     '/api/sales/dispatch/':           (ADMIN, ADMIN),

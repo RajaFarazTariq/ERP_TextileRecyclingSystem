@@ -4,7 +4,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
-from apps.core.permissions import is_admin
+from apps.core.permissions import has_duty
 from . import services
 from .models import (
     BillOfMaterials, BomLine, MaterialUse, OrderStep, ProcessStage, ProductionOrder, Routing, RoutingStep,
@@ -189,11 +189,11 @@ class MaterialUseSerializer(serializers.ModelSerializer):
         order = data.get('order', getattr(self.instance, 'order', None))
         if order.status in ('Completed', 'Cancelled'):
             raise serializers.ValidationError({'order': [f'A {order.status.lower()} order can no longer be changed.']})
-        if not is_admin(user):
-            # Supervisors record what was actually used; the plan is the admin's
+        if not has_duty(user, 'plan_production'):
+            # Supervisors record what was actually used; the plan is the planner's
             services.check_floor_user(user)
             if self.instance is None or set(data) - {'actual_quantity'}:
-                raise PermissionDenied('Only an admin can change the planned materials.')
+                raise PermissionDenied('Only a production planner can change the planned materials.')
         if self.instance and 'order' in data and data['order'] != self.instance.order:
             raise serializers.ValidationError({'order': ["A material line can't be moved to another order."]})
         for field, label in (('planned_quantity', 'Quantity'), ('actual_quantity', 'Quantity'), ('unit_cost', 'Cost')):

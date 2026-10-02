@@ -1,7 +1,7 @@
 import { z } from "zod"
 
 import { requiredId } from "@/lib/forms"
-import type { QualityStage, Role } from "@/types/api"
+import type { Duty, QualityStage } from "@/types/api"
 
 export const STAGES = ["Incoming", "In-process", "Finished"] as const
 export const STAGE_LABELS: Record<QualityStage, string> = {
@@ -13,15 +13,15 @@ export const RESULTS = ["Pass", "Conditional", "Fail"] as const
 export const CHECK_KINDS = ["Measure", "Pass/Fail"] as const
 export const ACTION_KINDS = ["Corrective", "Preventive"] as const
 
-// Who records inspections at each stage (same rule as the server; admins always can)
-const STAGE_ROLES: Record<QualityStage, Role[]> = {
-  Incoming: ["warehouse_supervisor"],
-  "In-process": ["sorting_supervisor", "decolorization_supervisor", "drying_supervisor"],
-  Finished: ["drying_supervisor"],
+// The duty needed to record inspections at each stage (same rule as the server)
+const STAGE_DUTIES: Record<QualityStage, Duty> = {
+  Incoming: "inspect_incoming",
+  "In-process": "inspect_in_process",
+  Finished: "inspect_finished",
 }
 
-export function stagesFor(role: Role | undefined): QualityStage[] {
-  return STAGES.filter((s) => role === "admin" || (!!role && STAGE_ROLES[s].includes(role)))
+export function stagesFor(can: (duty: Duty) => boolean): QualityStage[] {
+  return STAGES.filter((s) => can(STAGE_DUTIES[s]))
 }
 
 const NUMBER = /^-?\d+(\.\d{1,2})?$/

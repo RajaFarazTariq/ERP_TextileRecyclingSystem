@@ -17,11 +17,12 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description', 'allowed_roles', 'is_active', 'documents']
 
     def validate_allowed_roles(self, roles):
-        unknown = sorted(set(roles) - set(services.ROLE_KEYS) - {'admin'})
+        known = services.role_keys()
+        unknown = sorted(set(roles) - set(known) - {'admin'})
         if unknown:
             raise serializers.ValidationError(f'Unknown role: {", ".join(unknown)}.')
         # Admins always have access, so the list holds the other roles only
-        return [r for r in services.ROLE_KEYS if r in roles]
+        return [r for r in known if r in roles]
 
 
 class VersionSerializer(serializers.ModelSerializer):

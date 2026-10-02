@@ -47,7 +47,7 @@ A web-based ERP for textile recycling factories. It follows material from the su
 **Administration**
 - **Documents:** uploaded files by category with versions, expiry dates, role-based access and checked, authenticated downloads.
 - **Workforce:** employees, departments, shifts, a daily attendance sheet, leave, tasks and a productivity report (admins only).
-- **Users and access:** admin plus one supervisor role per department. Admins decide which pages each role, and each person, may open; the API follows the same list.
+- **Users and access:** five built-in roles plus any roles you add. Admins decide, per role and per person, which pages are open and whether they are view only or full, and which roles carry duties such as approving purchases. The API enforces the same rules.
 - **Audit log:** who changed what, and when.
 - **Email alerts and reports** (low chemicals, new orders, payments, daily and monthly reports).
 
@@ -247,7 +247,9 @@ These logins exist after `python manage.py seed_demo_data`:
 
 Every role also opens Quality, Maintenance, Sustainability, Documents and Traceability, where it sees and does what its role allows.
 
-This is the starting access. An admin can change it under **Users → Access**.
+This is the starting access. An admin can change it under **Users → Access**, and add roles of their own.
+
+The full system manual is in [docs/manual](docs/manual/README.md).
 
 Change these passwords, or don't seed demo data at all, on a real server.
 
@@ -398,7 +400,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main` or `upg
 - **Schedules:** a preventive task repeats every N days. "Create work order" makes its work order (one at a time); completing it moves the next due date forward.
 - **Spare parts:** using a part on a work order takes it out of stock (never more than is there) and deleting the use puts it back. "Receive" adds stock.
 - **Performance:** per machine: breakdowns, downtime, cost, days between failures and availability, plus the downtime of tank and dryer machines next to the sessions they ran.
-- **Who does what:** every role can report a breakdown and work on an order that is theirs or unassigned. Admins manage machines, schedules, parts, assignments and cancellations.
+- **Who does what:** every role can report a breakdown and work on an order that is theirs or unassigned. The duty *Manage maintenance* (admins by default) covers machines, schedules, parts, assignments and cancellations.
 - **API:** `/api/v1/maintenance/`.
 
 ### Workforce
@@ -465,16 +467,20 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main` or `upg
 - Admins only.
 - **API:** `/api/v1/reports/` (`catalogue`, `run/<key>`, `executive`, `schedules`).
 
-### Page access
+### Roles, page access and duties
 
-- **Where:** Users → Access (admins only). A grid of pages against roles with a tick for each, and "Exceptions for one person" to give someone a page their role lacks or take one away.
-- **Starting point:** each role begins with the pages it had before access was configurable (see [Demo logins](#demo-logins)). Sales, Finance, Workforce, Reports, Dashboard, Approvals and Users start as admin only. "Original access" in the grid restores this.
-- **A person's pages** are their role's pages, plus pages given to them, minus pages taken away.
-- **It is enforced in three places:** the menu and search show only the user's pages; opening a page by typing its address sends the user home if they don't have it; and every API request is refused unless the user has a page that uses that part of the system. A change applies from the user's next page load or request, without signing in again.
-- **Reading and changing are separate.** A page gives access to what it shows. For example the Sorting page reads deliveries, but only the Warehouse page can change them, and the Warehouse page reads only the list of open purchase order lines from Purchasing.
-- **Business rules are not affected.** Having a page lets someone use the module; it does not make them an approver. Approving requests and orders, releasing quarantine, approving returns and leave, issuing restricted chemicals, stock adjustments and notification rules stay with admins, and each role still inspects only its own stage in Quality.
-- **Safeguards:** admins always have every page, and that can't be changed. The Users page (and with it access management) can't be given to any other role or person. The last active admin can't be demoted, deactivated or deleted. Every change to access is written to the audit log.
-- **API:** `/api/v1/access/` (`me`, `matrix`, `users/<id>`).
+- **Where:** Users → Access (admins only). Four cards: Roles, Pages by role, Duties by role, Exceptions for one person.
+- **Roles:** five are built in (Admin and one supervisor per department). Admins add their own (Accountant, Store Keeper, ...), optionally copying the pages and duties of an existing role. Each person has one role. Built-in roles can't be renamed or deleted; a role people still have can't be deleted.
+- **Page levels:** each role holds each page at *No access*, *View only* or *Full*. View only shows everything and hides the add, edit and delete controls; the API refuses changes with "You have view-only access here, so you can look but not change anything."
+- **Duties:** what a role may do beyond opening a page: approve purchases, record supplier payments, inspect incoming / in-process / finished material, release quarantine, plan production, run production stages, approve decolorization batches, issue restricted chemicals, approve sales returns, adjust stock, manage maintenance. A duty only works for a role that also has its page in full.
+- **Exceptions:** one person can be given a page their role lacks, lose one it has, or hold it at another level.
+- **Starting point:** each role begins with the pages and duties it had before this became configurable (see [Demo logins](#demo-logins)). Sales, Finance, Workforce, Reports, Dashboard, Approvals and Users start as admin only, and so do all approvals. "Original access" and "Original duties" restore this for the built-in roles.
+- **Enforced on the server.** Every API call is checked against the pages that use that part of the system, whatever the screen shows. A change applies from the person's next request, with no need to sign in again.
+- **Reading and changing are separate.** A page gives access to what it shows. For example the Sorting page reads deliveries, but only the Warehouse page can change them.
+- **Business rules are not affected.** Quarantine, stock checks, closed periods and the like apply to everyone. Deleting inspections, work orders and documents, quality standards, document categories, notification rules and the Users page stay with admins.
+- **Safeguards:** admins always have every page and duty. The Users page can't be given to any other role or person. The last active admin can't be demoted, deactivated or deleted. Every change to roles, pages and duties is written to the audit log.
+- **API:** `/api/v1/access/` (`me`, `role-names`, `roles`, `matrix`, `duties`, `users/<id>`).
+- **More:** [docs/manual/05-access-control.md](docs/manual/05-access-control.md).
 
 ### Consistency checks
 

@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 
 from apps.audit.middleware import AuditedModelMixin
 from apps.audit.models import AuditLog
-from apps.core.permissions import ALL_ROLES, SharedReadPermission, get_role, is_admin
+from apps.core.permissions import ALL_ROLES, get_role, has_duty, is_admin
 from . import services
 from .models import Machine, MaintenanceSchedule, PartUse, SparePart, WorkOrder
 from .serializers import (
@@ -31,11 +31,31 @@ class IsMaintenanceUser(permissions.BasePermission):
         return request.method != 'DELETE' or is_admin(request.user)
 
 
-class IsAdminAction(permissions.BasePermission):
-    message = 'Only an admin can do this.'
+class IsPartUser(permissions.BasePermission):
+    """Every role records the parts it used; taking one off a work order is for whoever manages maintenance."""
+    message = 'Your role is not allowed to remove parts from a work order.'
 
     def has_permission(self, request, view):
-        return is_admin(request.user)
+        if not request.user or not request.user.is_authenticated or get_role(request.user) not in ALL_ROLES:
+            return False
+        return request.method != 'DELETE' or has_duty(request.user, 'manage_maintenance')
+
+
+class IsManagerForWrites(permissions.BasePermission):
+    """Machines, schedules and spare parts: everyone with the page reads them; managers maintain them."""
+    message = 'Your role is not allowed to manage maintenance.'
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated or get_role(request.user) not in ALL_ROLES:
+            return False
+        return request.method in ('GET', 'HEAD', 'OPTIONS') or has_duty(request.user, 'manage_maintenance')
+
+
+class IsAdminAction(permissions.BasePermission):
+    message = 'Your role is not allowed to manage maintenance.'
+
+    def has_permission(self, request, view):
+        return has_duty(request.user, 'manage_maintenance')
 
 
 complete_request = inline_serializer('WorkOrderCompleteRequest', {
@@ -52,9 +72,9 @@ receive_request = inline_serializer('SparePartReceiveRequest', {
 
 
 class MachineViewSet(AuditedModelMixin, viewsets.ModelViewSet):
-    """The machine register. Everyone reads it; admins maintain it."""
+    """The machine register. Everyone reads it; whoever manages maintenance keeps it."""
     serializer_class = MachineSerializer
-    permission_classes = [IsAuthenticated, SharedReadPermission]
+    permission_classes = [IsAuthenticated, IsManagerForWrites]
 
     def get_queryset(self):
         qs = Machine.objects.select_related('tank', 'dryer').prefetch_related('work_orders')
@@ -65,7 +85,7 @@ class MachineViewSet(AuditedModelMixin, viewsets.ModelViewSet):
 
 class ScheduleViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     serializer_class = ScheduleSerializer
-    permission_classes = [IsAuthenticated, SharedReadPermission]
+    permission_classes = [IsAuthenticated, IsManagerForWrites]
 
     def get_queryset(self):
         qs = MaintenanceSchedule.objects.select_related('machine').prefetch_related('work_orders')
@@ -149,7 +169,7 @@ class WorkOrderViewSet(AuditedModelMixin, viewsets.ModelViewSet):
 
 class SparePartViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     serializer_class = SparePartSerializer
-    permission_classes = [IsAuthenticated, SharedReadPermission]
+    permission_classes = [IsAuthenticated, IsManagerForWrites]
     queryset = SparePart.objects.all()
 
     @extend_schema(request=receive_request, responses=SparePartSerializer)
@@ -167,7 +187,7 @@ class PartUseViewSet(AuditedModelMixin, mixins.CreateModelMixin, mixins.DestroyM
                      mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     """Parts taken for a work order. A use is removed and entered again rather than edited."""
     serializer_class = PartUseSerializer
-    permission_classes = [IsAuthenticated, IsMaintenanceUser]
+    permission_classes = [IsAuthenticated, IsPartUser]
 
     def get_queryset(self):
         qs = PartUse.objects.select_related('work_order', 'part', 'used_by')

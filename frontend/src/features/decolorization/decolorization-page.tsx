@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useSession } from "@/features/auth/use-session"
+import { useDuties } from "@/features/auth/use-duty"
 import { useAction, useDelete, useList } from "@/lib/crud"
 import { date, kg, rupees } from "@/lib/format"
 import type {
@@ -74,7 +74,7 @@ export function DecolorizationPage() {
   const [completing, setCompleting] = useState<DecolorizationSession | null>(null)
   const [deleting, setDeleting] = useState<Deleting | null>(null)
   const [viewing, setViewing] = useState<DecolorizationSession | null>(null)
-  const isAdmin = useSession().data?.role === "admin"
+  const approver = useDuties()("approve_batches")
 
   const tanks = useList<Tank>("decolorization/tanks")
   const chemicals = useList<Chemical>("decolorization/chemicals")
@@ -103,7 +103,7 @@ export function DecolorizationPage() {
       cell: ({ row }) => (
         <span className="flex items-center gap-2">
           <span className="font-medium">{row.original.chemical_name}</span>
-          {row.original.is_restricted && <Badge variant="outline" title="Only an admin can issue it"><Lock aria-hidden /> Restricted</Badge>}
+          {row.original.is_restricted && <Badge variant="outline" title="Only roles allowed to issue restricted chemicals can issue it"><Lock aria-hidden /> Restricted</Badge>}
         </span>
       ) },
     { id: "total", header: "Total", accessorFn: (r) => n(r.total_stock), sortFn: "basic",
@@ -187,14 +187,14 @@ export function DecolorizationPage() {
           extra={[
             ...(row.original.status !== "Completed"
               ? [{ label: "Complete", icon: <CheckCircle2 className="size-4" />, onSelect: () => setCompleting(row.original) }] : []),
-            { label: "Chemicals used", icon: <FlaskConical className="size-4" />, onSelect: () => setViewing(row.original) },
-            ...(isAdmin && !row.original.approved_at
+            { label: "Chemicals used", view: true, icon: <FlaskConical className="size-4" />, onSelect: () => setViewing(row.original) },
+            ...(approver && !row.original.approved_at
               ? [{ label: "Approve batch", icon: <ShieldCheck className="size-4" />, onSelect: () => approve({ id: row.original.id }) }] : []),
           ]}
           onEdit={() => setEditing({ kind: "session", record: row.original })}
           onDelete={() => setDeleting({ kind: "session", id: row.original.id, label: `Session #${row.original.id}` })} />
       ) },
-  ], [isAdmin, approve])
+  ], [approver, approve])
 
   const lotColumns = useMemo<TableColumn<ChemicalLot>[]>(() => [
     { accessorKey: "lot_number", header: "Lot", cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span> },

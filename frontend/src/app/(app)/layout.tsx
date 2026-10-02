@@ -5,6 +5,7 @@ import { AccessSync } from "@/components/layout/access-sync"
 import { AppHeader } from "@/components/layout/app-header"
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { accessKey } from "@/config/access"
 import { COOKIE, parseUserCookie } from "@/lib/server/session"
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
@@ -15,7 +16,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
   return (
     <SidebarProvider defaultOpen={sidebarOpen}>
-      <AccessSync pages={user.pages} />
+      <AccessSync access={accessKey(user)} />
       <AppSidebar user={user} />
       <SidebarInset>
         <AppHeader user={user} />

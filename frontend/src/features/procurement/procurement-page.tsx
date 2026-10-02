@@ -22,7 +22,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useSession } from "@/features/auth/use-session"
+import { useDuties } from "@/features/auth/use-duty"
 import { VendorDialog } from "@/features/warehouse/warehouse-forms"
 import { api } from "@/lib/api"
 import { useAction, useDelete, useList } from "@/lib/crud"
@@ -82,8 +82,9 @@ function Received({ order }: { order: PurchaseOrder }) {
 }
 
 export function ProcurementPage() {
-  const role = useSession().data?.role
-  const admin = role === "admin"
+  const can = useDuties()
+  const approver = can("approve_purchases")
+  const payer = can("pay_suppliers")
   const [tab, setTab] = useState<Tab>("dashboard")
   const [reqStatus, setReqStatus] = useState(ALL)
   const [orderStatus, setOrderStatus] = useState(ALL)
@@ -159,7 +160,7 @@ export function ProcurementPage() {
         const r = row.original
         const extra = []
         if (r.status === "Draft" || r.status === "Rejected") extra.push({ label: "Submit for approval", icon: <Send className="size-4" />, onSelect: () => submitRequest({ id: r.id }) })
-        if (r.status === "Submitted" && admin) {
+        if (r.status === "Submitted" && approver) {
           extra.push({ label: "Approve", icon: <Check className="size-4" />, onSelect: () => approveRequest({ id: r.id }) })
           extra.push({ label: "Reject", icon: <X className="size-4" />, onSelect: () => setRejecting(r) })
         }
@@ -170,7 +171,7 @@ export function ProcurementPage() {
           onEdit={editable ? () => setEditing({ kind: "requisition", record: r }) : undefined}
           onDelete={["Draft", "Rejected", "Cancelled"].includes(r.status) ? () => setDeleting({ kind: "requisition", id: r.id, label: r.number }) : undefined} />
       } },
-  ], [admin, submitRequest, approveRequest, cancelRequest])
+  ], [approver, submitRequest, approveRequest, cancelRequest])
 
   const orderColumns = useMemo<TableColumn<PurchaseOrder>[]>(() => [
     { accessorKey: "number", header: "Order",
@@ -199,16 +200,16 @@ export function ProcurementPage() {
         const o = row.original
         const extra = []
         if (o.status === "Draft") extra.push({ label: "Submit for approval", icon: <Send className="size-4" />, onSelect: () => submitOrder({ id: o.id }) })
-        if (o.status === "Submitted" && admin) extra.push({ label: "Approve", icon: <Check className="size-4" />, onSelect: () => approveOrder({ id: o.id }) })
+        if (o.status === "Submitted" && approver) extra.push({ label: "Approve", icon: <Check className="size-4" />, onSelect: () => approveOrder({ id: o.id }) })
         if (o.status !== "Draft" && o.status !== "Cancelled") extra.push({ label: "Record invoice", icon: <Receipt className="size-4" />, onSelect: () => setEditing({ kind: "invoice", record: null, from: o }) })
-        if (["Approved", "Partially Received", "Received"].includes(o.status) && admin) extra.push({ label: "Close order", icon: <Lock className="size-4" />, onSelect: () => closeOrder({ id: o.id }) })
+        if (["Approved", "Partially Received", "Received"].includes(o.status) && approver) extra.push({ label: "Close order", icon: <Lock className="size-4" />, onSelect: () => closeOrder({ id: o.id }) })
         if (["Draft", "Submitted"].includes(o.status) || (o.status === "Approved" && n(o.received_kg) === 0)) extra.push({ label: "Cancel order", icon: <Ban className="size-4" />, onSelect: () => setCancelling(o) })
         const editable = ["Draft", "Submitted", "Approved", "Partially Received"].includes(o.status)
         return <RowActions extra={extra}
           onEdit={editable ? () => setEditing({ kind: "order", record: o }) : undefined}
           onDelete={["Draft", "Submitted", "Cancelled"].includes(o.status) ? () => setDeleting({ kind: "order", id: o.id, label: o.number }) : undefined} />
       } },
-  ], [admin, submitOrder, approveOrder, closeOrder])
+  ], [approver, submitOrder, approveOrder, closeOrder])
 
   const invoiceColumns = useMemo<TableColumn<SupplierInvoice>[]>(() => [
     { accessorKey: "vendor_name", header: "Supplier", cell: ({ getValue }) => <NameWithAvatar name={getValue<string>()} /> },
@@ -236,11 +237,11 @@ export function ProcurementPage() {
       cell: ({ row }) => {
         const inv = row.original
         return <RowActions
-          extra={admin && inv.status !== "Paid" ? [{ label: "Record payment", icon: <Wallet className="size-4" />, onSelect: () => setEditing({ kind: "payment", record: null, invoice: inv }) }] : []}
+          extra={payer && inv.status !== "Paid" ? [{ label: "Record payment", icon: <Wallet className="size-4" />, onSelect: () => setEditing({ kind: "payment", record: null, invoice: inv }) }] : []}
           onEdit={() => setEditing({ kind: "invoice", record: inv })}
           onDelete={n(inv.paid_amount) === 0 ? () => setDeleting({ kind: "invoice", id: inv.id, label: `${inv.vendor_name} ${inv.invoice_number}` }) : undefined} />
       } },
-  ], [admin])
+  ], [payer])
 
   const paymentColumns = useMemo<TableColumn<SupplierPayment>[]>(() => [
     { id: "payment_date", header: "Date", accessorFn: (r) => new Date(r.payment_date), sortFn: "datetime",
@@ -252,9 +253,9 @@ export function ProcurementPage() {
     { accessorKey: "reference", header: "Reference", cell: ({ getValue }) => getValue<string>() || "—" },
     { accessorKey: "paid_by_name", header: "Recorded by" },
     { id: "actions", header: "", enableSorting: false, enableHiding: false,
-      cell: ({ row }) => admin ? <RowActions onEdit={() => setEditing({ kind: "payment", record: row.original })}
+      cell: ({ row }) => payer ? <RowActions onEdit={() => setEditing({ kind: "payment", record: row.original })}
         onDelete={() => setDeleting({ kind: "payment", id: row.original.id, label: `${rupees(row.original.amount)} to ${row.original.vendor_name}` })} /> : null },
-  ], [admin])
+  ], [payer])
 
   const returnColumns = useMemo<TableColumn<PurchaseReturn>[]>(() => [
     { accessorKey: "number", header: "Return", cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span> },
@@ -318,7 +319,7 @@ export function ProcurementPage() {
     requests: { label: "New request", open: () => setEditing({ kind: "requisition", record: null }) },
     orders: { label: "New order", open: () => setEditing({ kind: "order", record: null }) },
     invoices: { label: "Record invoice", open: () => setEditing({ kind: "invoice", record: null }) },
-    payments: admin ? { label: "Record payment", open: () => setEditing({ kind: "payment", record: null }) } : null,
+    payments: payer ? { label: "Record payment", open: () => setEditing({ kind: "payment", record: null }) } : null,
     returns: { label: "Record return", open: () => setEditing({ kind: "return", record: null }) },
     suppliers: { label: "Add quote", open: () => setEditing({ kind: "quotation", record: null }) },
   }
@@ -371,7 +372,7 @@ export function ProcurementPage() {
                   <Card className="animate-rise">
                     <CardHeader>
                       <CardTitle>Waiting for approval</CardTitle>
-                      <CardDescription className="mt-0.5">{admin ? "Approve or reject each request" : "An admin approves these"}</CardDescription>
+                      <CardDescription className="mt-0.5">{approver ? "Approve or reject each request" : "Your role can't approve these"}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-2">
                       {awaiting.length ? awaiting.map(({ kind, item }) => (
@@ -389,7 +390,7 @@ export function ProcurementPage() {
                               {kind === "order" ? (item as PurchaseOrder).lines.map((l) => l.material).join(", ") : (item as Requisition).lines.map((l) => l.material).join(", ")}
                             </p>
                           </div>
-                          {admin ? (
+                          {approver ? (
                             <div className="flex gap-2">
                               {kind === "requisition" && (
                                 <Button variant="outline" size="sm" onClick={() => setRejecting(item as Requisition)}><X className="size-3.5" /> Reject</Button>
@@ -482,7 +483,7 @@ export function ProcurementPage() {
               : payments.isPending ? <TableSkeleton columns={7} /> : (
                 <DataTable columns={paymentColumns} data={payments.data} exportName="supplier-payments"
                   searchPlaceholder="Search supplier, invoice, reference…" emptyTitle="No supplier payments"
-                  emptyDescription={admin ? "Record one from an invoice's menu." : "Admins record supplier payments."}
+                  emptyDescription={payer ? "Record one from an invoice's menu." : "Your role can't record supplier payments."}
                   initialSorting={[{ id: "payment_date", desc: true }]} />
               )}
           </TabsContent>

@@ -11,7 +11,7 @@ import { DataTable, type TableColumn } from "@/components/common/data-table"
 import { NameWithAvatar } from "@/components/common/identity"
 import { SegmentedBar } from "@/components/common/meters"
 import { PageHeader } from "@/components/common/page-header"
-import { RowActions } from "@/components/common/row-actions"
+import { type ExtraAction, RowActions } from "@/components/common/row-actions"
 import { CardsSkeleton, ErrorState, TableSkeleton } from "@/components/common/states"
 import { StatCard } from "@/components/common/stat-card"
 import { StatusBadge } from "@/components/common/status-badge"
@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useDuties } from "@/features/auth/use-duty"
 import { useSession } from "@/features/auth/use-session"
 import { api } from "@/lib/api"
 import { useAction, useDelete, useList } from "@/lib/crud"
@@ -47,7 +48,9 @@ const dash = <span className="text-muted-foreground">—</span>
 
 export function MaintenancePage() {
   const session = useSession().data
-  const admin = session?.role === "admin"
+  const isAdmin = session?.role === "admin"
+  // Registers machines, plans preventive work, keeps spare parts, assigns and cancels work orders
+  const manager = useDuties()("manage_maintenance")
   const myId = session?.id
   const [tab, setTab] = useState<Tab>("dashboard")
   const [statusFilter, setStatusFilter] = useState(ACTIVE)
@@ -63,9 +66,9 @@ export function MaintenancePage() {
   const orders = useList<WorkOrder>("maintenance/work-orders")
   const schedules = useList<MaintenanceSchedule>("maintenance/schedules")
   const parts = useList<SparePart>("maintenance/parts")
-  // Only the machine form (admin) needs these; other roles may not read them
-  const tanks = useList<Tank>("decolorization/tanks", undefined, { enabled: session?.role === "admin" })
-  const dryers = useList<Dryer>("drying/dryers", undefined, { enabled: session?.role === "admin" })
+  // Only the machine form needs these
+  const tanks = useList<Tank>("decolorization/tanks", undefined, { enabled: manager })
+  const dryers = useList<Dryer>("drying/dryers", undefined, { enabled: manager })
   const users = useList<UserSummary>("users/list")
   const summary = useQuery<MaintenanceSummary>({ queryKey: ["maintenance/summary"], queryFn: () => api("maintenance/summary") })
 
@@ -97,9 +100,9 @@ export function MaintenancePage() {
       cell: ({ getValue }) => <span className={cn("tabular-nums", !getValue<number>() && "text-muted-foreground")}>{getValue<number>()}</span> },
     { accessorKey: "status", header: "Status", cell: ({ row }) => <StatusBadge status={row.original.status} tone={MACHINE_TONES[row.original.status]} /> },
     { id: "actions", header: "", enableSorting: false, enableHiding: false,
-      cell: ({ row }) => admin ? <RowActions onEdit={() => setEditing({ kind: "machine", record: row.original })}
+      cell: ({ row }) => manager ? <RowActions onEdit={() => setEditing({ kind: "machine", record: row.original })}
         onDelete={() => setDeleting({ kind: "machine", id: row.original.id, label: row.original.code })} /> : null },
-  ], [admin])
+  ], [manager])
 
   const orderColumns = useMemo<TableColumn<WorkOrder>[]>(() => [
     { accessorKey: "number", header: "Work order",
@@ -131,18 +134,18 @@ export function MaintenancePage() {
       cell: ({ row }) => {
         const o = row.original
         const closed = o.status === "Done" || o.status === "Cancelled"
-        const canWork = admin || o.assigned_to === null || o.assigned_to === myId
-        const extra = [{ label: "Parts used", icon: <Cog className="size-4" />, onSelect: () => setViewingId(o.id) }]
+        const canWork = manager || o.assigned_to === null || o.assigned_to === myId
+        const extra: ExtraAction[] = [{ label: "Parts used", view: true, icon: <Cog className="size-4" />, onSelect: () => setViewingId(o.id) }]
         if (o.status === "Open" && canWork) extra.push({ label: "Start", icon: <Play className="size-4" />, onSelect: () => startOrder({ id: o.id }) })
         if (!closed && canWork) extra.push({ label: "Complete", icon: <CheckCircle2 className="size-4" />, onSelect: () => setCompleting(o) })
-        if (!closed && admin) extra.push({ label: "Cancel", icon: <Ban className="size-4" />, onSelect: () => setCancelling(o) })
+        if (!closed && manager) extra.push({ label: "Cancel", icon: <Ban className="size-4" />, onSelect: () => setCancelling(o) })
         // Admins change any unfinished order; the person who reported it can correct it while it is open
-        const editable = !closed && (admin || (o.status === "Open" && o.reported_by === myId))
+        const editable = !closed && (manager || (o.status === "Open" && o.reported_by === myId))
         return <RowActions extra={extra}
           onEdit={editable ? () => setEditing({ kind: "order", record: o }) : undefined}
-          onDelete={admin ? () => setDeleting({ kind: "order", id: o.id, label: o.number }) : undefined} />
+          onDelete={isAdmin ? () => setDeleting({ kind: "order", id: o.id, label: o.number }) : undefined} />
       } },
-  ], [admin, myId, startOrder])
+  ], [manager, isAdmin, myId, startOrder])
 
   const scheduleColumns = useMemo<TableColumn<MaintenanceSchedule>[]>(() => [
     { accessorKey: "task", header: "Task",
@@ -178,13 +181,13 @@ export function MaintenancePage() {
     { id: "actions", header: "", enableSorting: false, enableHiding: false,
       cell: ({ row }) => {
         const s = row.original
-        if (!admin) return null
+        if (!manager) return null
         const extra = s.is_active && !s.open_work_order
           ? [{ label: "Create work order", icon: <ClipboardList className="size-4" />, onSelect: () => raiseOrder({ id: s.id }) }] : []
         return <RowActions extra={extra} onEdit={() => setEditing({ kind: "schedule", record: s })}
           onDelete={() => setDeleting({ kind: "schedule", id: s.id, label: s.task })} />
       } },
-  ], [admin, raiseOrder])
+  ], [manager, raiseOrder])
 
   const partColumns = useMemo<TableColumn<SparePart>[]>(() => [
     { accessorKey: "code", header: "Code", cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span> },
@@ -204,20 +207,20 @@ export function MaintenancePage() {
       cell: ({ row }) => <span className="tabular-nums">{rupees(row.original.stock_value)}</span> },
     { accessorKey: "location", header: "Location", cell: ({ getValue }) => getValue<string>() || dash },
     { id: "actions", header: "", enableSorting: false, enableHiding: false,
-      cell: ({ row }) => admin ? <RowActions
+      cell: ({ row }) => manager ? <RowActions
         extra={[{ label: "Receive", icon: <PackagePlus className="size-4" />, onSelect: () => setReceiving(row.original) }]}
         onEdit={() => setEditing({ kind: "part", record: row.original })}
         onDelete={() => setDeleting({ kind: "part", id: row.original.id, label: row.original.name })} /> : null },
-  ], [admin])
+  ], [manager])
 
-  const newOrder = { label: admin ? "New work order" : "Report breakdown", open: () => setEditing({ kind: "order", record: null }) }
+  const newOrder = { label: manager ? "New work order" : "Report breakdown", open: () => setEditing({ kind: "order", record: null }) }
   const addFor: Record<Tab, { label: string; open: () => void }[]> = {
     dashboard: [newOrder],
     orders: [newOrder],
     performance: [newOrder],
-    machines: admin ? [{ label: "Add machine", open: () => setEditing({ kind: "machine", record: null }) }, newOrder] : [newOrder],
-    schedules: admin ? [{ label: "New schedule", open: () => setEditing({ kind: "schedule", record: null }) }, newOrder] : [newOrder],
-    parts: admin ? [{ label: "Add spare part", open: () => setEditing({ kind: "part", record: null }) }, newOrder] : [newOrder],
+    machines: manager ? [{ label: "Add machine", open: () => setEditing({ kind: "machine", record: null }) }, newOrder] : [newOrder],
+    schedules: manager ? [{ label: "New schedule", open: () => setEditing({ kind: "schedule", record: null }) }, newOrder] : [newOrder],
+    parts: manager ? [{ label: "Add spare part", open: () => setEditing({ kind: "part", record: null }) }, newOrder] : [newOrder],
   }
 
   const core = [machines, orders, summary]
@@ -237,7 +240,7 @@ export function MaintenancePage() {
         description="Machines, breakdowns and planned upkeep, with the spare parts and costs that go with them."
         actions={addFor[tab].map((a, i) => (
           <Button key={a.label} variant={i === addFor[tab].length - 1 ? "default" : "outline"} onClick={a.open}>
-            {a === newOrder && !admin ? <TriangleAlert className="size-4" /> : <Plus className="size-4" />} {a.label}
+            {a === newOrder && !manager ? <TriangleAlert className="size-4" /> : <Plus className="size-4" />} {a.label}
           </Button>
         ))} />
 
@@ -347,7 +350,7 @@ export function MaintenancePage() {
             {machines.isPending ? <TableSkeleton columns={8} /> : (
               <DataTable columns={machineColumns} data={machines.data ?? []} exportName="machines"
                 searchPlaceholder="Search machine, category, location…" emptyTitle="No machines"
-                emptyDescription={admin ? "Register one with “Add machine”." : "An admin registers the machines."} />
+                emptyDescription={manager ? "Register one with “Add machine”." : "Machines are registered by whoever manages maintenance."} />
             )}
           </TabsContent>
 
@@ -386,7 +389,7 @@ export function MaintenancePage() {
               : schedules.isPending ? <TableSkeleton columns={6} /> : (
                 <DataTable columns={scheduleColumns} data={schedules.data} exportName="maintenance-schedules"
                   searchPlaceholder="Search task or machine…" emptyTitle="No preventive schedules"
-                  emptyDescription={admin ? "Plan repeated upkeep with “New schedule”." : "An admin plans the preventive work."}
+                  emptyDescription={manager ? "Plan repeated upkeep with “New schedule”." : "Preventive work is planned by whoever manages maintenance."}
                   initialSorting={[{ id: "next_due_on", desc: false }]} />
               )}
           </TabsContent>
@@ -396,7 +399,7 @@ export function MaintenancePage() {
               : parts.isPending ? <TableSkeleton columns={7} /> : (
                 <DataTable columns={partColumns} data={parts.data} exportName="spare-parts"
                   searchPlaceholder="Search code, part, location…" emptyTitle="No spare parts"
-                  emptyDescription={admin ? "Add the parts kept in the store with “Add spare part”." : "An admin keeps the spare parts list."} />
+                  emptyDescription={manager ? "Add the parts kept in the store with “Add spare part”." : "The spare parts list is kept by whoever manages maintenance."} />
               )}
           </TabsContent>
 
@@ -409,15 +412,15 @@ export function MaintenancePage() {
       <MachineDialog open={editing?.kind === "machine"} onOpenChange={(o) => !o && setEditing(null)}
         record={editing?.kind === "machine" ? editing.record : null} tanks={tanks.data ?? []} dryers={dryers.data ?? []} />
       <WorkOrderDialog open={editing?.kind === "order"} onOpenChange={(o) => !o && setEditing(null)}
-        record={editing?.kind === "order" ? editing.record : null} machines={machines.data ?? []} users={users.data ?? []} admin={admin} />
+        record={editing?.kind === "order" ? editing.record : null} machines={machines.data ?? []} users={users.data ?? []} admin={manager} />
       <ScheduleDialog open={editing?.kind === "schedule"} onOpenChange={(o) => !o && setEditing(null)}
         record={editing?.kind === "schedule" ? editing.record : null} machines={machines.data ?? []} />
       <PartDialog open={editing?.kind === "part"} onOpenChange={(o) => !o && setEditing(null)}
         record={editing?.kind === "part" ? editing.record : null} />
       <CompleteDialog order={completing} onOpenChange={(o) => !o && setCompleting(null)} />
       <ReceiveDialog part={receiving} onOpenChange={(o) => !o && setReceiving(null)} />
-      <WorkOrderSheet order={viewing} onOpenChange={(o) => !o && setViewingId(null)} parts={parts.data ?? []} admin={admin}
-        canWork={!!viewing && (admin || viewing.assigned_to === null || viewing.assigned_to === myId)} />
+      <WorkOrderSheet order={viewing} onOpenChange={(o) => !o && setViewingId(null)} parts={parts.data ?? []} admin={manager}
+        canWork={!!viewing && (manager || viewing.assigned_to === null || viewing.assigned_to === myId)} />
 
       <ConfirmDialog
         open={!!cancelling}
