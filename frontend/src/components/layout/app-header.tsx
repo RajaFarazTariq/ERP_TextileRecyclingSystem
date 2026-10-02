@@ -30,6 +30,7 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { NAV, ROLE_LABELS } from "@/config/access"
 import { logout } from "@/features/auth/use-session"
+import { displayName } from "@/lib/format"
 import type { SessionUser } from "@/types/api"
 import { CommandMenu } from "./command-menu"
 import { Notifications } from "./notifications"
@@ -83,12 +84,12 @@ function UserMenu({ user }: { user: SessionUser }) {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="h-9 gap-2 rounded-full pr-2.5 pl-1" aria-label="Account menu">
           <InitialsAvatar name={user.username} />
-          <span className="hidden text-sm font-medium md:inline">{user.username}</span>
+          <span className="hidden text-sm font-medium md:inline">{displayName(user.username)}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="font-normal">
-          <p className="font-medium">{user.username}</p>
+          <p className="font-medium">{displayName(user.username)}</p>
           <p className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />

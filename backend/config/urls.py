@@ -15,6 +15,11 @@ api_patterns = [
     path('procurement/', include('apps.procurement.urls')),
     path('quality/', include('apps.quality.urls')),
     path('production/', include('apps.production.urls')),
+    path('finance/', include('apps.finance.urls')),
+    path('maintenance/', include('apps.maintenance.urls')),
+    path('sustainability/', include('apps.sustainability.urls')),
+    path('workforce/', include('apps.workforce.urls')),
+    path('documents/', include('apps.documents.urls')),
     path('reports/', include('apps.reports.urls')),
     path('', include('apps.audit.urls')),
 ]

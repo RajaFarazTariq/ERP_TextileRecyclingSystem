@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 
-import { Field, FormDialog } from "@/components/common/form-dialog"
+import { Field, FieldGroup, FormDialog } from "@/components/common/form-dialog"
 import { SelectField } from "@/components/common/select-field"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -12,10 +12,13 @@ import { ROLE_LABELS } from "@/config/access"
 import { useAction, useSave } from "@/lib/crud"
 import { kg } from "@/lib/format"
 import { applyServerErrors } from "@/lib/forms"
-import type { Chemical, ChemicalIssuance, DecolorizationSession, FabricOption, Tank, UserSummary } from "@/types/api"
+import type {
+  Chemical, ChemicalIssuance, DecolorizationSession, FabricOption, Recipe, SupplierOption, Tank, UserSummary,
+} from "@/types/api"
 import {
   type ChemicalForm,
   type CompleteForm,
+  HAZARD_CLASSES,
   type IssuanceForm,
   type SessionForm,
   TANK_STATUSES,
@@ -33,6 +36,12 @@ interface DialogProps<T> {
   onOpenChange: (open: boolean) => void
   record?: T | null
 }
+
+const orNull = (v: string) => (v ? v : null)
+
+/** Active suppliers, plus the one already on the record. */
+export const supplierOptions = (suppliers: SupplierOption[], current?: number | null) =>
+  suppliers.filter((s) => s.is_active || s.id === current).map((s) => ({ value: String(s.id), label: s.name }))
 
 const userOptions = (users: UserSummary[]) =>
   users.filter((u) => u.is_active).map((u) => ({ value: String(u.id), label: `${u.username} (${ROLE_LABELS[u.role]})` }))
@@ -110,11 +119,13 @@ function TankDialogBody({ open, onOpenChange, record, fabrics }: TankDialogProps
 
 // ─── Chemical ───────────────────────────────────────────────────────────────
 
-export function ChemicalDialog(props: DialogProps<Chemical>) {
+type ChemicalDialogProps = DialogProps<Chemical> & { suppliers: SupplierOption[] }
+
+export function ChemicalDialog(props: ChemicalDialogProps) {
   return props.open ? <ChemicalDialogBody key={props.record?.id ?? "new"} {...props} /> : null
 }
 
-function ChemicalDialogBody({ open, onOpenChange, record }: DialogProps<Chemical>) {
+function ChemicalDialogBody({ open, onOpenChange, record, suppliers }: ChemicalDialogProps) {
   const save = useSave<Chemical>("decolorization/chemicals", { noun: "Chemical" })
   const [formError, setFormError] = useState("")
   const form = useForm<ChemicalForm>({
@@ -125,6 +136,12 @@ function ChemicalDialogBody({ open, onOpenChange, record }: DialogProps<Chemical
       unit_of_measure: (UNITS_OF_MEASURE as readonly string[]).includes(record?.unit_of_measure ?? "")
         ? (record!.unit_of_measure as ChemicalForm["unit_of_measure"])
         : "Liters",
+      unit_cost: record && Number(record.unit_cost) ? record.unit_cost : "",
+      supplier: record?.supplier ? String(record.supplier) : "",
+      hazard_class: record?.hazard_class ?? "",
+      handling_notes: record?.handling_notes ?? "",
+      sds_reference: record?.sds_reference ?? "",
+      is_restricted: record?.is_restricted ? "yes" : "no",
     },
   })
   const { errors, isSubmitting } = form.formState
@@ -132,7 +149,15 @@ function ChemicalDialogBody({ open, onOpenChange, record }: DialogProps<Chemical
   const onSubmit = form.handleSubmit(async (values) => {
     setFormError("")
     try {
-      await save.mutateAsync({ id: record?.id, body: values })
+      await save.mutateAsync({
+        id: record?.id,
+        body: {
+          ...values,
+          unit_cost: values.unit_cost || "0",
+          supplier: values.supplier ? Number(values.supplier) : null,
+          is_restricted: values.is_restricted === "yes",
+        },
+      })
       onOpenChange(false)
     } catch (error) {
       setFormError(applyServerErrors(error, form.setError, Object.keys(values)))
@@ -159,6 +184,37 @@ function ChemicalDialogBody({ open, onOpenChange, record }: DialogProps<Chemical
           )} />
         </Field>
       </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field id="chemical-cost" label="Cost per unit (Rs.)" hint="Receiving a lot updates it" error={errors.unit_cost?.message}>
+          <Input id="chemical-cost" inputMode="decimal" aria-invalid={!!errors.unit_cost} {...form.register("unit_cost")} />
+        </Field>
+        <Field id="chemical-supplier" label="Usual supplier">
+          <Controller control={form.control} name="supplier" render={({ field }) => (
+            <SelectField id="chemical-supplier" value={field.value} onChange={field.onChange} placeholder="None" allowNone="None"
+              options={supplierOptions(suppliers, record?.supplier)} />
+          )} />
+        </Field>
+      </div>
+      <FieldGroup title="Safety">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field id="hazard_class" label="Hazard class" error={errors.hazard_class?.message}>
+            <Input id="hazard_class" list="hazard-classes" placeholder="e.g. Corrosive" {...form.register("hazard_class")} />
+            <datalist id="hazard-classes">{HAZARD_CLASSES.map((h) => <option key={h} value={h} />)}</datalist>
+          </Field>
+          <Field id="is_restricted" label="Who may issue it">
+            <Controller control={form.control} name="is_restricted" render={({ field }) => (
+              <SelectField id="is_restricted" value={field.value} onChange={field.onChange} placeholder="Select"
+                options={[{ value: "no", label: "Supervisors and admins" }, { value: "yes", label: "Admins only (restricted)" }]} />
+            )} />
+          </Field>
+        </div>
+        <Field id="sds_reference" label="Safety data sheet" hint="A link, or where the sheet is filed" error={errors.sds_reference?.message}>
+          <Input id="sds_reference" placeholder="e.g. https://… or Safety binder, shelf 2" {...form.register("sds_reference")} />
+        </Field>
+        <Field id="handling_notes" label="Handling notes">
+          <Textarea id="handling_notes" rows={2} placeholder="e.g. Gloves and goggles. Store away from heat." {...form.register("handling_notes")} />
+        </Field>
+      </FieldGroup>
     </FormDialog>
   )
 }
@@ -174,7 +230,7 @@ export function IssuanceDialog(props: IssuanceDialogProps) {
 function IssuanceDialogBody({ open, onOpenChange, record, chemicals, tanks, users }: IssuanceDialogProps) {
   const save = useSave<ChemicalIssuance>("decolorization/issuances", {
     noun: "Chemical issuance",
-    invalidate: [["decolorization/chemicals"]],
+    invalidate: [["decolorization/chemicals"], ["decolorization/sessions"], ["decolorization/usage"]],
   })
   const [formError, setFormError] = useState("")
   const form = useForm<IssuanceForm>({
@@ -210,7 +266,7 @@ function IssuanceDialogBody({ open, onOpenChange, record, chemicals, tanks, user
 
   return (
     <FormDialog open={open} onOpenChange={onOpenChange} title={record ? "Edit chemical issuance" : "Issue chemical"}
-      description="Taking chemical out of stock for a tank. Editing or deleting an issuance puts the stock back."
+      description="Taking chemical out of stock for a tank. It is added to the batch running in that tank. Editing or deleting an issuance puts the stock back."
       error={formError} submitting={isSubmitting} submitLabel={record ? "Update" : "Issue"} onSubmit={onSubmit}>
       <Field id="chemical" label="Chemical" error={errors.chemical?.message}>
         <Controller control={form.control} name="chemical" render={({ field }) => (
@@ -218,7 +274,7 @@ function IssuanceDialogBody({ open, onOpenChange, record, chemicals, tanks, user
             placeholder="Select chemical"
             options={chemicals.map((c) => ({
               value: String(c.id),
-              label: `${c.chemical_name} — ${Number(c.remaining_stock).toLocaleString()} ${c.unit_of_measure} left`,
+              label: `${c.chemical_name} — ${Number(c.remaining_stock).toLocaleString()} ${c.unit_of_measure} left${c.is_restricted ? " (restricted)" : ""}`,
             }))} />
         )} />
       </Field>
@@ -248,13 +304,15 @@ function IssuanceDialogBody({ open, onOpenChange, record, chemicals, tanks, user
 
 // ─── Decolorization session ─────────────────────────────────────────────────
 
-type SessionDialogProps = DialogProps<DecolorizationSession> & { tanks: Tank[]; fabrics: FabricOption[]; users: UserSummary[] }
+type SessionDialogProps = DialogProps<DecolorizationSession> & {
+  tanks: Tank[]; fabrics: FabricOption[]; users: UserSummary[]; recipes: Recipe[]
+}
 
 export function SessionDialog(props: SessionDialogProps) {
   return props.open ? <SessionDialogBody key={props.record?.id ?? "new"} {...props} /> : null
 }
 
-function SessionDialogBody({ open, onOpenChange, record, tanks, fabrics, users }: SessionDialogProps) {
+function SessionDialogBody({ open, onOpenChange, record, tanks, fabrics, users, recipes }: SessionDialogProps) {
   const save = useSave<DecolorizationSession>("decolorization/sessions", { noun: "Decolorization session" })
   const [formError, setFormError] = useState("")
   const form = useForm<SessionForm>({
@@ -265,16 +323,30 @@ function SessionDialogBody({ open, onOpenChange, record, tanks, fabrics, users }
       supervisor: record ? String(record.supervisor) : "",
       input_quantity: record?.input_quantity ?? "",
       notes: record?.notes ?? "",
+      recipe_version: record?.recipe_version ? String(record.recipe_version) : "",
+      temperature_c: record?.temperature_c ?? "",
+      duration_minutes: record?.duration_minutes != null ? String(record.duration_minutes) : "",
+      water_liters: record?.water_liters ?? "",
     },
   })
   const { errors, isSubmitting } = form.formState
+  // The current version of each recipe in use, plus the version already on this session
+  const recipeOptions = recipes.flatMap((r) => r.versions
+    .filter((v, i) => (i === 0 && r.is_active) || v.id === record?.recipe_version)
+    .map((v) => ({ value: String(v.id), label: `${r.name} v${v.version}${r.material_type ? ` — ${r.material_type}` : ""}` })))
 
   const onSubmit = form.handleSubmit(async (values) => {
     setFormError("")
     try {
       await save.mutateAsync({
         id: record?.id,
-        body: { ...values, tank: Number(values.tank), fabric: Number(values.fabric), supervisor: Number(values.supervisor) },
+        body: {
+          ...values, tank: Number(values.tank), fabric: Number(values.fabric), supervisor: Number(values.supervisor),
+          recipe_version: values.recipe_version ? Number(values.recipe_version) : null,
+          temperature_c: orNull(values.temperature_c),
+          duration_minutes: values.duration_minutes ? Number(values.duration_minutes) : null,
+          water_liters: orNull(values.water_liters),
+        },
       })
       onOpenChange(false)
     } catch (error) {
@@ -310,6 +382,25 @@ function SessionDialogBody({ open, onOpenChange, record, tanks, fabrics, users }
           <Input id="input_quantity" inputMode="decimal" aria-invalid={!!errors.input_quantity} {...form.register("input_quantity")} />
         </Field>
       </div>
+      <FieldGroup title="Process (optional)">
+        <Field id="session-recipe" label="Recipe" hint="Sets the planned chemicals for this batch">
+          <Controller control={form.control} name="recipe_version" render={({ field }) => (
+            <SelectField id="session-recipe" value={field.value} onChange={field.onChange} placeholder="None" allowNone="None"
+              options={recipeOptions} />
+          )} />
+        </Field>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field id="session-temperature" label="Temperature, °C" error={errors.temperature_c?.message}>
+            <Input id="session-temperature" inputMode="decimal" aria-invalid={!!errors.temperature_c} {...form.register("temperature_c")} />
+          </Field>
+          <Field id="session-duration" label="Duration, minutes" error={errors.duration_minutes?.message}>
+            <Input id="session-duration" inputMode="numeric" aria-invalid={!!errors.duration_minutes} {...form.register("duration_minutes")} />
+          </Field>
+          <Field id="session-water" label="Water, liters" error={errors.water_liters?.message}>
+            <Input id="session-water" inputMode="decimal" aria-invalid={!!errors.water_liters} {...form.register("water_liters")} />
+          </Field>
+        </div>
+      </FieldGroup>
       <Field id="session-notes" label="Notes" error={errors.notes?.message}>
         <Textarea id="session-notes" rows={2} {...form.register("notes")} />
       </Field>

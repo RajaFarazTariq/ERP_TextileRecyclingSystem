@@ -15,7 +15,7 @@ COPY . .
 # settings to load, so it gets a throwaway key and DB password here.
 RUN SECRET_KEY=build-only DB_PASSWORD=build-only python manage.py collectstatic --noinput
 
-RUN useradd --create-home appuser && chown -R appuser /app
+RUN useradd --create-home appuser && mkdir -p /app/media && chown -R appuser /app
 USER appuser
 
 EXPOSE 8000

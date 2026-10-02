@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { api } from "@/lib/api"
+import { displayName } from "@/lib/format"
 import type { AuditEntry, AuditSummary, Page } from "@/types/api"
 import { ExportButton, daysAgo, today } from "./report-sections"
 
@@ -124,7 +125,7 @@ export function AuditLog() {
                   {logs.data.results.length ? logs.data.results.map((e) => (
                     <TableRow key={e.id}>
                       <TableCell className="h-13 whitespace-nowrap text-muted-foreground">{e.timestamp_display}</TableCell>
-                      <TableCell><span className="flex items-center gap-2.5"><InitialsAvatar name={e.username || "system"} /><span><span className="block font-medium">{e.username || "system"}</span>{e.user_role && <span className="block text-xs text-muted-foreground">{e.user_role}</span>}</span></span></TableCell>
+                      <TableCell><span className="flex items-center gap-2.5"><InitialsAvatar name={e.username || "system"} /><span><span className="block font-medium">{displayName(e.username) || "System"}</span>{e.user_role && <span className="block text-xs text-muted-foreground">{e.user_role}</span>}</span></span></TableCell>
                       <TableCell><StatusBadge status={e.action.replace("_", " ")} tone={ACTION_TONES[e.action] ?? "neutral"} /></TableCell>
                       <TableCell className="max-w-56"><span className="block truncate" title={e.object_repr}>{e.model_name} {e.object_id && `#${e.object_id}`}</span><span className="block truncate text-xs text-muted-foreground">{e.object_repr}</span></TableCell>
                       <TableCell className="max-w-80"><span className="line-clamp-2 text-xs wrap-anywhere text-muted-foreground" title={describeChanges(e.changes)}>{describeChanges(e.changes)}</span></TableCell>

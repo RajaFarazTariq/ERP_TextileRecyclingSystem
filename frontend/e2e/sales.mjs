@@ -109,6 +109,81 @@ export async function salesScenario(browser) {
     const status = await settle(async () => (await api('sales/orders')).find((o) => o.id === order.id).status, 'Completed')
     r.check('delivery completes the order', status === 'Completed', status)
 
+    // Invoice the dispatched 20 kg: Rs. 2,000, of which Rs. 1,000 is already paid
+    await page.getByRole('tab', { name: 'Orders' }).click()
+    await page.getByPlaceholder('Search buyer, fabric, quality…').fill(BUYER)
+    await rowAction(page.locator('tbody tr', { hasText: 'Completed' }).first(), 'Raise invoice')
+    dialog = page.getByRole('dialog')
+    r.check('invoice offers the dispatched weight', (await dialog.getByLabel('Weight (kg)').inputValue()) === '20.00')
+    await dialog.getByRole('button', { name: 'Raise invoice' }).click()
+    await page.getByText('Invoice added.').waitFor()
+    const invoice = (await api(`sales/invoices?order=${order.id}`))[0]
+    r.check('invoice bills the dispatched goods and follows payments',
+      Number(invoice.total) === 2000 && invoice.status === 'Partial' && invoice.number.startsWith('INV-'), `${invoice.total} ${invoice.status}`)
+    await page.getByRole('tab', { name: 'Invoices' }).click()
+    r.check('invoice is listed', (await page.locator('tbody tr', { hasText: invoice.number }).count()) === 1)
+
+    // Return 5 kg back into stock: nothing moves until an admin approves it
+    await page.getByRole('tab', { name: 'Orders' }).click()
+    await rowAction(page.locator('tbody tr', { hasText: 'Completed' }).first(), 'Record return')
+    dialog = page.getByRole('dialog')
+    await dialog.getByLabel('Weight (kg)').fill('5')
+    await choose(dialog, 'What happens to the goods', 'Back into sellable stock')
+    await dialog.getByLabel('Reason').fill('E2E: bales arrived damp')
+    await dialog.getByRole('button', { name: 'Save' }).click()
+    await page.getByText('Return added.').waitFor()
+    r.check('a requested return leaves stock alone', (await stockOf(order.fabric)).onHand === start.onHand - 20)
+    await page.getByRole('tab', { name: 'Returns' }).click()
+    await page.getByPlaceholder('Search number, customer, reason…').fill(BUYER)
+    await rowAction(page.locator('tbody tr').first(), 'Approve')
+    await page.getByText('Return approved; the customer is credited.').waitFor()
+    const afterReturn = await settle(async () => (await stockOf(order.fabric)).onHand, start.onHand - 15)
+    r.check('an approved return goes back into stock', afterReturn === start.onHand - 15, `${start.onHand} → ${afterReturn}`)
+    const credited = (await api('sales/orders')).find((o) => o.id === order.id).credited
+    r.check('the customer is credited for the returned weight', Number(credited) === 500, credited)
+
+    // Quotation → accepted → order
+    await page.getByRole('tab', { name: 'Quotations' }).click()
+    await page.getByRole('button', { name: 'New quotation' }).click()
+    dialog = page.getByRole('dialog')
+    await choose(dialog, 'Customer', new RegExp(BUYER))
+    await dialog.getByLabel('Quality').fill('Grade A')
+    await dialog.getByLabel('Weight (kg)').fill('10')
+    await dialog.getByLabel('Price per kg (Rs.)').fill('100')
+    await dialog.getByLabel('Discount, %').fill('10')
+    r.check('quotation form shows the discounted total', (await dialog.innerText()).includes('Rs. 900'))
+    await dialog.getByRole('button', { name: 'Save' }).click()
+    await page.getByText('Quotation added.').waitFor()
+    await page.getByPlaceholder('Search number, customer, item…').fill(BUYER)
+    await rowAction(page.locator('tbody tr').first(), 'Customer accepted')
+    await page.getByText('Quotation accepted.').waitFor()
+    await rowAction(page.locator('tbody tr').first(), 'Make order')
+    dialog = page.getByRole('dialog')
+    await choose(dialog, 'Fabric lot', new RegExp(order.fabric_material))
+    await dialog.getByRole('button', { name: 'Create order' }).click()
+    await page.getByText('Order created as a Draft.').waitFor()
+    const quotation = (await api('sales/quotations')).find((q) => q.customer_name === BUYER)
+    const fromQuote = (await api('sales/orders')).find((o) => o.id === quotation.order)
+    r.check('an accepted quotation becomes a Draft order with its terms',
+      quotation.status === 'Converted' && fromQuote.status === 'Draft' && Number(fromQuote.total_price) === 900, `${quotation.status} ${fromQuote?.total_price}`)
+    await page.screenshot({ path: `${SHOTS}/sales-4-quotations.png` })
+
+    // Statement and performance
+    await page.getByRole('tab', { name: 'Customers' }).click()
+    await page.getByPlaceholder('Search customers…').fill(BUYER)
+    await rowAction(page.locator('tbody tr').first(), 'Statement')
+    dialog = page.getByRole('dialog')
+    await dialog.getByText('Balance owed').waitFor()
+    // 5,000 billed - 1,000 paid - 500 credit
+    r.check('statement shows what the customer owes', (await dialog.innerText()).includes('Rs. 3,500'))
+    await page.screenshot({ path: `${SHOTS}/sales-5-statement.png` })
+    await page.keyboard.press('Escape')
+    await dialog.waitFor({ state: 'detached' })
+    await page.getByRole('tab', { name: 'Performance' }).click()
+    await page.getByText('Quotations won').waitFor()
+    r.check('performance report shows sales by customer', (await page.getByText('By customer').count()) === 1)
+    await page.screenshot({ path: `${SHOTS}/sales-6-performance.png` })
+
     // Customers: add one and merge it into the order's customer
     await page.getByRole('tab', { name: 'Customers' }).click()
     await page.getByRole('button', { name: 'Add customer' }).click()

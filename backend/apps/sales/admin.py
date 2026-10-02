@@ -1,5 +1,7 @@
 from django.contrib import admin
-from .models import SalesOrder, DispatchTracking, Payment
+from .models import DispatchTracking, Payment, Product, SalesInvoice, SalesOrder, SalesQuotation, SalesReturn
+
+admin.site.register([Product, SalesQuotation, SalesInvoice, SalesReturn])
 
 
 @admin.register(SalesOrder)

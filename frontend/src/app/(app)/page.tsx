@@ -5,6 +5,7 @@ import Link from "next/link"
 import { NavIcon } from "@/components/layout/nav-icon"
 import { ROLE_LABELS, type NavIcon as NavIconName, navFor } from "@/config/access"
 import { NAV_TONES } from "@/config/nav-tones"
+import { displayName } from "@/lib/format"
 import { COOKIE, parseUserCookie } from "@/lib/server/session"
 import { TONE } from "@/lib/tones"
 import { cn } from "@/lib/utils"
@@ -18,7 +19,12 @@ const DESCRIPTIONS: Record<NavIconName, string> = {
   procurement: "Purchase requests, orders, supplier invoices and payments.",
   quality: "Inspections, quarantine, corrective actions and standards.",
   production: "Production orders, schedule, material needs and costs.",
-  sales: "Orders, dispatches, payments and customers.",
+  sales: "Quotations, orders, dispatches, invoices, payments and customers.",
+  finance: "Accounts, journal, expenses, balances and financial reports.",
+  maintenance: "Machines, maintenance schedules, work orders and downtime.",
+  sustainability: "Waste, recovery rates, water, energy and chemical use.",
+  workforce: "Employees, departments, shifts, attendance and leave.",
+  documents: "Certificates, data sheets and other files, with versions and expiry dates.",
   reports: "Production, sales and waste reports, and the audit log.",
   users: "Accounts, roles and access.",
 }
@@ -40,7 +46,7 @@ export default async function HomePage() {
         <div aria-hidden className="absolute -bottom-28 left-1/3 size-64 rounded-full bg-brand-2/10 blur-3xl" />
         <p className="relative text-xs font-semibold tracking-widest text-brand-text uppercase">{ROLE_LABELS[user.role]}</p>
         <h1 className="relative mt-2 font-heading text-3xl font-bold tracking-tight">
-          {greeting(hour)}, {user.username}
+          {greeting(hour)}, {displayName(user.username)}
         </h1>
         <p className="relative mt-1.5 max-w-xl text-muted-foreground">
           Pick up where the line left off. Press <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-xs">Ctrl K</kbd> to jump anywhere.

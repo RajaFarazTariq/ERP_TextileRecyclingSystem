@@ -34,6 +34,12 @@ const STATUS_TONES: Record<string, StatusTone> = {
   Paid: "success",
   Loading: "warning",
   Delivered: "success",
+  Sent: "info",
+  Accepted: "success",
+  Converted: "success",
+  Unpaid: "warning",
+  Overdue: "danger",
+  Requested: "warning",
   // production
   Released: "info",
   Skipped: "neutral",

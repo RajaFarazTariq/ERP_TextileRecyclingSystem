@@ -8,6 +8,10 @@ from .views import (
     ChemicalIssuanceViewSet,
     DecolorizationSessionViewSet,
     fabric_stock_for_decolor,
+    ChemicalLotViewSet,
+    RecipeViewSet,
+    ChemicalUsageView,
+    suppliers_for_decolor,
 )
 
 router = DefaultRouter()
@@ -15,6 +19,8 @@ router.register(r'chemicals',  ChemicalStockViewSet)
 router.register(r'tanks',      TankViewSet)
 router.register(r'issuances',  ChemicalIssuanceViewSet)
 router.register(r'sessions',   DecolorizationSessionViewSet)
+router.register(r'lots',       ChemicalLotViewSet)
+router.register(r'recipes',    RecipeViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -22,4 +28,6 @@ urlpatterns = [
     # Fabric stock dropdown — uses decolorization permission so
     # decolor_user doesn't need sorting module access
     path('fabric-stock/', fabric_stock_for_decolor, name='decolor-fabric-stock'),
+    path('suppliers/', suppliers_for_decolor, name='decolor-suppliers'),
+    path('usage/', ChemicalUsageView.as_view(), name='decolor-chemical-usage'),
 ]

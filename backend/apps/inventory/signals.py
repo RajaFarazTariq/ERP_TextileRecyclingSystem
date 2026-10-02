@@ -35,3 +35,15 @@ def order_saved(sender, instance, created, **kwargs):
     if not created:
         for dispatch in instance.dispatches.all():
             services.sync_dispatch(dispatch)
+        for sales_return in instance.returns.all():
+            services.sync_sales_return(sales_return)
+
+
+@receiver(post_save, sender='sales.SalesReturn')
+def sales_return_saved(sender, instance, **kwargs):
+    services.sync_sales_return(instance)
+
+
+@receiver(post_delete, sender='sales.SalesReturn')
+def sales_return_deleted(sender, instance, **kwargs):
+    services.sync_sales_return(instance, deleted=True)

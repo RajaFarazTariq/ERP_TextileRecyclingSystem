@@ -1,5 +1,7 @@
 from django.contrib import admin
-from .models import ChemicalStock, Tank, ChemicalIssuance, DecolorizationSession
+from .models import (
+    ChemicalIssuance, ChemicalLot, ChemicalStock, DecolorizationSession, Recipe, RecipeLine, RecipeVersion, Tank,
+)
 
 
 @admin.register(ChemicalStock)
@@ -36,3 +38,26 @@ class DecolorizationSessionAdmin(admin.ModelAdmin):
         'input_quantity', 'status', 'start_date'
     ]
     list_filter = ['status']
+
+
+@admin.register(ChemicalLot)
+class ChemicalLotAdmin(admin.ModelAdmin):
+    list_display = ['chemical', 'lot_number', 'quantity', 'unit_cost', 'received_on', 'expiry_date']
+    search_fields = ['lot_number', 'chemical__chemical_name']
+
+
+class RecipeLineInline(admin.TabularInline):
+    model = RecipeLine
+    extra = 0
+
+
+@admin.register(Recipe)
+class RecipeAdmin(admin.ModelAdmin):
+    list_display = ['name', 'material_type', 'is_active']
+    search_fields = ['name']
+
+
+@admin.register(RecipeVersion)
+class RecipeVersionAdmin(admin.ModelAdmin):
+    list_display = ['recipe', 'version', 'temperature_c', 'duration_minutes', 'created_by', 'created_at']
+    inlines = [RecipeLineInline]

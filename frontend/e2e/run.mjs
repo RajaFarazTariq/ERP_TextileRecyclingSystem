@@ -11,6 +11,11 @@ import { chromium } from 'playwright'
 
 import { decolorizationScenario } from './decolorization.mjs'
 import { dryingScenario } from './drying.mjs'
+import { documentsScenario } from './documents.mjs'
+import { financeScenario } from './finance.mjs'
+import { maintenanceScenario } from './maintenance.mjs'
+import { sustainabilityScenario } from './sustainability.mjs'
+import { workforceScenario } from './workforce.mjs'
 import { procurementScenario } from './procurement.mjs'
 import { productionScenario } from './production.mjs'
 import { qualityScenario } from './quality.mjs'
@@ -31,6 +36,11 @@ const scenarios = {
   procurement: procurementScenario,
   quality: qualityScenario,
   production: productionScenario,
+  finance: financeScenario,
+  maintenance: maintenanceScenario,
+  workforce: workforceScenario,
+  sustainability: sustainabilityScenario,
+  documents: documentsScenario,
 }
 const wanted = process.argv.slice(2).filter((a) => a in scenarios)
 

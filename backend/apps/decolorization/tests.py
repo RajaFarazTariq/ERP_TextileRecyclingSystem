@@ -156,3 +156,169 @@ class ChemicalCorrectionTests(TestCase):
         self.assertEqual(self.client.post(url, {'output_quantity': '-1'}, format='json').status_code, 400)
         session.refresh_from_db()
         self.assertEqual(session.status, 'In Progress')
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 5: lots, recipes, cost, consumption and usage
+# ─────────────────────────────────────────────────────────────────────────────
+class ChemicalExtrasTests(TestCase):
+    def setUp(self):
+        self.user = make_user('decolorization_supervisor')
+        self.client = client_for(self.user)
+        self.admin = client_for(make_user('admin'))
+        self.chemical = make_chemical(total='1000', unit_cost=Decimal('10'))
+        self.tank = make_tank()
+
+    def stock(self, chemical=None):
+        c = chemical or self.chemical
+        c.refresh_from_db()
+        return c.total_stock, c.remaining_stock
+
+    def receive(self, qty='200', number='L-1', **extra):
+        return self.client.post('/api/decolorization/lots/', {
+            'chemical': self.chemical.id, 'lot_number': number, 'received_on': '2026-10-01',
+            'quantity': qty, 'unit_cost': '12.50', **extra,
+        }, format='json')
+
+    def recipe(self, **extra):
+        return self.client.post('/api/decolorization/recipes/', {
+            'name': 'Cotton bleach', 'temperature_c': '80', 'duration_minutes': 90,
+            'lines': [{'chemical': self.chemical.id, 'quantity_per_100kg': '5'}], **extra,
+        }, format='json')
+
+    def test_receiving_a_lot_adds_stock_and_sets_the_cost(self):
+        res = self.receive()
+        self.assertEqual(res.status_code, 201, res.data)
+        self.assertEqual(res.data['received_by'], self.user.id)
+        self.assertEqual(self.stock(), (Decimal('1200'), Decimal('1200')))
+        self.assertEqual(self.chemical.unit_cost, Decimal('12.50'))
+        # the same lot number can't be entered twice for one chemical
+        self.assertEqual(self.receive().status_code, 400)
+
+    def test_lot_quantity_is_fixed_and_delete_takes_stock_back(self):
+        lot = self.receive().data['id']
+        url = f'/api/decolorization/lots/{lot}/'
+        self.assertEqual(self.client.patch(url, {'quantity': '500'}, format='json').status_code, 400)
+        self.assertEqual(self.client.patch(url, {'notes': 'drum 4'}, format='json').status_code, 200)
+        self.assertEqual(self.client.delete(url).status_code, 204)
+        self.assertEqual(self.stock(), (Decimal('1000'), Decimal('1000')))
+
+    def test_lot_cannot_be_deleted_once_its_stock_is_used(self):
+        lot = self.receive().data['id']
+        self.client.post('/api/decolorization/issuances/', {
+            'chemical': self.chemical.id, 'tank': self.tank.id, 'quantity': '1100'}, format='json')
+        self.assertEqual(self.client.delete(f'/api/decolorization/lots/{lot}/').status_code, 400)
+        self.assertEqual(self.stock(), (Decimal('1200'), Decimal('100')))
+
+    def test_lot_dates_and_quantity_are_checked(self):
+        self.assertEqual(self.receive(qty='0').status_code, 400)
+        self.assertEqual(self.receive(expiry_date='2026-09-01').status_code, 400)
+
+    def test_restricted_chemical_is_issued_by_admin_only(self):
+        self.chemical.is_restricted = True
+        self.chemical.save()
+        body = {'chemical': self.chemical.id, 'tank': self.tank.id, 'quantity': '10'}
+        self.assertEqual(self.client.post('/api/decolorization/issuances/', body, format='json').status_code, 403)
+        self.assertEqual(self.admin.post('/api/decolorization/issuances/', body, format='json').status_code, 201)
+
+    def test_issuance_links_to_the_running_session_and_keeps_the_cost(self):
+        session = make_decolor_session(tank=self.tank, supervisor=self.user)
+        res = self.client.post('/api/decolorization/issuances/', {
+            'chemical': self.chemical.id, 'tank': self.tank.id, 'quantity': '4'}, format='json')
+        self.assertEqual(res.data['session'], session.id)
+        self.assertEqual(res.data['cost'], '40.00')
+        # a later price change doesn't rewrite the batch
+        self.chemical.unit_cost = Decimal('99')
+        self.chemical.save()
+        issuance = self.client.get(f"/api/decolorization/issuances/{res.data['id']}/").data
+        self.assertEqual(issuance['cost'], '40.00')
+        sessions = self.client.get(f'/api/decolorization/sessions/{session.id}/').data
+        self.assertEqual(sessions['chemical_cost'], '40.00')
+
+    def test_issuance_without_a_running_session_stays_unlinked(self):
+        res = self.client.post('/api/decolorization/issuances/', {
+            'chemical': self.chemical.id, 'tank': self.tank.id, 'quantity': '4'}, format='json')
+        self.assertEqual(res.status_code, 201)
+        self.assertIsNone(res.data['session'])
+        other = make_decolor_session(supervisor=self.user)
+        bad = self.client.post('/api/decolorization/issuances/', {
+            'chemical': self.chemical.id, 'tank': self.tank.id, 'quantity': '4', 'session': other.id}, format='json')
+        self.assertEqual(bad.status_code, 400)
+
+    def test_recipe_changes_make_a_new_version(self):
+        res = self.recipe()
+        self.assertEqual(res.status_code, 201, res.data)
+        url = f"/api/decolorization/recipes/{res.data['id']}/"
+        self.assertEqual([v['version'] for v in res.data['versions']], [1])
+        # renaming alone keeps the version
+        same = self.client.patch(url, {'name': 'Cotton bleach A'}, format='json')
+        self.assertEqual(len(same.data['versions']), 1)
+        # the same process sent again keeps the version too
+        same = self.client.patch(url, {'lines': [{'chemical': self.chemical.id, 'quantity_per_100kg': '5.00'}]}, format='json')
+        self.assertEqual(len(same.data['versions']), 1)
+        changed = self.client.patch(url, {
+            'lines': [{'chemical': self.chemical.id, 'quantity_per_100kg': '6'}], 'change_note': 'Stronger'}, format='json')
+        self.assertEqual([v['version'] for v in changed.data['versions']], [2, 1])
+        self.assertEqual(changed.data['versions'][0]['notes'], 'Stronger')
+        self.assertEqual(changed.data['versions'][0]['temperature_c'], '80.0')
+        self.assertEqual(changed.data['versions'][1]['lines'][0]['quantity_per_100kg'], '5.00')
+        hotter = self.client.patch(url, {'temperature_c': '85'}, format='json')
+        self.assertEqual(hotter.data['versions'][0]['version'], 3)
+        self.assertEqual(hotter.data['versions'][0]['lines'][0]['quantity_per_100kg'], '6.00')
+
+    def test_recipe_needs_chemicals_listed_once(self):
+        self.assertEqual(self.recipe(lines=[]).status_code, 400)
+        line = {'chemical': self.chemical.id, 'quantity_per_100kg': '5'}
+        self.assertEqual(self.recipe(lines=[line, line]).status_code, 400)
+
+    def test_consumption_compares_plan_and_actual(self):
+        version = self.recipe(water_liters_per_100kg='300').data['versions'][0]['id']
+        extra = make_chemical(total='100', unit_cost=Decimal('2'))
+        res = self.client.post('/api/decolorization/sessions/', {
+            'tank': self.tank.id, 'fabric': make_fabric().id, 'supervisor': self.user.id,
+            'input_quantity': '200', 'recipe_version': version, 'temperature_c': '82',
+        }, format='json')
+        self.assertEqual(res.status_code, 201, res.data)
+        self.assertEqual(res.data['recipe_name'], 'Cotton bleach v1')
+        for chemical, qty in ((self.chemical, '12'), (extra, '3')):
+            self.client.post('/api/decolorization/issuances/', {
+                'chemical': chemical.id, 'tank': self.tank.id, 'quantity': qty}, format='json')
+        data = self.client.get(f"/api/decolorization/sessions/{res.data['id']}/consumption/").data
+        lines = {line['chemical']: line for line in data['lines']}
+        self.assertEqual((lines[self.chemical.id]['planned'], lines[self.chemical.id]['actual'],
+                          lines[self.chemical.id]['variance']), ('10.00', '12.00', '2.00'))
+        self.assertEqual((lines[extra.id]['planned'], lines[extra.id]['actual']), ('0.00', '3.00'))
+        self.assertEqual((data['planned_cost'], data['actual_cost'], data['cost_per_kg']), ('100.00', '126.00', '0.63'))
+        self.assertEqual(data['process']['planned_water_liters'], '600.00')
+
+    def test_only_admin_approves_a_batch(self):
+        session = make_decolor_session(supervisor=self.user)
+        url = f'/api/decolorization/sessions/{session.id}/approve/'
+        self.assertEqual(self.client.post(url).status_code, 403)
+        res = self.admin.post(url)
+        self.assertEqual(res.status_code, 200)
+        self.assertIsNotNone(res.data['approved_at'])
+        self.assertEqual(self.admin.post(url).status_code, 400)
+        # the approval can't be typed in
+        other = make_decolor_session(supervisor=self.user)
+        self.client.patch(f'/api/decolorization/sessions/{other.id}/', {'approved_by': self.user.id}, format='json')
+        other.refresh_from_db()
+        self.assertIsNone(other.approved_by)
+
+    def test_usage_report_totals_by_chemical(self):
+        make_decolor_session(tank=self.tank, supervisor=self.user, input_quantity=Decimal('250'))
+        for qty in ('10', '5'):
+            self.client.post('/api/decolorization/issuances/', {
+                'chemical': self.chemical.id, 'tank': self.tank.id, 'quantity': qty}, format='json')
+        data = self.client.get('/api/decolorization/usage/').data
+        self.assertEqual(data['total_cost'], '150.00')
+        self.assertEqual((data['issuances'], data['batches'], data['treated_kg']), (2, 1, '250.00'))
+        self.assertEqual((data['batch_cost'], data['cost_per_kg']), ('150.00', '0.60'))
+        # an issuance to a tank with no running batch adds to the total, not to the cost per kg
+        self.client.post('/api/decolorization/issuances/', {
+            'chemical': self.chemical.id, 'tank': make_tank().id, 'quantity': '1'}, format='json')
+        data = self.client.get('/api/decolorization/usage/').data
+        self.assertEqual((data['total_cost'], data['batch_cost'], data['cost_per_kg']), ('160.00', '150.00', '0.60'))
+        self.assertEqual(data['chemicals'][0]['quantity'], '16.00')
+        empty = self.client.get('/api/decolorization/usage/?start=2030-01-01').data
+        self.assertEqual(empty['chemicals'], [])

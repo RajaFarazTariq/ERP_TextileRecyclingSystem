@@ -40,6 +40,8 @@ services:
       CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost:8080}
       NUM_PROXIES: '1'   # nginx or the Next.js app sits in front
       INTERNAL_HOSTS: backend   # the Next.js app calls http://backend:8000
+    volumes:
+      - media:/app/media   # uploaded documents survive restarts
     depends_on:
       db:
         condition: service_healthy
@@ -70,3 +72,4 @@ services:
 
 volumes:
   pgdata:
+  media:

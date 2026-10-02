@@ -25,8 +25,12 @@ import calendar
 from apps.users.models import CustomUser
 from apps.warehouse.models import Vendor, FactoryUnit, Stock
 from apps.sorting.models import FabricStock, SortingSession
-from apps.decolorization.models import ChemicalStock, Tank, ChemicalIssuance, DecolorizationSession
-from apps.sales.models import SalesOrder, DispatchTracking, Payment
+from apps.decolorization.models import (
+    ChemicalIssuance, ChemicalLot, ChemicalStock, DecolorizationSession, Recipe, RecipeLine, RecipeVersion, Tank,
+)
+from apps.sales.models import (
+    Customer, DispatchTracking, Payment, Product, ProductPrice, SalesInvoice, SalesOrder, SalesQuotation, SalesReturn,
+)
 from apps.drying.models import DryingSession
 from apps.inventory.models import StockMovement
 from apps.sales.models import Customer
@@ -127,19 +131,27 @@ class Command(SeedCommand):
             QualityStandard.objects.all().delete()
             ProductionOrder.objects.all().delete()
             BillOfMaterials.objects.all().delete()
+            from .seed_module_data import wipe_module_data
+            wipe_module_data()
             SupplierPayment.objects.all().delete()
             SupplierInvoice.objects.all().delete()
             SupplierQuotation.objects.all().delete()
             PurchaseReturn.objects.all().delete()
             Payment.objects.all().delete()
             DispatchTracking.objects.all().delete()
+            SalesReturn.objects.all().delete()
+            SalesInvoice.objects.all().delete()
+            SalesQuotation.objects.all().delete()
             SalesOrder.objects.all().delete()
+            Product.objects.all().delete()
             Customer.objects.all().delete()
             DryingSession.objects.all().delete()
             StockMovement.objects.all().delete()   # demo reset only: the ledger is otherwise append-only
             DecolorizationSession.objects.all().delete()
             ChemicalIssuance.objects.all().delete()
             Tank.objects.all().delete()
+            Recipe.objects.all().delete()
+            ChemicalLot.objects.all().delete()
             ChemicalStock.objects.all().delete()
             SortingSession.objects.all().delete()
             FabricStock.objects.all().delete()
@@ -628,6 +640,8 @@ class Command(SeedCommand):
         self.add_demo_opening_stock(admin)
         self.add_demo_quality(admin)
         self.add_demo_production(admin)
+        self.add_demo_chemicals(admin)
+        self.add_demo_sales_extras(admin)
 
         # ══════════════════════════════════════════════════════════════════════
         # SUMMARY
@@ -761,6 +775,148 @@ class Command(SeedCommand):
         self.stdout.write(f'  ✓ {QualityStandard.objects.count()} quality standards')
         self.stdout.write(f'  ✓ {Inspection.objects.count()} inspections '
                           f'({Inspection.objects.filter(result="Fail", released_at__isnull=True).count()} in quarantine)')
+
+    # ── Sales: price list, quotations, invoices and returns ──────────────────
+
+    def add_demo_sales_extras(self, admin):
+        """Customer profiles, a price list, quotations at each stage, invoices for dispatched orders and returns."""
+        from apps.sales import services as sales
+        self.stdout.write('\nAdding the price list, quotations, invoices and returns...')
+        today = timezone.localdate()
+        categories = ('Wholesaler', 'Manufacturer', 'Exporter', 'Retailer')
+        customers = list(Customer.objects.order_by('id'))
+        balances = sales.customer_balances()
+        for i, customer in enumerate(customers):
+            customer.category = categories[i % len(categories)]
+            customer.payment_terms_days = (15, 30, 45)[i % 3]
+            # Every fourth customer has a limit below what they owe, to show the warning
+            owed = balances[customer.pk]['balance'] if customer.pk in balances else d(0)
+            customer.credit_limit = (owed * d('0.8')).quantize(d('1')) if i % 4 == 0 and owed > 0 else d(0)
+            customer.save()
+
+        products = []
+        for name, material, grade, price, special in (
+            ('White recycled fibre A', 'Cotton', 'Grade A', 185, {'Wholesaler': 175, 'Exporter': 195}),
+            ('White recycled fibre B', 'Cotton', 'Grade B', 150, {'Wholesaler': 142}),
+            ('Polyester staple', 'Polyester', 'Grade A', 210, {'Manufacturer': 200}),
+            ('Mixed fibre fill', 'Mixed', 'Grade C', 95, {}),
+        ):
+            product = Product.objects.create(name=name, material_type=material, grade=grade, price_per_kg=d(price),
+                                             specification='Baled, moisture below 8%')
+            for category, value in special.items():
+                ProductPrice.objects.create(product=product, customer_category=category, price_per_kg=d(value))
+            products.append(product)
+
+        lots = list(FabricStock.objects.order_by('id')[:6])
+        states = ('Draft', 'Sent', 'Sent', 'Accepted', 'Rejected', 'Converted')
+        for i, (customer, state) in enumerate(zip(customers, states)):
+            product = products[i % len(products)]
+            quotation = SalesQuotation.objects.create(
+                customer=customer, product=product, fabric=lots[i % len(lots)], fabric_quality=product.grade,
+                weight=d(800 + 250 * i), price_per_kg=product.price_per_kg, discount_pct=d(5 if i % 2 else 0),
+                valid_until=today + timedelta(days=14 - 9 * (i % 3)), created_by=admin,
+            )
+            if state in ('Sent', 'Accepted', 'Converted'):
+                sales.send_quotation(quotation)
+            if state in ('Accepted', 'Converted'):
+                sales.accept_quotation(quotation)
+            if state == 'Rejected':
+                sales.reject_quotation(quotation, 'Went with a cheaper supplier')
+            if state == 'Converted':
+                sales.convert_quotation(quotation, admin)
+
+        # Invoice what has been dispatched on the latest orders; date the older ones so some are overdue
+        invoiced = 0
+        for i, order in enumerate(SalesOrder.objects.filter(dispatches__isnull=False).distinct().order_by('-created_at')[:25]):
+            try:
+                sales.create_invoice(order, admin, invoice_date=today - timedelta(days=4 + 6 * i))
+                invoiced += 1
+            except Exception:      # nothing left to invoice on this order
+                continue
+
+        returned = 0
+        for i, order in enumerate(SalesOrder.objects.filter(status='Completed').order_by('-created_at')[:3]):
+            shipped = sum((x.dispatched_weight for x in order.dispatches.all()), d(0))
+            if shipped <= 0:
+                continue
+            sales_return = SalesReturn.objects.create(
+                order=order, return_date=today - timedelta(days=2 + i), weight=(shipped * d('0.05')).quantize(d('0.01')),
+                reason=('Bales arrived damp', 'Colour not as agreed', 'Contaminated with plastic')[i],
+                restock=i == 0, created_by=admin,
+            )
+            if i < 2:              # the last one is left waiting for approval
+                sales.approve_return(sales_return, admin)
+            returned += 1
+        self.stdout.write(f'  ✓ {len(products)} products, {SalesQuotation.objects.count()} quotations, '
+                          f'{invoiced} invoices, {returned} returns')
+
+    # ── Chemicals: cost, safety, lots and recipes ────────────────────────────
+
+    def add_demo_chemicals(self, admin):
+        """Costs and safety data on the chemicals, received lots, two recipes, and batches that used them."""
+        self.stdout.write('\nAdding chemical costs, lots and recipes...')
+        today = timezone.localdate()
+        supplier = Vendor.objects.order_by('id').first()
+        safety = {   # name: (Rs. per unit, hazard class, handling, restricted)
+            'Hydrogen Peroxide': (95, 'Oxidizer', 'Gloves and goggles. Keep cool and away from anything that burns.', False),
+            'Sodium Hypochlorite': (70, 'Corrosive', 'Never mix with acids: it releases chlorine gas.', False),
+            'Caustic Soda': (140, 'Corrosive', 'Face shield and apron. Add to water slowly, never the reverse.', True),
+            'Acetic Acid': (120, 'Flammable', 'Use with the extraction fan on.', False),
+        }
+        chemicals = list(ChemicalStock.objects.order_by('id'))
+        for i, chemical in enumerate(chemicals):
+            cost, hazard, handling, restricted = safety.get(chemical.chemical_name, (60 + 15 * i, '', '', False))
+            chemical.unit_cost = d(cost)
+            chemical.hazard_class = hazard
+            chemical.handling_notes = handling
+            chemical.is_restricted = restricted
+            chemical.sds_reference = 'Safety binder, store room' if hazard else ''
+            chemical.supplier = supplier
+            chemical.save()
+            # Earlier deliveries; the stock figures above already include them
+            for n, (days_ago, share) in enumerate(((75, 0.6), (20, 0.4)), start=1):
+                ChemicalLot.objects.create(
+                    chemical=chemical, lot_number=f'{chemical.chemical_name[:3].upper()}-{2600 + i * 10 + n}',
+                    supplier=supplier, received_on=today - timedelta(days=days_ago),
+                    quantity=(chemical.total_stock * d(share)).quantize(d('0.01')), unit_cost=d(cost),
+                    expiry_date=today + timedelta(days=300 - days_ago * 4), received_by=admin,
+                )
+
+        # Issuances made before costs were tracked get the current cost
+        for issuance in ChemicalIssuance.objects.select_related('chemical'):
+            ChemicalIssuance.objects.filter(pk=issuance.pk).update(unit_cost=issuance.chemical.unit_cost)
+
+        def recipe(name, material, versions):
+            r = Recipe.objects.create(name=name, material_type=material)
+            last = None
+            for number, (temp, minutes, water, note, lines) in enumerate(versions, start=1):
+                last = RecipeVersion.objects.create(recipe=r, version=number, temperature_c=d(temp), duration_minutes=minutes,
+                                                    water_liters_per_100kg=d(water), notes=note, created_by=admin)
+                for chemical, qty in lines:
+                    RecipeLine.objects.create(version=last, chemical=chemical, quantity_per_100kg=d(qty))
+            return last
+
+        a, b, c = chemicals[:3]
+        bleach = recipe('Cotton bleach', 'Cotton', [
+            (85, 100, 320, '', [(a, 4), (b, 2.5)]),
+            (80, 90, 300, 'Less peroxide and a cooler bath after the trial batches', [(a, 3.5), (b, 2.5), (c, 1)]),
+        ])
+        recipe('Polyester strip', 'Polyester', [(95, 120, 280, '', [(b, 3), (c, 1.5)])])
+
+        # Recent batches ran the bleach recipe; the finished ones are signed off
+        sessions = list(DecolorizationSession.objects.order_by('-start_date')[:8])
+        for session in sessions:
+            session.recipe_version = bleach
+            session.temperature_c = d(80 + session.pk % 5)
+            session.duration_minutes = 85 + session.pk % 4 * 5
+            session.water_liters = (session.input_quantity * d(3)).quantize(d('0.01'))
+            if session.status == 'Completed':
+                session.approved_by, session.approved_at = admin, session.end_date or timezone.now()
+            session.save()
+            # Tie this tank's unlinked issuances to the batch, so it has a cost
+            ids = list(ChemicalIssuance.objects.filter(tank=session.tank, session__isnull=True).values_list('pk', flat=True)[:3])
+            ChemicalIssuance.objects.filter(pk__in=ids).update(session=session)
+        self.stdout.write(f'  ✓ {ChemicalLot.objects.count()} lots, {Recipe.objects.count()} recipes')
 
     # ── Production ───────────────────────────────────────────────────────────
 

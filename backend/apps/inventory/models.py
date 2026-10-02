@@ -14,10 +14,12 @@ class StockMovement(models.Model):
     DRYING_OUTPUT = 'DRYING_OUTPUT'
     DISPATCH      = 'DISPATCH'
     ADJUSTMENT    = 'ADJUSTMENT'
+    SALES_RETURN  = 'SALES_RETURN'
     TYPE_CHOICES = [
         (DRYING_OUTPUT, 'Drying output'),
         (DISPATCH,      'Dispatch'),
         (ADJUSTMENT,    'Adjustment'),
+        (SALES_RETURN,  'Sales return'),
     ]
 
     fabric = models.ForeignKey(
