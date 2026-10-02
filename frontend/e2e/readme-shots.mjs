@@ -12,6 +12,8 @@ mkdirSync(OUT, { recursive: true })
 const browser = await chromium.launch()
 const shoot = async (page, name, { full = false } = {}) => {
   await page.waitForLoadState('networkidle')
+  // Loading placeholders must be gone before the picture is taken
+  await page.waitForFunction(() => !document.querySelector('main [data-slot="skeleton"]'), null, { timeout: 30000 })
   await page.waitForTimeout(600)
   await page.screenshot({ path: `${OUT}${name}.png`, fullPage: full })
   console.log('saved', name)
@@ -30,13 +32,50 @@ try {
     ['/sorting', 'sorting'],
     ['/decolorization', 'decolorization'],
     ['/drying', 'drying'],
+    ['/quality', 'quality'],
+    ['/production', 'production'],
+    ['/maintenance', 'maintenance'],
+    ['/sustainability', 'sustainability'],
     ['/procurement', 'purchasing'],
     ['/sales', 'sales'],
+    ['/finance', 'finance'],
+    ['/approvals', 'approvals'],
     ['/reports', 'reports'],
+    ['/documents', 'documents'],
+    ['/workforce', 'workforce'],
   ]) {
     await page.goto(`${BASE}${path}`)
     await shoot(page, name)
   }
+
+  // Pages that need a click or a record to show something
+  await page.goto(`${BASE}/finance`)
+  await page.getByRole('tab', { name: 'Journal' }).click()
+  await page.getByPlaceholder('Search number, purpose…').waitFor()
+  await shoot(page, 'finance-journal')
+
+  await page.goto(`${BASE}/reports`)
+  await page.getByRole('tab', { name: 'Report centre' }).click()
+  await shoot(page, 'report-centre')
+
+  // A lot that has been sold, so every stage of the trace has something in it
+  // The demo data is random, so pick a lot whose weights only go down from stage to stage
+  const lots = await (await page.request.get(`${BASE}/api/django/sorting/fabric-stock`)).json()
+  let lot = lots[0].id
+  for (const candidate of lots) {
+    const t = (await (await page.request.get(`${BASE}/api/django/search/trace?lot=${candidate.id}`)).json()).summary ?? {}
+    const steps = [t.weight_in, t.sorted, t.decolorized, t.dried, t.sold].map(Number)
+    if (steps.every((kg, i) => kg > 0 && (i === 0 || kg <= steps[i - 1]))) { lot = candidate.id; break }
+  }
+  await page.goto(`${BASE}/traceability?lot=${lot}`)
+  await page.getByRole('button', { name: 'Print' }).waitFor()
+  await shoot(page, 'traceability')
+
+  await page.goto(`${BASE}/dashboard`)
+  await page.waitForLoadState('networkidle')
+  await page.getByRole('button', { name: /Notifications/ }).click()
+  await shoot(page, 'notifications')
+  await page.keyboard.press('Escape')
   await page.goto(`${BASE}/dashboard`)
   await page.waitForLoadState('networkidle')
   await page.keyboard.press('Control+k')

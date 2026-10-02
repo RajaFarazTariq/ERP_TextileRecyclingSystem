@@ -1,6 +1,6 @@
 # ERP Textile Recycling System
 
-A web-based ERP for textile recycling factories. It follows material from the supplier's truck to the customer's delivery: deliveries are weighed into the warehouse, then sorted, decolorized and dried, and the dried output is sold. Purchasing, stock, payments and reports sit alongside, all in one place, with role-based access for each department.
+A web-based ERP for textile recycling factories. It follows material from the supplier's truck to the customer's delivery: deliveries are weighed into the warehouse, inspected, sorted, decolorized and dried, and the dried output is sold. Purchasing, production planning, quality, maintenance, finance, people, sustainability figures and documents sit alongside, all in one place, with role-based access for each department.
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
@@ -16,6 +16,7 @@ A web-based ERP for textile recycling factories. It follows material from the su
 - [Tests](#tests)
 - [Usage and API](#usage-and-api)
 - [Business rules](#business-rules)
+- [Going live and daily use](#going-live-and-daily-use)
 - [Roadmap](#roadmap)
 
 ## Features
@@ -25,35 +26,34 @@ A web-based ERP for textile recycling factories. It follows material from the su
 - **Sorting:** fabric lots and sorting sessions, with progress tracked against the weight taken.
 - **Decolorization:** tanks, chemical stock and issues (over-issuing is blocked), process sessions and efficiency. Chemicals carry cost and safety data, arrive in lots, and are planned with versioned recipes; each batch shows planned against issued chemicals and its cost.
 - **Drying:** dryers and drying sessions. Completed sessions add sellable stock.
-
 - **Quality:** standards with limits, inspections of deliveries and fabric lots, quarantine of failed material, corrective actions, defect analysis and supplier quality.
-
 - **Production:** production orders with configurable stages and routings, bills of materials, a schedule, material needs against stock, and planned against actual output, time, waste and cost.
-- **Finance:** chart of accounts, a double-entry journal fed by sales, purchasing and expenses, period closing, trial balance, profit and loss, balance sheet, cash flow, customer and supplier balances, and production costing.
 - **Maintenance:** machines, preventive schedules, work orders and breakdowns, spare parts, downtime and a performance report.
-- **Workforce:** employees, departments, shifts, a daily attendance sheet, leave, tasks and a productivity report (admins only).
 - **Sustainability:** waste records, utility readings, targets, and recovery, waste, water, energy and chemical figures worked out from the production records.
-- **Documents:** uploaded files by category with versions, expiry dates, role-based access and checked, authenticated downloads.
-- **Approvals:** one inbox for everything waiting for an admin's decision.
-- **Notifications:** alerts worked out on the server from configurable rules (stock, approvals, delays, quarantine, breakdowns, overdue invoices, expiring documents and more), shown in the bell.
-- **Traceability:** one page that follows a lot from the supplier's delivery through every stage to the customer.
-- **Search:** Ctrl + K finds pages and also records by name or number, limited to what your role may see.
-- **Report centre:** thirteen reports with a date range, chart, totals, and Excel, CSV and print output; plus a "Business at a glance" row on the dashboard.
 
 **Commercial**
 - **Purchasing:** purchase requests and orders with admin approval, amendments with revision numbers, deliveries against orders, supplier invoices with tax, payments, returns, quotations, price comparison and supplier performance.
 - **Sales:** quotations that become orders, orders with stock reservation, partial dispatches with printable delivery challans, printable invoices, payments, returns with credit, customer profiles with credit limits and statements, a product price list, and a sales performance report.
 - **Inventory:** a ledger of every stock change, with reservations and admin adjustments.
+- **Finance:** chart of accounts, a double-entry journal fed by sales, purchasing and expenses, period closing, trial balance, profit and loss, balance sheet, cash flow, customer and supplier balances, and production costing.
+
+**Management**
+- **Dashboard:** live material flow across the stages, period-over-period changes, trends, a "needs attention" list, and a "Business at a glance" section with a figure from every module.
+- **Approvals:** one inbox for everything waiting for an admin's decision.
+- **Notifications:** alerts worked out on the server from configurable rules (stock, approvals, delays, quarantine, breakdowns, overdue invoices, expiring documents and more), shown in the bell and optionally e-mailed as a digest.
+- **Traceability:** one page that follows a lot from the supplier's delivery through every stage to the customer.
+- **Report centre:** thirteen reports with a date range, chart, totals, and Excel, CSV and print output, next to the daily production, monthly sales and waste reports.
 
 **Administration**
-- **Dashboard:** live material flow across the stages, period-over-period changes, trends, and a "needs attention" list.
-- **Reports:** production, waste and sales reports, Excel exports, and the audit log of who changed what.
+- **Documents:** uploaded files by category with versions, expiry dates, role-based access and checked, authenticated downloads.
+- **Workforce:** employees, departments, shifts, a daily attendance sheet, leave, tasks and a productivity report (admins only).
 - **Users and roles:** admin plus one supervisor role per department. Each role sees only its own pages.
-- **Email alerts and scheduled reports** (low chemicals, new orders, payments).
+- **Audit log:** who changed what, and when.
+- **Email alerts and reports** (low chemicals, new orders, payments, daily and monthly reports).
 
 **Interface**
 - "Industrial Eco-Tech" design with dark (default) and light themes.
-- A command palette (Ctrl+K) for jumping to any page, section or action.
+- Search (Ctrl + K) for jumping to any page or section, and for finding records by name or number within what your role may see.
 - Notifications that can be marked as read, and sortable, filterable tables with CSV export and adjustable row density.
 - Works on phones and tablets.
 
@@ -63,6 +63,8 @@ A web-based ERP for textile recycling factories. It follows material from the su
 |---|---|
 | ![Dashboard, dark theme](docs/screenshots/dashboard.png) | ![Dashboard, light theme](docs/screenshots/dashboard-light.png) |
 
+**Operations**
+
 | Warehouse | Sorting |
 |---|---|
 | ![Warehouse](docs/screenshots/warehouse.png) | ![Sorting](docs/screenshots/sorting.png) |
@@ -71,13 +73,43 @@ A web-based ERP for textile recycling factories. It follows material from the su
 |---|---|
 | ![Decolorization](docs/screenshots/decolorization.png) | ![Drying](docs/screenshots/drying.png) |
 
+| Quality | Production |
+|---|---|
+| ![Quality](docs/screenshots/quality.png) | ![Production](docs/screenshots/production.png) |
+
+| Maintenance | Sustainability |
+|---|---|
+| ![Maintenance](docs/screenshots/maintenance.png) | ![Sustainability](docs/screenshots/sustainability.png) |
+
+**Commercial**
+
 | Purchasing | Sales |
 |---|---|
 | ![Purchasing](docs/screenshots/purchasing.png) | ![Sales](docs/screenshots/sales.png) |
 
-| Reports | Command palette (Ctrl+K) |
+| Finance | Journal |
 |---|---|
-| ![Reports](docs/screenshots/reports.png) | ![Command palette](docs/screenshots/command-menu.png) |
+| ![Finance](docs/screenshots/finance.png) | ![Journal](docs/screenshots/finance-journal.png) |
+
+**Management**
+
+| Approvals | Traceability |
+|---|---|
+| ![Approvals](docs/screenshots/approvals.png) | ![Traceability](docs/screenshots/traceability.png) |
+
+| Reports | Report centre |
+|---|---|
+| ![Reports](docs/screenshots/reports.png) | ![Report centre](docs/screenshots/report-centre.png) |
+
+**Administration and interface**
+
+| Documents | Workforce |
+|---|---|
+| ![Documents](docs/screenshots/documents.png) | ![Workforce](docs/screenshots/workforce.png) |
+
+| Search (Ctrl + K) | Notifications |
+|---|---|
+| ![Search](docs/screenshots/command-menu.png) | ![Notifications](docs/screenshots/notifications.png) |
 
 | Sign in | Phone |
 |---|---|
@@ -101,20 +133,27 @@ The screenshots come from demo data. To retake them, run `node e2e/readme-shots.
 backend/
   config/                 Django project: settings, root URLs, WSGI/ASGI
   apps/
-    core/                 Shared permissions (roles), filters, seed commands
+    core/                 Shared permissions (roles), filters, health check, seed commands
     users/                Custom user model, login, user management
     warehouse/            Suppliers, factory units, incoming deliveries
     procurement/          Requests, purchase orders, supplier invoices, payments, returns
     quality/              Standards, inspections, quarantine, corrective actions
     production/           Stages, routings, bills of materials, production orders
     sorting/              Fabric lots and sorting sessions
-    decolorization/       Chemicals, tanks, issues, sessions
+    decolorization/       Chemicals, lots, recipes, tanks, issues, sessions
     drying/               Dryers and drying sessions
-    sales/                Customers, orders, dispatch, payments
+    sales/                Customers, products, quotations, orders, dispatch, invoices, payments, returns
     inventory/            Dried-stock ledger, reservations, adjustments
-    reports/              Report data and Excel exports
+    finance/              Accounts, journal, expenses, periods, statements, costing
+    maintenance/          Machines, schedules, work orders, spare parts
+    workforce/            Employees, shifts, attendance, leave, tasks
+    sustainability/       Waste records, utility readings, targets, calculated figures
+    documents/            Categories, documents, versions, checked uploads
+    alerts/               Notification rules, the approvals inbox, the e-mail digest
+    search/               Global search and lot traceability
+    reports/              Report centre, executive figures and Excel exports
     audit/                Audit log (model, ViewSet mixin, API)
-    notifications/        Email alerts (signals) and scheduled reports
+    notifications/        Email alerts (signals) and the daily and monthly reports
   manage.py
   setup_fresh.py          Creates a fresh database with a Test_User admin
   requirements.txt
@@ -125,11 +164,16 @@ frontend/                 Web app (Next.js + TypeScript)
     features/<module>/    Page, forms and schemas per module
     components/           common/ (tables, dialogs, charts, meters), layout/, ui/ (shadcn)
     lib/                  API client, data hooks, formatting; lib/server/ = session cookies
+    types/                API types (api.ts, plus one file per newer module)
     config/access.ts      Role access per page and the sidebar menu
     proxy.ts              Route guard (login + role)
-  e2e/                    Playwright browser tests and the README screenshot script
+  e2e/                    Playwright browser tests, the layout audit and the README screenshot script
+scripts/
+  backup.sh, restore.sh   Back up and restore the database and uploaded documents (Docker)
 docs/
-  UPGRADE_AUDIT.md        Upgrade audit and roadmap
+  DEPLOYMENT.md           Going live: setup, HTTPS, checklist, backups, monitoring, updates
+  USER_GUIDE.md           How to do the daily work, by task
+  UPGRADE_AUDIT.md        Upgrade audit and per-phase status
   screenshots/            Images used in this README
 docker-compose.yml        Full stack: db, backend, app, app-edge (nginx)
 ```
@@ -148,7 +192,7 @@ docker compose exec backend python manage.py seed_drying_data  # optional: dryer
 docker compose exec backend python manage.py seed_module_data  # optional: finance, maintenance, workforce, sustainability, documents
 ```
 
-Open http://localhost:8080. The admin panel is at http://localhost:8080/admin/ and the API docs are at http://localhost:8080/api/docs/. To use a different port, set `APP_PORT` in `.env`. Database data is kept in the `pgdata` Docker volume.
+Open http://localhost:8080. The admin panel is at http://localhost:8080/admin/ and the API docs are at http://localhost:8080/api/docs/. To use a different port, set `APP_PORT` in `.env`. Database data is kept in the `pgdata` Docker volume and uploaded documents in the `media` volume. For a real server, follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Run without Docker
 
@@ -192,19 +236,21 @@ The browser never talks to Django directly. The app's own server keeps the login
 
 These logins exist after `python manage.py seed_demo_data`:
 
-| Role | Username | Password | Sees |
+| Role | Username | Password | Own pages |
 |---|---|---|---|
-| Admin | `admin` | `Admin@1234` | Everything |
-| Warehouse supervisor | `warehouse_user` | `Demo@1234` | Warehouse, Purchasing, Quality |
-| Sorting supervisor | `sorting_user` | `Demo@1234` | Sorting, Quality, Production |
-| Decolorization supervisor | `decolor_user` | `Demo@1234` | Decolorization, Quality, Production |
-| Drying supervisor | `drying_user` | `Demo@1234` | Drying, Quality, Production |
+| Admin | `admin` | `Admin@1234` | Everything, including Dashboard, Approvals, Sales, Finance, Workforce, Reports and Users |
+| Warehouse supervisor | `warehouse_user` | `Demo@1234` | Warehouse, Purchasing |
+| Sorting supervisor | `sorting_user` | `Demo@1234` | Sorting, Production |
+| Decolorization supervisor | `decolor_user` | `Demo@1234` | Decolorization, Production |
+| Drying supervisor | `drying_user` | `Demo@1234` | Drying, Production |
+
+Every role also opens Quality, Maintenance, Sustainability, Documents and Traceability, where it sees and does what its role allows.
 
 Change these passwords, or don't seed demo data at all, on a real server.
 
 ## Tests
 
-**Backend:**
+**Backend** (about 400 tests):
 
 ```bash
 cd backend
@@ -218,7 +264,7 @@ cd frontend
 npm run lint && npm run typecheck && npm run build
 ```
 
-**Browser tests (Playwright):** these need Django on port 8000 with demo data, and the app running with `npm run build && npx next start -p 3001`. Install the browser once with `npx playwright install chromium`.
+**Browser tests (Playwright):** 17 scenarios, one per module, about 300 checks. They need Django on port 8000 with demo data (`seed_demo_data`, `seed_drying_data`, `seed_module_data`), and the app running with `npm run build && npx next start -p 3001`. Install the browser once with `npx playwright install chromium`.
 
 ```bash
 npm run e2e                  # all scenarios
@@ -226,6 +272,8 @@ npm run e2e -- sales         # only the named ones
 ```
 
 **Layout audit:** with the same setup, `npm run audit:ui` opens every page, tab and form at phone, tablet, laptop and desktop sizes in both themes. It reports overlapping controls, content wider than the screen, and clipped text, and saves screenshots to `e2e/screenshots/audit/`.
+
+On a slow machine, run these one after another: several heavy jobs at once make pages time out.
 
 GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main` or `upgrade/**` and on every pull request. It runs the backend tests against PostgreSQL, then lints, type-checks and builds the web app.
 
@@ -237,6 +285,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main` or `upg
 | API | http://127.0.0.1:8000/api/v1/ | via the app |
 | API docs (Swagger) | http://127.0.0.1:8000/api/docs/ | http://localhost:8080/api/docs/ |
 | Admin panel | http://127.0.0.1:8000/admin/ | http://localhost:8080/admin/ |
+| Health check | http://127.0.0.1:8000/api/health/ | http://localhost:8080/api/health/ |
 
 - The API docs are open when `DEBUG=True`. Otherwise, log in at `/admin/` as a staff user first.
 - List endpoints return plain arrays. Add `?page=1` or `?page_size=50` to get paginated results.
