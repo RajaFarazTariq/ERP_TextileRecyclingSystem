@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.audit.middleware import AuditedModelMixin
-from apps.core.permissions import ALL_ROLES, IsAdminUser, get_role
+from apps.core.permissions import ALL_ROLES, HasPage, IsAdminUser, get_role
 from . import approvals, rules
 from .models import NotificationRule
 from .serializers import NotificationRuleSerializer
@@ -39,7 +39,7 @@ class NotificationRuleViewSet(AuditedModelMixin, mixins.ListModelMixin, mixins.R
 
 class ApprovalsView(APIView):
     """Everything waiting for an admin's decision, grouped by kind."""
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, HasPage('approvals')]
 
     @extend_schema(responses=OpenApiTypes.OBJECT)
     def get(self, request):

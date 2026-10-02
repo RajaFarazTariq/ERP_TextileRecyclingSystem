@@ -52,7 +52,8 @@ Set `SECURE_HSTS_SECONDS` only when you are sure the site will stay on HTTPS: br
 - [ ] A strong `POSTGRES_PASSWORD`.
 - [ ] HTTPS on, and the three settings above switched on.
 - [ ] The first admin's password changed; demo users not present.
-- [ ] Every person has their own login with the right role.
+- [ ] Every person has their own login with the right role, and Users → Access shows the pages each role should have.
+- [ ] At least two people are admins, so access can still be managed if one is away.
 - [ ] A backup has been taken **and restored once on a test machine** (section 5).
 - [ ] The backup folder is copied off the server every night.
 - [ ] `https://<your address>/api/health/` answers `{"status": "ok"}` and something checks it (section 6).

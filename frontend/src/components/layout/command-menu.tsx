@@ -24,7 +24,6 @@ import { logout } from "@/features/auth/use-session"
 import { api } from "@/lib/api"
 import { TONE } from "@/lib/tones"
 import { cn } from "@/lib/utils"
-import type { Role } from "@/types/api"
 import type { SearchResponse, SearchResultType } from "@/types/search"
 import { NavIcon } from "./nav-icon"
 
@@ -102,7 +101,7 @@ function useRecordSearch(search: string) {
 }
 
 /** Ctrl+K / Cmd+K palette: jump to any page or section, find a record, switch theme, sign out. */
-export function CommandMenu({ role }: { role: Role }) {
+export function CommandMenu({ pages }: { pages: string[] }) {
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
@@ -131,14 +130,14 @@ export function CommandMenu({ role }: { role: Role }) {
         </kbd>
       </Button>
       <CommandDialog open={open} onOpenChange={setOpen} title="Search" description="Jump to a page, find a record or run an action" className="sm:max-w-xl">
-        <Palette role={role} close={() => setOpen(false)} />
+        <Palette allowed={pages} close={() => setOpen(false)} />
       </CommandDialog>
     </>
   )
 }
 
 // Lives inside the dialog, so what was typed is forgotten each time it closes
-function Palette({ role, close }: { role: Role; close: () => void }) {
+function Palette({ allowed, close }: { allowed: string[]; close: () => void }) {
   const router = useRouter()
   const { setTheme } = useTheme()
   const [search, setSearch] = useState("")
@@ -148,7 +147,7 @@ function Palette({ role, close }: { role: Role; close: () => void }) {
     close()
     action()
   }
-  const pages = navFor(role).flatMap((g) => g.items)
+  const pages = navFor(allowed).flatMap((g) => g.items)
 
   return (
     <Command filter={matchWords}>

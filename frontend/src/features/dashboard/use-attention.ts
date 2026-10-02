@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query"
 
 import { canAccess } from "@/config/access"
+import { useSession } from "@/features/auth/use-session"
 import { api } from "@/lib/api"
 import type { AlertItem, AlertSeverity } from "@/types/alerts"
 import type { Chemical, LotStock, Role } from "@/types/api"
@@ -36,6 +37,7 @@ export const ALERTS_KEY = ["alerts/notifications"]
  * figures from; they are only fetched for roles that may see them.
  */
 export function useAttention(role: Role | undefined) {
+  const pages = useSession().data?.pages
   const alerts = useQuery<AlertItem[]>({
     queryKey: ALERTS_KEY,
     queryFn: () => api("alerts/notifications"),
@@ -46,12 +48,12 @@ export function useAttention(role: Role | undefined) {
   const chemicals = useQuery<Chemical[]>({
     queryKey: ["decolorization/chemicals", {}],
     queryFn: () => api("decolorization/chemicals"),
-    enabled: canAccess(role, "/decolorization"),
+    enabled: canAccess(pages, "/decolorization"),
   })
   const lots = useQuery<LotStock[]>({
     queryKey: ["inventory/movements/stock", {}],
     queryFn: () => api("inventory/movements/stock"),
-    enabled: canAccess(role, "/sales"),
+    enabled: canAccess(pages, "/sales"),
   })
 
   const items: AttentionItem[] = (alerts.data ?? []).map((a) => ({

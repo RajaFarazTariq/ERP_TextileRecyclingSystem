@@ -9,6 +9,7 @@
 //   BASE=http://host:port        another address; SHOTS=<folder> for screenshots
 import { chromium } from 'playwright'
 
+import { accessScenario } from './access.mjs'
 import { approvalsScenario } from './approvals.mjs'
 import { decolorizationScenario } from './decolorization.mjs'
 import { dryingScenario } from './drying.mjs'
@@ -34,6 +35,7 @@ const scenarios = {
   drying: dryingScenario,
   sales: salesScenario,
   users: usersScenario,
+  access: accessScenario,
   reports: reportsScenario,
   procurement: procurementScenario,
   quality: qualityScenario,

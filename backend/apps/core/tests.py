@@ -17,7 +17,9 @@ class SeedCommandEmailTests(TestCase):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Access-control matrix: who may read and write each module today.
+# Access-control matrix: who may read and write each module with the starting page access.
+# A module is read by the roles that have a page using it (see apps.access), so
+# Sales and Reports, which only admins have, are closed to the supervisors.
 # A write with an empty body returns 400 (validation) when the role is allowed
 # and 403 when it is not, so no records are created by these checks.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -41,9 +43,9 @@ MATRIX = {
     '/api/decolorization/sessions/':  (ALL, {'admin', 'decolorization_supervisor'}),
     '/api/drying/dryers/':            ({'admin', 'drying_supervisor'}, {'admin', 'drying_supervisor'}),
     '/api/drying/sessions/':          ({'admin', 'drying_supervisor'}, {'admin', 'drying_supervisor'}),
-    '/api/sales/orders/':             (ALL, ADMIN),
-    '/api/sales/dispatch/':           (ALL, ADMIN),
-    '/api/sales/payments/':           (ALL, ADMIN),
+    '/api/sales/orders/':             (ADMIN, ADMIN),
+    '/api/sales/dispatch/':           (ADMIN, ADMIN),
+    '/api/sales/payments/':           (ADMIN, ADMIN),
     '/api/users/register/':           (None, ADMIN),
 }
 
@@ -52,10 +54,10 @@ READ_ONLY = {
     '/api/drying/fabric-ready/':              {'admin', 'drying_supervisor'},
     '/api/drying/decolor-sessions-done/':     {'admin', 'drying_supervisor'},
     '/api/users/list/':                       ALL,
-    '/api/sales/orders/summary/':             ALL,
-    '/api/reports/daily-production/':         ALL,
-    '/api/reports/monthly-sales/':            ALL,
-    '/api/reports/waste-analysis/':           ALL,
+    '/api/sales/orders/summary/':             ADMIN,
+    '/api/reports/daily-production/':         ADMIN,
+    '/api/reports/monthly-sales/':            ADMIN,
+    '/api/reports/waste-analysis/':           ADMIN,
     '/api/audit/logs/':                       ALL,
     '/api/audit/logs/summary/':               ADMIN,
 }

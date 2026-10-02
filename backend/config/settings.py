@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'apps.documents',
     'apps.search',
     'apps.alerts',
+    'apps.access',
     'apps.reports',
     'apps.audit',
     'apps.notifications',

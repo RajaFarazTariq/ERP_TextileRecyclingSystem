@@ -117,7 +117,7 @@ export function AppHeader({ user }: { user: SessionUser }) {
         <Breadcrumbs />
       </div>
       <div className="ml-auto flex shrink-0 items-center gap-1.5">
-        <CommandMenu role={user.role} />
+        <CommandMenu pages={user.pages} />
         <Notifications role={user.role} username={user.username} />
         <ThemeToggle />
         <Separator orientation="vertical" className="mx-1 hidden data-vertical:h-5 data-vertical:self-center sm:block" />

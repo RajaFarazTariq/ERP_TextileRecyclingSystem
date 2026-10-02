@@ -22,6 +22,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ROLE_LABELS } from "@/config/access"
 import { NAV_TONES } from "@/config/nav-tones"
 import { NavIcon } from "@/components/layout/nav-icon"
@@ -33,6 +34,7 @@ import { relativeTime } from "@/lib/format"
 import { TONE } from "@/lib/tones"
 import { cn } from "@/lib/utils"
 import type { Role, UserSummary } from "@/types/api"
+import { AccessPanel } from "./access-panel"
 
 const ROLES = Object.keys(ROLE_LABELS) as Role[]
 // Each role takes the colour and icon of the module it runs
@@ -143,6 +145,7 @@ export function UsersPage() {
   const users = useList<UserSummary>("users/list")
   const [editing, setEditing] = useState<{ record: UserSummary | null } | null>(null)
   const [deleting, setDeleting] = useState<UserSummary | null>(null)
+  const [tab, setTab] = useState<"users" | "access">("users")
 
   const { mutate: toggleActive } = useMutation<{ is_active: boolean; username: string }, ApiError, number>({
     mutationFn: (id) => api(`users/toggle-active/${id}`, { method: "POST" }),
@@ -192,13 +195,21 @@ export function UsersPage() {
 
   return (
     <div className="mx-auto max-w-[1440px]">
-      <PageHeader title="Users" icon="users" description="Who can sign in, and what each role can open."
+      <PageHeader title="Users" icon="users" description="Who can sign in, and which pages each role and person can open."
         actions={<Button onClick={() => setEditing({ record: null })}><Plus className="size-4" /> Add user</Button>} />
 
       {users.isError ? <ErrorState message={users.error.message} onRetry={() => users.refetch()} />
         : users.isPending ? <TableSkeleton columns={5} />
         : (
-          <div className="space-y-4">
+          <Tabs value={tab} onValueChange={(v) => setTab(v as "users" | "access")}>
+            <TabsList className="flex-wrap">
+              <TabsTrigger value="users">Users</TabsTrigger>
+              <TabsTrigger value="access">Access</TabsTrigger>
+            </TabsList>
+            <TabsContent value="access" className="mt-4">
+              <AccessPanel users={users.data} />
+            </TabsContent>
+            <TabsContent value="users" className="mt-4 space-y-4">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               {counts.map((c) => {
                 const tone = TONE[ROLE_TONES[c.role]]
@@ -218,7 +229,8 @@ export function UsersPage() {
               })}
             </div>
             <DataTable columns={columns} data={users.data} searchPlaceholder="Search username, email, role…" emptyTitle="No users" exportName="users" />
-          </div>
+            </TabsContent>
+          </Tabs>
         )}
 
       <UserDialog open={!!editing} record={editing?.record ?? null} onOpenChange={(o) => !o && setEditing(null)}

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 
+import { AccessSync } from "@/components/layout/access-sync"
 import { AppHeader } from "@/components/layout/app-header"
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
@@ -14,6 +15,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
   return (
     <SidebarProvider defaultOpen={sidebarOpen}>
+      <AccessSync pages={user.pages} />
       <AppSidebar user={user} />
       <SidebarInset>
         <AppHeader user={user} />

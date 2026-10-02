@@ -47,7 +47,7 @@ A web-based ERP for textile recycling factories. It follows material from the su
 **Administration**
 - **Documents:** uploaded files by category with versions, expiry dates, role-based access and checked, authenticated downloads.
 - **Workforce:** employees, departments, shifts, a daily attendance sheet, leave, tasks and a productivity report (admins only).
-- **Users and roles:** admin plus one supervisor role per department. Each role sees only its own pages.
+- **Users and access:** admin plus one supervisor role per department. Admins decide which pages each role, and each person, may open; the API follows the same list.
 - **Audit log:** who changed what, and when.
 - **Email alerts and reports** (low chemicals, new orders, payments, daily and monthly reports).
 
@@ -152,6 +152,7 @@ backend/
     alerts/               Notification rules, the approvals inbox, the e-mail digest
     search/               Global search and lot traceability
     reports/              Report centre, executive figures and Excel exports
+    access/               Page access per role and per person, and the check in front of every API call
     audit/                Audit log (model, ViewSet mixin, API)
     notifications/        Email alerts (signals) and the daily and monthly reports
   manage.py
@@ -245,6 +246,8 @@ These logins exist after `python manage.py seed_demo_data`:
 | Drying supervisor | `drying_user` | `Demo@1234` | Drying, Production |
 
 Every role also opens Quality, Maintenance, Sustainability, Documents and Traceability, where it sees and does what its role allows.
+
+This is the starting access. An admin can change it under **Users → Access**.
 
 Change these passwords, or don't seed demo data at all, on a real server.
 
@@ -461,6 +464,17 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main` or `upg
 - **Scheduled reports:** the daily and monthly e-mail reports are management commands; nothing runs on a timer inside the app.
 - Admins only.
 - **API:** `/api/v1/reports/` (`catalogue`, `run/<key>`, `executive`, `schedules`).
+
+### Page access
+
+- **Where:** Users → Access (admins only). A grid of pages against roles with a tick for each, and "Exceptions for one person" to give someone a page their role lacks or take one away.
+- **Starting point:** each role begins with the pages it had before access was configurable (see [Demo logins](#demo-logins)). Sales, Finance, Workforce, Reports, Dashboard, Approvals and Users start as admin only. "Original access" in the grid restores this.
+- **A person's pages** are their role's pages, plus pages given to them, minus pages taken away.
+- **It is enforced in three places:** the menu and search show only the user's pages; opening a page by typing its address sends the user home if they don't have it; and every API request is refused unless the user has a page that uses that part of the system. A change applies from the user's next page load or request, without signing in again.
+- **Reading and changing are separate.** A page gives access to what it shows. For example the Sorting page reads deliveries, but only the Warehouse page can change them, and the Warehouse page reads only the list of open purchase order lines from Purchasing.
+- **Business rules are not affected.** Having a page lets someone use the module; it does not make them an approver. Approving requests and orders, releasing quarantine, approving returns and leave, issuing restricted chemicals, stock adjustments and notification rules stay with admins, and each role still inspects only its own stage in Quality.
+- **Safeguards:** admins always have every page, and that can't be changed. The Users page (and with it access management) can't be given to any other role or person. The last active admin can't be demoted, deactivated or deleted. Every change to access is written to the audit log.
+- **API:** `/api/v1/access/` (`me`, `matrix`, `users/<id>`).
 
 ### Consistency checks
 

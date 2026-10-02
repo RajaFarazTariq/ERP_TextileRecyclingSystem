@@ -62,7 +62,9 @@ class SetupTests(ProductionTestCase):
         self.assertEqual(res.status_code, 201, res.data)
         self.assertEqual(res.data['steps'][0]['sequence'], 1)
         self.assertEqual(self.as_admin.post(f'{API}/routings/', {'name': 'Empty', 'steps': []}, format='json').status_code, 400)
-        self.assertEqual(self.as_keeper.get(f'{API}/routings/').status_code, 200)
+        # every role with the Production page reads it; the warehouse supervisor doesn't have that page
+        self.assertEqual(client_for(make_user('sorting_supervisor')).get(f'{API}/routings/').status_code, 200)
+        self.assertEqual(self.as_keeper.get(f'{API}/routings/').status_code, 403)
         self.assertEqual(self.as_sorter.post(f'{API}/stages/', {'name': 'Baling'}, format='json').status_code, 403)
         self.assertEqual(self.as_admin.post(f'{API}/stages/', {'name': 'Baling'}, format='json').status_code, 201)
 
@@ -163,9 +165,10 @@ class ExecutionTests(ProductionTestCase):
         self.order(planned_end=str(date.today()), planned_start=str(date.today()))
         ProductionOrder.objects.filter(status='Draft').update(planned_end=date.today() - timedelta(days=2))
 
-        res = self.as_keeper.get(f'{API}/summary/')
+        reader = client_for(make_user('drying_supervisor'))
+        res = reader.get(f'{API}/summary/')
         self.assertEqual((res.data['completed'], res.data['draft'], res.data['late']), (1, 1, 1))
         self.assertEqual((res.data['actual_output_completed'], res.data['yield_pct']), (Decimal('430.00'), 86.0))
         self.assertEqual([s['stage'] for s in res.data['stages']], ['Sorting', 'Decolorization', 'Drying'])
-        activity = self.as_keeper.get(f'{API}/orders/{order["id"]}/activity/').data
+        activity = reader.get(f'{API}/orders/{order["id"]}/activity/').data
         self.assertEqual([(a['module'], a['supervisor']) for a in activity], [('sorting', self.sorter.username)])

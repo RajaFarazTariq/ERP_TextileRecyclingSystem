@@ -12,6 +12,8 @@ export interface SessionUser {
   username: string
   email: string
   role: Role
+  /** Pages this user may open ("sales", "finance", ...). Decided by Django; see /users → Access. */
+  pages: string[]
 }
 
 export type Decimal = string

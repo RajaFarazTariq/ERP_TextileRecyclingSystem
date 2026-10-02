@@ -16,10 +16,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.permissions import IsAdminUser
+from apps.core.permissions import HasPage
 from . import exports, services
 
-ADMIN = [IsAuthenticated, IsAdminUser]
+ADMIN = [IsAuthenticated, HasPage('reports', 'dashboard')]
 
 
 class JsonOnly(DefaultContentNegotiation):

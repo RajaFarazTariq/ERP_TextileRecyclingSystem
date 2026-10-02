@@ -15,7 +15,7 @@ from rest_framework.views import APIView
 from apps.audit.middleware import AuditedModelMixin
 from apps.audit.models import AuditLog, log_action
 from apps.core.filters import filter_by_date_params
-from apps.core.permissions import SAFE_METHODS, get_role, is_admin
+from apps.core.permissions import SAFE_METHODS, get_role, has_page, is_admin
 from apps.warehouse.models import Stock, Vendor
 from . import services
 from .models import (
@@ -35,8 +35,9 @@ class IsProcurementUser(permissions.BasePermission):
     message = 'Only admins and warehouse supervisors can use Procurement.'
 
     def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated
-                    and get_role(request.user) in ('admin', 'warehouse_supervisor'))
+        # Purchasing itself, or a page that reads from it (deliveries are booked against orders)
+        pages = ('procurement', 'warehouse') if request.method in SAFE_METHODS else ('procurement',)
+        return bool(request.user and request.user.is_authenticated and has_page(request.user, *pages))
 
 
 class IsAdminForWrites(permissions.BasePermission):

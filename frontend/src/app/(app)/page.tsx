@@ -37,7 +37,7 @@ function greeting(hour: number) {
 
 export default async function HomePage() {
   const user = parseUserCookie((await cookies()).get(COOKIE.user)?.value)!
-  const groups = navFor(user.role)
+  const groups = navFor(user.pages)
   // Server time in Pakistan, where the factory runs
   const hour = Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: "Asia/Karachi" }).format(new Date()))
 

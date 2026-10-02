@@ -1,6 +1,6 @@
-// Which roles may open each page, and how the sidebar is grouped.
-// Django enforces the same rules on every API call; this only decides what
-// the interface shows and where the route guard redirects.
+// How the sidebar is grouped, and the check for "may this user open that page".
+// Which pages a user has is decided in Django (Users → Access) and enforced on
+// every API call; the web app reads the list from the session.
 import type { Role } from "@/types/api"
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -11,27 +11,14 @@ export const ROLE_LABELS: Record<Role, string> = {
   drying_supervisor: "Drying Supervisor",
 }
 
-export const ROUTE_ROLES: Record<string, Role[]> = {
-  "/dashboard": ["admin"],
-  "/warehouse": ["admin", "warehouse_supervisor"],
-  "/sorting": ["admin", "sorting_supervisor"],
-  "/decolorization": ["admin", "decolorization_supervisor"],
-  "/drying": ["admin", "drying_supervisor"],
-  "/production": ["admin", "sorting_supervisor", "decolorization_supervisor", "drying_supervisor"],
-  "/procurement": ["admin", "warehouse_supervisor"],
-  "/sales": ["admin"],
-  "/finance": ["admin"],
-  "/approvals": ["admin"],
-  "/workforce": ["admin"],
-  "/reports": ["admin"],
-  "/users": ["admin"],
-}
-
-/** Routes not listed above are open to any logged-in user. */
-export function canAccess(role: Role | undefined, pathname: string): boolean {
-  const base = "/" + (pathname.split("/")[1] ?? "")
-  const roles = ROUTE_ROLES[base]
-  return !roles || (!!role && roles.includes(role))
+/**
+ * May a user with these pages open this path? A page's key is the first part
+ * of its path ("/sales/..." is "sales"). The home page and anything that isn't
+ * one of the menu pages are open to every logged-in user.
+ */
+export function canAccess(pages: readonly string[] | undefined, pathname: string): boolean {
+  const key = pathname.split("/")[1] ?? ""
+  return !PAGE_KEYS.has(key) || (pages ?? []).includes(key)
 }
 
 export type NavIcon =
@@ -90,8 +77,10 @@ export const NAV: NavGroup[] = [
   },
 ]
 
-export function navFor(role: Role | undefined): NavGroup[] {
-  return NAV.map((g) => ({ ...g, items: g.items.filter((i) => canAccess(role, i.href)) })).filter(
+const PAGE_KEYS = new Set(NAV.flatMap((g) => g.items.map((i) => i.href.slice(1))))
+
+export function navFor(pages: readonly string[] | undefined): NavGroup[] {
+  return NAV.map((g) => ({ ...g, items: g.items.filter((i) => canAccess(pages, i.href)) })).filter(
     (g) => g.items.length > 0,
   )
 }

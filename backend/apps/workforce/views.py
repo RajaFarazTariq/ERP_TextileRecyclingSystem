@@ -14,7 +14,7 @@ from rest_framework.views import APIView
 from apps.audit.middleware import AuditedModelMixin
 from apps.audit.models import AuditLog
 from apps.core.filters import filter_by_date_params
-from apps.core.permissions import IsAdminUser
+from apps.core.permissions import HasPage
 from . import services
 from .models import Attendance, Department, Employee, JobRole, LeaveRequest, Shift, TaskAssignment
 from .serializers import (
@@ -23,7 +23,7 @@ from .serializers import (
 )
 
 # Employee data is personal: admins only, for reading as well as writing
-ADMIN_ONLY = [IsAuthenticated, IsAdminUser]
+ADMIN_ONLY = [IsAuthenticated, HasPage('workforce')]
 
 note_request = inline_serializer('WorkforceNoteRequest', {'note': serializers.CharField(required=False)})
 

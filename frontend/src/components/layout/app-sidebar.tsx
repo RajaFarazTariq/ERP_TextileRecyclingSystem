@@ -98,7 +98,7 @@ export function AppSidebar({ user }: { user: SessionUser }) {
       </SidebarHeader>
 
       <SidebarContent className="scrollbar-thin px-1.5">
-        {navFor(user.role).map((group) => (
+        {navFor(user.pages).map((group) => (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel className="text-[11px] font-semibold tracking-wider text-faint uppercase">{group.label}</SidebarGroupLabel>
             <SidebarGroupContent>
