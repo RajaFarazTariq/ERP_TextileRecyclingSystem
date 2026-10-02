@@ -5,6 +5,7 @@
 
 export type StatusTone = "neutral" | "info" | "warning" | "success" | "running" | "danger"
 export type StageTone = "warehouse" | "sorting" | "decolorization" | "drying" | "sales" | "procurement" | "quality" | "production"
+  | "finance" | "maintenance" | "sustainability" | "workforce" | "documents"
 export type Tone = StatusTone | StageTone | "brand"
 
 export const TONE: Record<Tone, { text: string; soft: string; solid: string; border: string }> = {
@@ -23,6 +24,11 @@ export const TONE: Record<Tone, { text: string; soft: string; solid: string; bor
   procurement: { text: "text-stage-procurement", soft: "bg-stage-procurement/14", solid: "bg-stage-procurement", border: "border-stage-procurement/30" },
   quality: { text: "text-stage-quality", soft: "bg-stage-quality/14", solid: "bg-stage-quality", border: "border-stage-quality/30" },
   production: { text: "text-stage-production", soft: "bg-stage-production/14", solid: "bg-stage-production", border: "border-stage-production/30" },
+  finance: { text: "text-stage-finance", soft: "bg-stage-finance/14", solid: "bg-stage-finance", border: "border-stage-finance/30" },
+  maintenance: { text: "text-stage-maintenance", soft: "bg-stage-maintenance/14", solid: "bg-stage-maintenance", border: "border-stage-maintenance/30" },
+  sustainability: { text: "text-stage-sustainability", soft: "bg-stage-sustainability/14", solid: "bg-stage-sustainability", border: "border-stage-sustainability/30" },
+  workforce: { text: "text-stage-workforce", soft: "bg-stage-workforce/14", solid: "bg-stage-workforce", border: "border-stage-workforce/30" },
+  documents: { text: "text-stage-documents", soft: "bg-stage-documents/14", solid: "bg-stage-documents", border: "border-stage-documents/30" },
 }
 
 /** CSS colour for charts and SVG (same palette as the classes above). */
@@ -42,4 +48,9 @@ export const TONE_VAR: Record<Tone, string> = {
   procurement: "var(--stage-procurement)",
   quality: "var(--stage-quality)",
   production: "var(--stage-production)",
+  finance: "var(--stage-finance)",
+  maintenance: "var(--stage-maintenance)",
+  sustainability: "var(--stage-sustainability)",
+  workforce: "var(--stage-workforce)",
+  documents: "var(--stage-documents)",
 }

@@ -67,6 +67,11 @@
   --color-stage-procurement: var(--stage-procurement);
   --color-stage-quality: var(--stage-quality);
   --color-stage-production: var(--stage-production);
+  --color-stage-finance: var(--stage-finance);
+  --color-stage-maintenance: var(--stage-maintenance);
+  --color-stage-sustainability: var(--stage-sustainability);
+  --color-stage-workforce: var(--stage-workforce);
+  --color-stage-documents: var(--stage-documents);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -130,6 +135,11 @@
   --stage-procurement: #6366f1;
   --stage-quality: #65a30d;
   --stage-production: #c026d3;
+  --stage-finance: #ca8a04;
+  --stage-maintenance: #db2777;
+  --stage-sustainability: #0d9488;
+  --stage-workforce: #7c3aed;
+  --stage-documents: #2563eb;
 
   --chart-1: #10b981;
   --chart-2: #0ea5e9;
@@ -197,6 +207,11 @@
   --stage-procurement: #818cf8;
   --stage-quality: #a3e635;
   --stage-production: #e879f9;
+  --stage-finance: #facc15;
+  --stage-maintenance: #f472b6;
+  --stage-sustainability: #2dd4bf;
+  --stage-workforce: #a78bfa;
+  --stage-documents: #60a5fa;
 
   --chart-1: #10b981;
   --chart-2: #38bdf8;

@@ -29,12 +29,17 @@ import { NavIcon } from "./nav-icon"
 const SECTIONS: Record<string, string[]> = {
   "/warehouse": ["Stock entries", "Vendors", "Factory units"],
   "/sorting": ["Sessions", "Fabric lots"],
-  "/decolorization": ["Tanks", "Chemicals", "Issuances", "Sessions"],
+  "/decolorization": ["Tanks", "Chemicals", "Chemical lots", "Recipes", "Issuances", "Sessions", "Chemical usage"],
   "/drying": ["Sessions", "Dryers"],
   "/procurement": ["Purchase requests", "Purchase orders", "Supplier invoices", "Supplier payments", "Purchase returns", "Suppliers", "Price comparison"],
   "/production": ["Production orders", "Schedule", "Material requirements", "Routings", "Bills of materials", "Process stages"],
   "/quality": ["Inspections", "Quarantine", "Corrective actions", "Quality standards"],
-  "/sales": ["Orders", "Dispatches", "Payments", "Customers"],
+  "/sales": ["Quotations", "Orders", "Dispatches", "Invoices", "Payments", "Returns", "Customers", "Products and prices", "Sales performance"],
+  "/finance": ["Chart of accounts", "Journal entries", "Expenses", "Receivables", "Payables", "Trial balance", "Profit and loss", "Balance sheet"],
+  "/maintenance": ["Machines", "Work orders", "Maintenance schedules", "Breakdowns", "Spare parts", "Downtime"],
+  "/sustainability": ["Waste records", "Recovery rates", "Water and energy", "Disposal records", "Environmental report"],
+  "/workforce": ["Employees", "Departments", "Shifts", "Attendance", "Leave", "Tasks", "Productivity"],
+  "/documents": ["Documents", "Certificates", "Safety data sheets", "Expiring documents"],
   "/reports": ["Daily production", "Monthly sales", "Waste analysis", "Audit log"],
 }
 
@@ -84,7 +89,7 @@ export function CommandMenu({ role }: { role: Role }) {
       <CommandDialog open={open} onOpenChange={setOpen} title="Search" description="Jump to a page or run an action" className="sm:max-w-xl">
         <Command filter={matchWords}>
           <CommandInput placeholder="Type a page, section or action…" />
-          <CommandList className="scrollbar-thin max-h-[60vh]">
+          <CommandList className="scrollbar-thin max-h-[min(26rem,calc(100dvh-7rem))]">
             <CommandEmpty>Nothing found.</CommandEmpty>
             <CommandGroup heading="Pages">
               {pages.map((p) => (

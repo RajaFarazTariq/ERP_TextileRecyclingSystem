@@ -20,6 +20,8 @@ export const ROUTE_ROLES: Record<string, Role[]> = {
   "/production": ["admin", "sorting_supervisor", "decolorization_supervisor", "drying_supervisor"],
   "/procurement": ["admin", "warehouse_supervisor"],
   "/sales": ["admin"],
+  "/finance": ["admin"],
+  "/workforce": ["admin"],
   "/reports": ["admin"],
   "/users": ["admin"],
 }
@@ -33,6 +35,7 @@ export function canAccess(role: Role | undefined, pathname: string): boolean {
 
 export type NavIcon =
   | "dashboard" | "warehouse" | "sorting" | "decolorization" | "drying" | "procurement" | "quality" | "production" | "sales" | "reports" | "users"
+  | "finance" | "maintenance" | "sustainability" | "workforce" | "documents"
 
 export interface NavItem {
   title: string
@@ -59,6 +62,8 @@ export const NAV: NavGroup[] = [
       { title: "Drying", href: "/drying", icon: "drying" },
       { title: "Quality", href: "/quality", icon: "quality" },
       { title: "Production", href: "/production", icon: "production" },
+      { title: "Maintenance", href: "/maintenance", icon: "maintenance" },
+      { title: "Sustainability", href: "/sustainability", icon: "sustainability" },
     ],
   },
   {
@@ -66,11 +71,14 @@ export const NAV: NavGroup[] = [
     items: [
       { title: "Purchasing", href: "/procurement", icon: "procurement" },
       { title: "Sales", href: "/sales", icon: "sales" },
+      { title: "Finance", href: "/finance", icon: "finance" },
     ],
   },
   {
     label: "Administration",
     items: [
+      { title: "Documents", href: "/documents", icon: "documents" },
+      { title: "Workforce", href: "/workforce", icon: "workforce" },
       { title: "Reports", href: "/reports", icon: "reports" },
       { title: "Users", href: "/users", icon: "users" },
     ],

@@ -27,7 +27,7 @@ import { useSession } from "@/features/auth/use-session"
 import { revenueByMonth } from "@/features/sales/sales-dashboard"
 import { api } from "@/lib/api"
 import { useList } from "@/lib/crud"
-import { kg, plural, relativeTime, rupees } from "@/lib/format"
+import { displayName, kg, plural, relativeTime, rupees } from "@/lib/format"
 import { monthlyTotals } from "@/lib/series"
 import { cn } from "@/lib/utils"
 import type {
@@ -274,7 +274,7 @@ export function DashboardPage() {
                   {activity.data.results.map((e) => (
                     <li key={e.id} className="relative flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg py-2 pr-2 text-sm">
                       <InitialsAvatar name={e.username || "system"} className="ring-4 ring-card" />
-                      <span className="font-medium">{e.username || "system"}</span>
+                      <span className="font-medium">{displayName(e.username) || "System"}</span>
                       <StatusBadge status={e.action.replace("_", " ")} tone={ACTION_TONES[e.action] ?? "neutral"} />
                       <span className="min-w-0 flex-1 truncate text-muted-foreground">{e.model_name} · {e.object_repr}</span>
                       <span className="text-xs text-faint" title={e.timestamp_display}>{relativeTime(e.timestamp)}</span>

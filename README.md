@@ -29,6 +29,11 @@ A web-based ERP for textile recycling factories. It follows material from the su
 - **Quality:** standards with limits, inspections of deliveries and fabric lots, quarantine of failed material, corrective actions, defect analysis and supplier quality.
 
 - **Production:** production orders with configurable stages and routings, bills of materials, a schedule, material needs against stock, and planned against actual output, time, waste and cost.
+- **Finance:** chart of accounts, a double-entry journal fed by sales, purchasing and expenses, period closing, trial balance, profit and loss, balance sheet, cash flow, customer and supplier balances, and production costing.
+- **Maintenance:** machines, preventive schedules, work orders and breakdowns, spare parts, downtime and a performance report.
+- **Workforce:** employees, departments, shifts, a daily attendance sheet, leave, tasks and a productivity report (admins only).
+- **Sustainability:** waste records, utility readings, targets, and recovery, waste, water, energy and chemical figures worked out from the production records.
+- **Documents:** uploaded files by category with versions, expiry dates, role-based access and checked, authenticated downloads.
 
 **Commercial**
 - **Purchasing:** purchase requests and orders with admin approval, amendments with revision numbers, deliveries against orders, supplier invoices with tax, payments, returns, quotations, price comparison and supplier performance.
@@ -134,6 +139,8 @@ copy .env.docker.example .env                  # set POSTGRES_PASSWORD
 docker compose up -d --build
 docker compose exec backend python setup_fresh.py         # first time: creates Test_User / Test@1234
 docker compose exec backend python manage.py seed_demo_data   # optional: demo data
+docker compose exec backend python manage.py seed_drying_data  # optional: dryers and drying sessions
+docker compose exec backend python manage.py seed_module_data  # optional: finance, maintenance, workforce, sustainability, documents
 ```
 
 Open http://localhost:8080. The admin panel is at http://localhost:8080/admin/ and the API docs are at http://localhost:8080/api/docs/. To use a different port, set `APP_PORT` in `.env`. Database data is kept in the `pgdata` Docker volume.
@@ -159,6 +166,8 @@ Optional:
 ```bash
 python setup_fresh.py             # fresh database with only Test_User / Test@1234
 python manage.py seed_demo_data   # demo data (alert emails are not sent while seeding)
+python manage.py seed_drying_data  # dryers and drying sessions
+python manage.py seed_module_data  # finance, maintenance, workforce, sustainability, documents
 ```
 
 ### Frontend
@@ -298,6 +307,76 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main` or `upg
 - **Returns:** a return records the weight sent back (never more than was dispatched), the reason, and whether the goods go back into sellable stock or are written off. Nothing changes until an admin approves it. Approval credits the customer at the order's price, updates the order's payment status, and, if chosen, adds the weight back to the stock ledger. An approved return can't be deleted.
 - **Performance:** the Performance tab shows sales, weight, average price, quotations won and returns for a period, by month, customer and material.
 - **API:** `/api/v1/sales/` (`products`, `quotations`, `invoices`, `returns`, `orders/<id>/invoice`, `customers/<id>/statement`, `performance`).
+
+### Finance
+
+- **Admins only.** No other role can open the page or call its API.
+- **Journal:** every entry balances (debits equal credits) and has at least two lines. Entries are never edited or deleted; a wrong one is reversed, which posts its mirror image and keeps both.
+- **Where entries come from:** typed in, made by recording an expense, or posted from the sales and purchasing records:
+
+  | Record | Debit | Credit |
+  |---|---|---|
+  | Sales invoice | Accounts receivable | Sales, Sales tax payable |
+  | Customer payment | Cash or Bank | Accounts receivable |
+  | Approved sales return | Sales returns | Accounts receivable |
+  | Supplier invoice | Raw material purchases, Purchase tax recoverable | Accounts payable |
+  | Supplier payment | Accounts payable | Cash or Bank |
+  | Expense | The expense account | The cash or bank account it was paid from |
+
+- **Keeping the books in step:** "Update books" (and opening any statement) posts what is missing, corrects what changed and removes entries whose record was deleted. Running it twice changes nothing.
+- **Timing:** a sale reaches the books when it is invoiced, and a purchase when the supplier's invoice is entered. So "Accounts receivable" can differ from the Sales page's "owes" figure, which counts confirmed orders.
+- **Periods:** closing a period locks every entry dated inside it. Later changes to those records are left out and reported as skipped. A period can be reopened.
+- **Accounts:** a starting chart of accounts is created. Accounts used by the automatic postings can be renamed but not deleted; an account with entries can't be deleted or change type.
+- **Statements:** trial balance, profit and loss, balance sheet (profit to date is shown as "Profit kept in the business") and cash flow by kind of transaction. Each account has a ledger with a running balance.
+- **Costing:** for a period: raw material (supplier invoices), chemicals (issued quantity × cost when issued), labour and machine time (hours on production stages × hourly cost) and expenses by account, in total and per kg of dried output, with the production orders' estimated cost against actual.
+- **Tax rates** are a reference list; the tax % is entered on each order or invoice.
+- This supports the business's own bookkeeping. It is not a certified statutory accounting system.
+- **API:** `/api/v1/finance/` (`accounts`, `journal`, `expenses`, `periods`, `tax-rates`, `summary`, `trial-balance`, `profit-and-loss`, `balance-sheet`, `cash-flow`, `balances`, `costing`).
+
+### Maintenance
+
+- **Machines** have a status: Running, Idle, Under maintenance, Broken down or Retired. A machine can be linked to a tank or a dryer.
+- **Work orders** (WO-00012) are Preventive or Corrective. Open → In progress → Done, or Cancelled by an admin. Completing one needs a note of the work done and records downtime, labour hours and costs. A finished or cancelled order can't be changed.
+- **Machine status follows its open work orders:** an open breakdown makes it Broken down, work in progress makes it Under maintenance, and it returns to Running when they are closed.
+- **Schedules:** a preventive task repeats every N days. "Create work order" makes its work order (one at a time); completing it moves the next due date forward.
+- **Spare parts:** using a part on a work order takes it out of stock (never more than is there) and deleting the use puts it back. "Receive" adds stock.
+- **Performance:** per machine: breakdowns, downtime, cost, days between failures and availability, plus the downtime of tank and dryer machines next to the sessions they ran.
+- **Who does what:** every role can report a breakdown and work on an order that is theirs or unassigned. Admins manage machines, schedules, parts, assignments and cancellations.
+- **API:** `/api/v1/maintenance/`.
+
+### Workforce
+
+- **Admins only**, because it holds personal data.
+- **Employees** (EMP-00012) belong to a department and job role and can be linked to a login. An employee with attendance, leave or tasks can't be deleted; mark them as Left.
+- **Attendance:** one record per person per day. The attendance sheet marks everyone for a date in one save. Hours come from the check-in and check-out times (shifts may cross midnight) unless typed.
+- **Leave:** requests can't overlap another pending or approved leave of the same person. An admin approves or rejects. People on approved leave start as "Leave" on that day's sheet.
+- **Productivity:** per person and department: days present, absences, late days, hours, overtime, tasks done and kg per hour.
+- Payroll is not part of this module.
+- **API:** `/api/v1/workforce/`.
+
+### Sustainability
+
+- **Every figure is calculated** from records already in the system; rates are never typed in. The page shows how each one is worked out.
+- **Recovery rate:** dried output of completed drying sessions divided by the weight taken into completed sorting sessions in the same period. Short periods can read high or low, because a lot sorted in one month may be dried in the next.
+- **Waste records** hold waste that is physically handled: category, classification (recyclable, reusable, hazardous, general), stage, weight, how and where it was disposed of, cost or revenue.
+- **Diverted from landfill:** everything not disposed of as Landfill.
+- **Utilities:** water, electricity, gas, steam and diesel readings. Water and electricity are also shown per kg of dried output.
+- **Chemicals:** quantity and cost of chemicals issued.
+- **Targets:** one active target per measure, shown as on or off target.
+- **Who does what:** everyone reads. Any role adds records and edits their own; admins delete and manage categories and targets.
+- No certification or regulatory compliance is claimed.
+- **API:** `/api/v1/sustainability/`.
+
+### Documents
+
+- **Files are checked on upload:** size (10 MB by default, `DOCUMENT_MAX_UPLOAD_MB`), type (pdf, images, Word, Excel, csv, txt) and that the content really is that type.
+- **Storage:** files are kept outside the web root under a generated name (`MEDIA_ROOT`) and are only reachable through the API after a permission check. Downloads are always sent as attachments. In Docker they live in the `media` volume.
+- **Access by category:** each category lists the roles that may see it. A role that may not see a category doesn't see its documents anywhere, and gets "not found" for them. Employee documents are for admins only.
+- **Versions:** a new version is added beside the old ones, which stay downloadable.
+- **Expiry:** a document is Valid, Expiring soon (within 30 days), Expired or has No expiry. The Expiring tab is the reminder list.
+- **Who does what:** any role uploads into categories it can see and adds versions to its own documents. Admins delete, manage categories and access.
+- Downloads are written to the audit log.
+- **API:** `/api/v1/documents/`.
 
 ### Consistency checks
 

@@ -37,6 +37,11 @@ INSTALLED_APPS = [
     'apps.procurement',
     'apps.quality',
     'apps.production',
+    'apps.finance',
+    'apps.maintenance',
+    'apps.sustainability',
+    'apps.workforce',
+    'apps.documents',
     'apps.reports',
     'apps.audit',
     'apps.notifications',
@@ -201,3 +206,8 @@ DEFAULT_FROM_EMAIL  = config(
 
 # Management alert recipient
 MANAGEMENT_EMAIL    = config('MANAGEMENT_EMAIL', default='')
+# ── Uploaded files (Documents module) ─────────────────────────────────────────
+# Files are stored outside the web root and served only through the API, after
+# a permission check. In Docker, mount a volume at MEDIA_ROOT to keep them.
+MEDIA_ROOT = config('MEDIA_ROOT', default=str(BASE_DIR / 'media'))
+DOCUMENT_MAX_UPLOAD_MB = config('DOCUMENT_MAX_UPLOAD_MB', default=10, cast=int)

@@ -71,3 +71,8 @@ export function elapsed(start: string | null | undefined, now = Date.now()): str
   const mins = minutes % 60
   return days ? `${days}d ${hours}h` : hours ? `${hours}h ${mins}m` : `${mins}m`
 }
+
+/** A username as a name: "admin" → "Admin", "ali_raja" → "Ali Raja". Display only; logins stay as typed. */
+export function displayName(username: string | null | undefined): string {
+  return (username ?? "").split(/[\s._]+/).filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join(" ")
+}

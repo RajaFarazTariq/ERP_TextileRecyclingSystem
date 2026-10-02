@@ -10,10 +10,12 @@ import { ApiError, api } from "./api"
 
 type Params = Record<string, string | number | boolean | undefined | null>
 
-export function useList<T>(resource: string, params?: Params) {
+/** `enabled: false` skips the request, e.g. for a list the user's role may not read. */
+export function useList<T>(resource: string, params?: Params, options?: { enabled?: boolean }) {
   return useQuery<T[]>({
     queryKey: [resource, params ?? {}],
     queryFn: () => api<T[]>(resource, { params }),
+    enabled: options?.enabled ?? true,
   })
 }
 

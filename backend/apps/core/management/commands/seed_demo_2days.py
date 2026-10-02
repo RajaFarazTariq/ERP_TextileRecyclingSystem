@@ -81,6 +81,8 @@ class Command(SeedCommand):
         SupplierPayment.objects.all().delete()
         SupplierInvoice.objects.all().delete()
         SupplierQuotation.objects.all().delete()
+        from .seed_module_data import wipe_module_data
+        wipe_module_data()
         PurchaseReturn.objects.all().delete()
         DecolorizationSession.objects.all().delete()
         ChemicalIssuance.objects.all().delete()

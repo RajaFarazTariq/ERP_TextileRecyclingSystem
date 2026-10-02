@@ -54,7 +54,8 @@ function CommandDialog({
       </DialogHeader>
       <DialogContent
         className={cn(
-          "top-1/3 translate-y-0 overflow-hidden rounded-xl! p-0",
+          // Centred in the window (the dialog default) and never taller than it
+          "max-h-[calc(100dvh-2rem)] overflow-hidden rounded-xl! p-0",
           className
         )}
         showCloseButton={showCloseButton}

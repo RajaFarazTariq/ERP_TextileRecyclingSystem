@@ -131,6 +131,8 @@ class Command(SeedCommand):
             QualityStandard.objects.all().delete()
             ProductionOrder.objects.all().delete()
             BillOfMaterials.objects.all().delete()
+            from .seed_module_data import wipe_module_data
+            wipe_module_data()
             SupplierPayment.objects.all().delete()
             SupplierInvoice.objects.all().delete()
             SupplierQuotation.objects.all().delete()
