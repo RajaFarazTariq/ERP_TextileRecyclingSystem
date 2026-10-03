@@ -1,26 +1,52 @@
 """
-Page access: who may open which page, and what that means for the API.
+Page access: who may open which page, how far, and what that means for the API.
 
-  pages a user has = the pages of their role
-                     + pages given to them personally
-                     - pages taken away from them personally
-  An admin has every page. That can't be changed, so there is always someone
-  who can reach everything, including the Users page where access is managed.
+  A page is held at a level: "view" (look only) or "full" (look and change).
+  a user's level for a page = their own exception for it, if they have one,
+                              otherwise their role's level
+  An admin has every page in full. That can't be changed, so there is always
+  someone who can reach everything, including the Users page where access is
+  managed.
 
 The API follows the pages. Every request to a module's API needs a page that
-uses that module: to read it, one of READERS; to change it, one of WRITERS.
+uses that module: to read it, one of READERS at any level; to change it, one
+of WRITERS in full.
 `check_api_access` runs before each view's own permission checks, so those
 (for example "only an admin approves") still apply on top.
 """
 from rest_framework.exceptions import PermissionDenied
 
-from apps.core.permissions import ALL_ROLES, get_role
+from apps.core.permissions import get_role
 
 ADMIN = 'admin'
-ROLES = ['admin', 'warehouse_supervisor', 'sorting_supervisor', 'decolorization_supervisor', 'drying_supervisor']
-ROLE_LABELS = {
-    'admin': 'Admin', 'warehouse_supervisor': 'Warehouse Supervisor', 'sorting_supervisor': 'Sorting Supervisor',
-    'decolorization_supervisor': 'Decolorization Supervisor', 'drying_supervisor': 'Drying Supervisor',
+# The roles the system started with. Their keys are used by the default access
+# below; admins can add more roles under Users -> Access.
+SYSTEM_ROLES = ['admin', 'warehouse_supervisor', 'sorting_supervisor', 'decolorization_supervisor', 'drying_supervisor']
+SUPERVISORS = SYSTEM_ROLES[1:]
+
+# Things a role may be trusted to do beyond opening a page. An admin carries
+# every duty. key: (title, what it allows, the page it is done on)
+DUTIES = {
+    'approve_purchases': ('Approve purchases', 'Approve or reject purchase requests and orders, and close orders.', 'procurement'),
+    'pay_suppliers': ('Record supplier payments', 'Record, change and delete payments to suppliers.', 'procurement'),
+    'inspect_incoming': ('Inspect incoming material', 'Record quality inspections of deliveries.', 'quality'),
+    'inspect_in_process': ('Inspect in-process material', 'Record quality inspections of lots being processed.', 'quality'),
+    'inspect_finished': ('Inspect finished goods', 'Record quality inspections of finished lots.', 'quality'),
+    'release_quarantine': ('Release quarantine', 'Release failed material, and change a failed inspection.', 'quality'),
+    'plan_production': ('Plan production', 'Create, change, release and cancel production orders, and maintain stages, routings and bills of materials.', 'production'),
+    'run_production': ('Run production stages', 'Start and complete the stages of a production order and record materials used.', 'production'),
+    'approve_batches': ('Approve decolorization batches', 'Sign off a completed decolorization batch.', 'decolorization'),
+    'issue_restricted_chemicals': ('Issue restricted chemicals', 'Issue chemicals marked as restricted.', 'decolorization'),
+    'approve_sales_returns': ('Approve sales returns', 'Approve or reject goods returned by customers.', 'sales'),
+    'adjust_stock': ('Adjust stock', 'Correct sellable stock by hand, with a reason.', 'sales'),
+    'manage_maintenance': ('Manage maintenance', 'Register machines, plan preventive work, manage spare parts, and assign or cancel work orders.', 'maintenance'),
+}
+DUTY_KEYS = list(DUTIES)
+DEFAULT_ROLE_DUTIES = {
+    'warehouse_supervisor': {'inspect_incoming'},
+    'sorting_supervisor': {'inspect_in_process', 'run_production'},
+    'decolorization_supervisor': {'inspect_in_process', 'run_production'},
+    'drying_supervisor': {'inspect_in_process', 'inspect_finished', 'run_production'},
 }
 
 # key, title, menu group, and whether only admins may ever have it
@@ -46,10 +72,11 @@ PAGES = [
     ('users', 'Users', 'Administration', True),
 ]
 PAGE_KEYS = [key for key, *_ in PAGES]
+VIEW, FULL, NONE = 'view', 'full', 'none'
+LEVELS = (VIEW, FULL)
 ADMIN_ONLY_PAGES = {key for key, _, _, locked in PAGES if locked}
 
 # The access each role had before it became configurable (the web app's old ROUTE_ROLES table)
-SUPERVISORS = ROLES[1:]
 EVERY_SUPERVISOR = {'quality', 'maintenance', 'sustainability', 'documents', 'traceability'}
 DEFAULT_ROLE_PAGES = {
     'warehouse_supervisor': EVERY_SUPERVISOR | {'warehouse', 'procurement'},
@@ -72,7 +99,8 @@ PAGE_API = {
     'drying': {'read': {'drying'}, 'write': {'drying'}},
     'quality': {'read': {'quality', 'warehouse', 'sorting'}, 'write': {'quality'}},
     'production': {'read': {'production', 'sorting', 'decolorization', 'warehouse'}, 'write': {'production'}},
-    'maintenance': {'read': {'maintenance', 'decolorization', 'drying'}, 'write': {'maintenance'}},
+    # The machine form links a machine to a tank or a dryer: those two lists, not the sessions
+    'maintenance': {'read': {'maintenance', 'decolorization', 'drying/dryers'}, 'write': {'maintenance'}},
     'sustainability': {'read': {'sustainability', 'sorting'}, 'write': {'sustainability'}},
     'procurement': {'read': {'procurement', 'warehouse'}, 'write': {'procurement'}},
     'sales': {'read': {'sales', 'sorting', 'inventory'}, 'write': {'sales', 'inventory'}},
@@ -111,7 +139,7 @@ SAFE_METHODS = ('GET', 'HEAD', 'OPTIONS')
 # names behind "supervisor" dropdowns, their own access, the bell and the
 # search box (both show only what the user's pages allow), and the audit log,
 # which itself shows a non-admin only their own entries.
-OPEN_READS = ('users/list', 'users/detail', 'access/me', 'alerts/notifications', 'search', 'audit/logs')
+OPEN_READS = ('users/list', 'users/detail', 'access/me', 'access/role-names', 'alerts/notifications', 'search', 'audit/logs')
 NOT_OPEN = ('search/trace',)      # following a lot is the Traceability page
 OPEN_ANY = ('users/login', 'users/logout', 'users/token')
 
@@ -119,14 +147,6 @@ OPEN_ANY = ('users/login', 'users/logout', 'users/token')
 # ─────────────────────────────────────────────────────────────────────────────
 # A user's pages
 # ─────────────────────────────────────────────────────────────────────────────
-
-def role_pages(role):
-    """Pages of a role, straight from the table (admins: everything)."""
-    from .models import RolePage
-    if role == ADMIN:
-        return set(PAGE_KEYS)
-    return set(RolePage.objects.filter(role=role).values_list('page', flat=True)) - ADMIN_ONLY_PAGES
-
 
 def _request_cache():
     """A place to remember answers for the length of the current request (None outside a request)."""
@@ -139,39 +159,117 @@ def _request_cache():
     return request._page_access
 
 
-def pages_for(user):
-    """The pages this user may open. Read from the tables once per request, so a change applies to the next one."""
+def _remember(key, compute):
+    cache = _request_cache()
+    if cache is None:
+        return compute()
+    if key not in cache:
+        cache[key] = compute()
+    return cache[key]
+
+
+def roles():
+    """[(key, name)] of every role, built-in first."""
+    from .models import Role
+    return _remember('roles', lambda: list(Role.objects.values_list('key', 'name')))
+
+
+def role_keys():
+    return [key for key, _ in roles()]
+
+
+def role_label(key):
+    return dict(roles()).get(key, (key or '').replace('_', ' ').title())
+
+
+def forget_roles():
+    cache = _request_cache()
+    if cache is not None:
+        cache.pop('roles', None)
+        for key in [k for k in cache if isinstance(k, tuple)]:
+            cache.pop(key, None)
+
+
+def role_duties(role):
+    """Duties of a role, straight from the table (admins: every duty)."""
+    from .models import RoleDuty
+    if role == ADMIN:
+        return set(DUTY_KEYS)
+    return _remember(('duties', role), lambda: set(
+        RoleDuty.objects.filter(role=role, duty__in=DUTY_KEYS).values_list('duty', flat=True)))
+
+
+def duties_for(user):
     if not user or not user.is_authenticated:
         return set()
+    return role_duties(get_role(user))
+
+
+def has_duty(user, *duties):
+    """True when the user's role carries at least one of these duties. Admins carry all of them."""
+    return bool(duties_for(user) & set(duties))
+
+
+def role_levels(role):
+    """{page: level} of a role, straight from the table (admins: everything in full)."""
+    from .models import RolePage
+    if role == ADMIN:
+        return {page: FULL for page in PAGE_KEYS}
+    return {page: level for page, level in RolePage.objects.filter(role=role).values_list('page', 'level')
+            if page in PAGE_KEYS and page not in ADMIN_ONLY_PAGES and level in LEVELS}
+
+
+def role_pages(role):
+    return set(role_levels(role))
+
+
+def levels_for(user):
+    """{page: 'view' | 'full'} for this user. Read once per request, so a change applies to the next one."""
+    if not user or not user.is_authenticated:
+        return {}
     cache = _request_cache()
     if cache is not None and user.pk in cache:
         return cache[user.pk]
     role = get_role(user)
     if role == ADMIN:
-        pages = set(PAGE_KEYS)
-    elif role not in ALL_ROLES:
-        pages = set()
+        levels = {page: FULL for page in PAGE_KEYS}
+    elif role not in role_keys():
+        levels = {}
     else:
-        pages = role_pages(role)
-        for page, allowed in user.page_overrides.values_list('page', 'allowed'):
+        levels = role_levels(role)
+        for page, level in user.page_overrides.values_list('page', 'level'):
             if page in ADMIN_ONLY_PAGES or page not in PAGE_KEYS:
                 continue
-            pages.add(page) if allowed else pages.discard(page)
+            if level in LEVELS:
+                levels[page] = level
+            else:
+                levels.pop(page, None)
     if cache is not None:
-        cache[user.pk] = pages
-    return pages
+        cache[user.pk] = levels
+    return levels
+
+
+def pages_for(user):
+    """The pages this user may open, at any level."""
+    return set(levels_for(user))
 
 
 def forget(user):
-    """Drop the remembered pages of a user whose access was just changed in this request."""
+    """Drop the remembered access of a user whose access was just changed in this request."""
     cache = _request_cache()
     if cache is not None:
         cache.pop(user.pk, None)
 
 
 def has_page(user, *pages):
-    """True when the user has at least one of these pages."""
+    """True when the user may open at least one of these pages (view or full)."""
     return bool(pages_for(user) & set(pages))
+
+
+def can_edit(user, *pages):
+    """True when the user has at least one of these pages in full."""
+    levels = levels_for(user)
+    return any(levels.get(page) == FULL for page in pages)
 
 
 def roles_with(*pages):
@@ -208,8 +306,14 @@ def check_api_access(request):
     read = request.method in SAFE_METHODS
     if rest.startswith(OPEN_ANY) or (read and rest.startswith(OPEN_READS) and not rest.startswith(NOT_OPEN)):
         return
-    if not has_page(user, *pages_using(api, rest, read)):
-        raise PermissionDenied('You do not have access to this part of the system. Ask an admin if you need it.')
+    pages = pages_using(api, rest, read)
+    if read and has_page(user, *pages):
+        return
+    if not read and can_edit(user, *pages):
+        return
+    if not read and has_page(user, *pages):
+        raise PermissionDenied('You have view-only access here, so you can look but not change anything.')
+    raise PermissionDenied('You do not have access to this part of the system. Ask an admin if you need it.')
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -217,47 +321,83 @@ def check_api_access(request):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def catalogue():
-    return [{'key': key, 'title': title, 'group': group, 'admin_only': locked} for key, title, group, locked in PAGES]
+    return [{'key': key, 'title': title, 'group': group, 'admin_only': locked,
+             # A page that changes nothing has no "full" beyond viewing
+             'read_only': not PAGE_API[key].get('write')}
+            for key, title, group, locked in PAGES]
+
+
+def _ordered(levels):
+    return {page: levels[page] for page in PAGE_KEYS if page in levels}
 
 
 def matrix():
-    """{role: [pages]} for every role, admin included (always everything)."""
-    return {role: sorted(role_pages(role), key=PAGE_KEYS.index) for role in ROLES}
+    """{role: {page: level}} for every role, admin included (always everything in full)."""
+    return {role: _ordered(role_levels(role)) for role in role_keys()}
 
 
-def set_role_pages(role, pages):
-    """Replace a role's pages. Returns (added, removed)."""
-    from .models import RolePage
-    wanted = set(pages)
-    current = set(RolePage.objects.filter(role=role).values_list('page', flat=True))
+def duty_catalogue():
+    return [{'key': key, 'title': title, 'description': text, 'page': page} for key, (title, text, page) in DUTIES.items()]
+
+
+def duty_matrix():
+    """{role: [duties]} for every role, admin included (always every duty)."""
+    return {role: [d for d in DUTY_KEYS if d in role_duties(role)] for role in role_keys()}
+
+
+def set_role_duties(role, duties):
+    """Replace a role's duties. Returns (added, removed)."""
+    from .models import RoleDuty
+    wanted = set(duties)
+    current = set(RoleDuty.objects.filter(role=role).values_list('duty', flat=True))
     added, removed = wanted - current, current - wanted
-    RolePage.objects.filter(role=role, page__in=removed).delete()
-    RolePage.objects.bulk_create([RolePage(role=role, page=page) for page in added])
+    RoleDuty.objects.filter(role=role, duty__in=removed).delete()
+    RoleDuty.objects.bulk_create([RoleDuty(role=role, duty=duty) for duty in added])
+    forget_roles()
     return sorted(added), sorted(removed)
 
 
+def default_matrix():
+    return {role: _ordered({page: FULL for page in pages}) for role, pages in DEFAULT_ROLE_PAGES.items()}
+
+
+def set_role_levels(role, levels):
+    """Replace a role's pages with {page: level}. Returns the changes as {page: {'old', 'new'}}."""
+    from .models import RolePage
+    current = dict(RolePage.objects.filter(role=role).values_list('page', 'level'))
+    changes = {page: {'old': current.get(page, NONE), 'new': levels.get(page, NONE)}
+               for page in set(current) | set(levels) if current.get(page) != levels.get(page)}
+    if changes:
+        forget_roles()
+        RolePage.objects.filter(role=role).delete()
+        RolePage.objects.bulk_create([RolePage(role=role, page=page, level=level) for page, level in levels.items()])
+    return changes
+
+
 def user_access(user):
-    """A user's role pages, personal exceptions and the result."""
+    """A user's role levels, personal exceptions and the result."""
     overrides = {} if get_role(user) == ADMIN else {
-        page: allowed for page, allowed in user.page_overrides.values_list('page', 'allowed')
+        page: level for page, level in user.page_overrides.values_list('page', 'level')
         if page in PAGE_KEYS and page not in ADMIN_ONLY_PAGES
     }
     forget(user)
+    levels = levels_for(user)
     return {
         'user': user.pk, 'username': user.username, 'role': get_role(user),
-        'role_pages': sorted(role_pages(get_role(user)), key=PAGE_KEYS.index),
-        'overrides': overrides,
-        'pages': sorted(pages_for(user), key=PAGE_KEYS.index),
+        'role_levels': _ordered(role_levels(get_role(user))),
+        'overrides': _ordered(overrides),
+        'levels': _ordered(levels),
+        'pages': list(_ordered(levels)),
     }
 
 
 def set_user_overrides(user, overrides):
-    """Replace a user's exceptions with {page: True|False}. Returns the changes as {page: {'old', 'new'}}."""
+    """Replace a user's exceptions with {page: 'none' | 'view' | 'full'}. Returns the changes as {page: {'old', 'new'}}."""
     from .models import UserPageOverride
-    current = dict(user.page_overrides.values_list('page', 'allowed'))
+    current = dict(user.page_overrides.values_list('page', 'level'))
     changes = {page: {'old': current.get(page), 'new': overrides.get(page)}
                for page in set(current) | set(overrides) if current.get(page) != overrides.get(page)}
     user.page_overrides.all().delete()
-    UserPageOverride.objects.bulk_create([UserPageOverride(user=user, page=p, allowed=a) for p, a in overrides.items()])
+    UserPageOverride.objects.bulk_create([UserPageOverride(user=user, page=p, level=v) for p, v in overrides.items()])
     forget(user)
     return changes

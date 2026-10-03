@@ -1,8 +1,8 @@
 "use client"
 
-// Access management: which pages each role may open, and exceptions for one person.
+// Access management: the roles, which pages each may open and how far, their duties, and exceptions for one person.
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { Lock, RotateCcw, Save, ShieldCheck, UserCog } from "lucide-react"
+import { Eye, Lock, Pencil, RotateCcw, Save, ShieldCheck, UserCog } from "lucide-react"
 import { Fragment, useState } from "react"
 import { toast } from "sonner"
 
@@ -12,15 +12,18 @@ import { ErrorState, TableSkeleton } from "@/components/common/states"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ROLE_LABELS, type NavIcon as NavIconName } from "@/config/access"
+import type { NavIcon as NavIconName } from "@/config/access"
 import { NAV_TONES } from "@/config/nav-tones"
 import { api } from "@/lib/api"
 import { displayName } from "@/lib/format"
 import { TONE } from "@/lib/tones"
 import { cn } from "@/lib/utils"
-import type { Role, UserSummary } from "@/types/api"
+import type { AccessLevel, Role, UserSummary } from "@/types/api"
+import { type AccessRole, DutiesCard, RolesCard } from "./roles-panel"
+
+type Level = AccessLevel | "none"
+type Levels = Record<string, AccessLevel>
 
 interface AccessPage {
   key: string
@@ -28,14 +31,16 @@ interface AccessPage {
   group: string
   /** Only admins may ever have it */
   admin_only: boolean
+  /** The page only shows things, so "view" and "full" are the same */
+  read_only: boolean
 }
 
 interface AccessMatrix {
   pages: AccessPage[]
-  roles: { key: Role; label: string; locked: boolean }[]
-  matrix: Record<Role, string[]>
+  roles: AccessRole[]
+  matrix: Record<Role, Levels>
   /** What each role had before access became configurable */
-  defaults: Partial<Record<Role, string[]>>
+  defaults: Partial<Record<Role, Levels>>
   users_with_exceptions: number
 }
 
@@ -43,15 +48,26 @@ interface UserAccess {
   user: number
   username: string
   role: Role
-  role_pages: string[]
-  /** true = given to this person, false = taken away */
-  overrides: Record<string, boolean>
-  pages: string[]
+  role_levels: Levels
+  /** This person's own level for a page; "none" takes the page away */
+  overrides: Record<string, Level>
+  levels: Levels
 }
 
 const MATRIX_KEY = ["access/matrix"]
-const same = (a: string[], b: string[]) => a.length === b.length && [...a].sort().join() === [...b].sort().join()
+const same = (a: Record<string, string>, b: Record<string, string>) =>
+  JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort())
 const message = (error: unknown) => (error instanceof Error ? error.message : "Could not save.")
+const LEVEL_TEXT: Record<Level, string> = { none: "No access", view: "View only", full: "Full" }
+/** What a level is called for this page: a page that only shows things is simply "Can open". */
+const levelText = (page: AccessPage, level: Level) => (page.read_only && level !== "none" ? "Can open" : LEVEL_TEXT[level])
+const choicesFor = (page: AccessPage): Level[] => (page.read_only ? ["none", "full"] : ["none", "view", "full"])
+
+function LevelBadge({ page, level }: { page: AccessPage; level: Level }) {
+  if (level === "none") return <Badge variant="secondary" className="shrink-0">No access</Badge>
+  if (level === "view" && !page.read_only) return <Badge variant="outline" className="shrink-0"><Eye aria-hidden /> View only</Badge>
+  return <Badge className="shrink-0">{page.read_only ? "Can open" : <><Pencil aria-hidden /> Full</>}</Badge>
+}
 
 function PageName({ page }: { page: AccessPage }) {
   const icon = page.key as NavIconName
@@ -81,25 +97,26 @@ function groupsOf(pages: AccessPage[]) {
 
 function RoleMatrix({ data }: { data: AccessMatrix }) {
   const qc = useQueryClient()
-  // Unsaved ticks; null while nothing has been changed
-  const [draft, setDraft] = useState<Record<string, string[]> | null>(null)
+  // Unsaved choices; null while nothing has been changed
+  const [draft, setDraft] = useState<Record<string, Levels> | null>(null)
   const [saving, setSaving] = useState(false)
-  const current = draft ?? data.matrix
+  const current: Record<string, Levels> = draft ?? data.matrix
   const editable = data.roles.filter((r) => !r.locked)
-  const dirty = editable.some((r) => !same(current[r.key] ?? [], data.matrix[r.key] ?? []))
-  const atDefaults = editable.every((r) => same(current[r.key] ?? [], data.defaults[r.key] ?? []))
+  const dirty = editable.some((r) => !same(current[r.key] ?? {}, data.matrix[r.key] ?? {}))
+  // "Original" puts the built-in roles back; roles an admin added have no original
+  const atDefaults = editable.every((r) => !(r.key in data.defaults) || same(current[r.key] ?? {}, data.defaults[r.key] ?? {}))
 
-  const toggle = (role: Role, page: string, on: boolean) => {
-    const pages = new Set(current[role] ?? [])
-    if (on) pages.add(page)
-    else pages.delete(page)
-    setDraft({ ...current, [role]: [...pages] })
+  const choose = (role: Role, page: string, level: Level) => {
+    const levels = { ...(current[role] ?? {}) }
+    if (level === "none") delete levels[page]
+    else levels[page] = level
+    setDraft({ ...current, [role]: levels })
   }
 
   const save = async () => {
     setSaving(true)
     try {
-      const roles = Object.fromEntries(editable.map((r) => [r.key, current[r.key] ?? []]))
+      const roles = Object.fromEntries(editable.map((r) => [r.key, current[r.key] ?? {}]))
       const saved = await api<AccessMatrix>("access/matrix", { method: "PUT", body: { roles } })
       qc.setQueryData(MATRIX_KEY, saved)
       qc.invalidateQueries({ queryKey: ["access/users"] })
@@ -118,12 +135,13 @@ function RoleMatrix({ data }: { data: AccessMatrix }) {
         <div className="min-w-0">
           <CardTitle className="flex items-center gap-2"><ShieldCheck className="size-4" aria-hidden /> Pages by role</CardTitle>
           <CardDescription className="mt-0.5">
-            Tick the pages each role may open. A page also opens the records behind it; who may approve or change them is not affected.
+            Choose how far each role goes on each page: no access, view only, or full (look and change).
+            Who may approve things is set under Duties by role.
           </CardDescription>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" disabled={saving || atDefaults}
-            onClick={() => setDraft({ ...current, ...data.defaults })}>
+            onClick={() => setDraft({ ...current, ...(data.defaults as Record<string, Levels>) })}>
             <RotateCcw className="size-4" /> Original access
           </Button>
           <Button variant="outline" size="sm" disabled={saving || !dirty} onClick={() => setDraft(null)}>Discard</Button>
@@ -132,14 +150,14 @@ function RoleMatrix({ data }: { data: AccessMatrix }) {
       </CardHeader>
       <CardContent>
         <div className="scrollbar-thin overflow-x-auto rounded-lg border">
-          <table className="w-full min-w-[44rem] text-sm">
+          <table className="w-full text-sm" style={{ minWidth: `${14 + data.roles.length * 9}rem` }}>
             <thead className="text-xs text-muted-foreground">
               <tr className="border-b [&>th]:px-3 [&>th]:py-2.5 [&>th]:font-medium">
                 <th className="text-left">Page</th>
                 {data.roles.map((r) => (
-                  <th key={r.key} className="w-28 text-center">
+                  <th key={r.key} className="w-36 text-left">
                     <span className="block leading-tight">{r.label.replace(" Supervisor", "")}</span>
-                    <span className="block text-[11px] font-normal">{r.locked ? "always all" : `${(current[r.key] ?? []).length} pages`}</span>
+                    <span className="block text-[11px] font-normal">{r.locked ? "always full" : `${Object.keys(current[r.key] ?? {}).length} pages`}</span>
                   </th>
                 ))}
               </tr>
@@ -154,13 +172,25 @@ function RoleMatrix({ data }: { data: AccessMatrix }) {
                     <tr key={page.key} className="border-b last:border-0 hover:bg-muted/30">
                       <td className="px-3 py-2"><PageName page={page} /></td>
                       {data.roles.map((r) => {
-                        const fixed = r.locked || page.admin_only
-                        const checked = r.locked || (!page.admin_only && (current[r.key] ?? []).includes(page.key))
+                        const level: Level = r.locked ? "full" : page.admin_only ? "none" : (current[r.key]?.[page.key] ?? "none")
+                        if (r.locked || page.admin_only) {
+                          return (
+                            <td key={r.key} className="px-3 py-2 text-xs text-muted-foreground" data-level={level}>
+                              <span className="inline-flex items-center gap-1.5"><Lock className="size-3" aria-hidden /> {levelText(page, level)}</span>
+                            </td>
+                          )
+                        }
                         return (
-                          <td key={r.key} className="px-3 py-2 text-center">
-                            <Checkbox checked={checked} disabled={fixed || saving} className="mx-auto"
-                              aria-label={`${r.label}: ${page.title}`}
-                              onCheckedChange={(on) => toggle(r.key, page.key, on === true)} />
+                          <td key={r.key} className="px-3 py-1.5">
+                            <Select value={level} onValueChange={(v) => choose(r.key, page.key, v as Level)} disabled={saving}>
+                              <SelectTrigger aria-label={`${r.label}: ${page.title}`} data-level={level}
+                                className={cn("h-8 w-full text-[13px]", level === "none" && "text-muted-foreground", level === "full" && "border-brand/40")}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {choicesFor(page).map((l) => <SelectItem key={l} value={l}>{levelText(page, l)}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
                           </td>
                         )
                       })}
@@ -172,7 +202,7 @@ function RoleMatrix({ data }: { data: AccessMatrix }) {
           </table>
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
-          Admins always have every page, and Users stays with admins, so there is always someone who can manage access.
+          Admins always have every page in full, and Users stays with admins, so there is always someone who can manage access.
           {dirty && <span className="ml-1 font-medium text-warning-fg">You have unsaved changes.</span>}
         </p>
       </CardContent>
@@ -182,25 +212,25 @@ function RoleMatrix({ data }: { data: AccessMatrix }) {
 
 // ─── One person ─────────────────────────────────────────────────────────────
 
-type Choice = "role" | "allow" | "deny"
+type Choice = "role" | Level
 
 function UserExceptions({ users, pages, withExceptions }: { users: UserSummary[]; pages: AccessPage[]; withExceptions: number }) {
   const qc = useQueryClient()
   const [userId, setUserId] = useState("")
-  const [draft, setDraft] = useState<Record<string, boolean> | null>(null)
+  const [draft, setDraft] = useState<Record<string, Level> | null>(null)
   const [saving, setSaving] = useState(false)
   const access = useQuery<UserAccess>({
     queryKey: ["access/users", userId], queryFn: () => api(`access/users/${userId}`), enabled: !!userId,
   })
   const data = access.data
-  const overrides = draft ?? data?.overrides ?? {}
-  const dirty = !!data && JSON.stringify(Object.entries(overrides).sort()) !== JSON.stringify(Object.entries(data.overrides).sort())
+  const overrides: Record<string, Level> = draft ?? data?.overrides ?? {}
+  const dirty = !!data && !same(overrides, data.overrides)
   const grantable = pages.filter((p) => !p.admin_only)
 
   const choose = (page: string, choice: Choice) => {
     const next = { ...overrides }
     if (choice === "role") delete next[page]
-    else next[page] = choice === "allow"
+    else next[page] = choice
     setDraft(next)
   }
 
@@ -224,7 +254,7 @@ function UserExceptions({ users, pages, withExceptions }: { users: UserSummary[]
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><UserCog className="size-4" aria-hidden /> Exceptions for one person</CardTitle>
         <CardDescription className="mt-0.5">
-          Give someone a page their role doesn&apos;t have, or take one away, without changing the role for everyone.
+          Give someone more or less than their role on a page, without changing the role for everyone.
           {withExceptions > 0 && ` ${withExceptions} ${withExceptions === 1 ? "person has" : "people have"} exceptions now.`}
         </CardDescription>
       </CardHeader>
@@ -234,7 +264,7 @@ function UserExceptions({ users, pages, withExceptions }: { users: UserSummary[]
             <label htmlFor="access-user" className="text-[13px] font-medium">User</label>
             <SelectField id="access-user" value={userId} placeholder="Select a user"
               onChange={(v) => { setUserId(v); setDraft(null) }}
-              options={users.filter((u) => u.role !== "admin").map((u) => ({ value: String(u.id), label: `${displayName(u.username)} (${ROLE_LABELS[u.role]})` }))} />
+              options={users.filter((u) => u.role !== "admin").map((u) => ({ value: String(u.id), label: `${displayName(u.username)} (${u.role_label})` }))} />
           </div>
           {data && (
             <div className="flex flex-wrap items-center gap-2">
@@ -256,22 +286,21 @@ function UserExceptions({ users, pages, withExceptions }: { users: UserSummary[]
           : (
             <ul className="grid gap-2 lg:grid-cols-2">
               {grantable.map((page) => {
-                const fromRole = data.role_pages.includes(page.key)
-                const choice: Choice = page.key in overrides ? (overrides[page.key] ? "allow" : "deny") : "role"
-                const result = choice === "role" ? fromRole : choice === "allow"
+                const fromRole: Level = data.role_levels[page.key] ?? "none"
+                const choice: Choice = page.key in overrides ? overrides[page.key] : "role"
+                const result: Level = choice === "role" ? fromRole : choice
                 return (
                   <li key={page.key} className={cn("flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-lg border px-3 py-2",
                     choice !== "role" && "border-warning/40 bg-warning/5")}>
                     <span className="flex min-w-0 flex-1 items-center gap-2">
                       <PageName page={page} />
-                      <Badge variant={result ? "default" : "secondary"} className="shrink-0">{result ? "Can open" : "No access"}</Badge>
+                      <LevelBadge page={page} level={result} />
                     </span>
                     <Select value={choice} onValueChange={(v) => choose(page.key, v as Choice)} disabled={saving}>
-                      <SelectTrigger className="h-8 w-44" aria-label={`Access to ${page.title}`}><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-8 w-48" aria-label={`Access to ${page.title}`}><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="role">As the role ({fromRole ? "yes" : "no"})</SelectItem>
-                        <SelectItem value="allow">Give access</SelectItem>
-                        <SelectItem value="deny">Take away</SelectItem>
+                        <SelectItem value="role">As the role ({levelText(page, fromRole).toLowerCase()})</SelectItem>
+                        {choicesFor(page).filter((l) => l !== fromRole).map((l) => <SelectItem key={l} value={l}>{levelText(page, l)}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </li>
@@ -290,7 +319,9 @@ export function AccessPanel({ users }: { users: UserSummary[] }) {
   if (!matrix.data) return <TableSkeleton columns={6} />
   return (
     <div className="space-y-4">
+      <RolesCard />
       <RoleMatrix data={matrix.data} />
+      <DutiesCard pageTitles={Object.fromEntries(matrix.data.pages.map((p) => [p.key, p.title]))} />
       <UserExceptions users={users} pages={matrix.data.pages} withExceptions={matrix.data.users_with_exceptions} />
     </div>
   )

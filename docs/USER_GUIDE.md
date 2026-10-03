@@ -69,7 +69,13 @@ Open **Approvals**. Each tab lists one kind: purchase requests and orders, quara
 Sales: *Print challan* on a dispatch and *Print invoice* on an invoice. Reports and Traceability have a *Print* button. Use the browser's "Save as PDF" to keep a copy.
 
 ### Give someone access to a page (admin)
-**Users → Access.** To change a whole role, tick or untick the page in the grid and press *Save changes*. To change one person, choose them under "Exceptions for one person", set the page to *Give access* or *Take away*, and press *Save exceptions*. It applies from that person's next page; they don't need to sign in again. A page lets someone use that part of the system, but approvals stay with admins.
+**Users → Access.**
+- **A whole role:** in *Pages by role*, set the page to *No access*, *View only* or *Full* and press *Save changes*.
+- **One person:** choose them under *Exceptions for one person*, set the page, and press *Save exceptions*.
+- **Approvals and other special actions:** tick the duty for the role in *Duties by role* and press *Save duties*. The role also needs the duty's page in full.
+- **A new job in the organisation:** press *Add role* in the *Roles* card, then give the role to people on the *Users* tab.
+
+Changes apply from the person's next page; they don't need to sign in again. The full explanation is in [the manual](manual/05-access-control.md).
 
 ### Find out who changed a record (admin)
 **Reports → Audit log.** Filter by person, module or date.
@@ -84,3 +90,5 @@ The system stops a few things on purpose and says why:
 - **"… is closed"** in Finance: the date falls in a closed period. Use a later date or reopen the period.
 - **"Records that depend on it can't be deleted"**: the record is used elsewhere. Mark it as not in use instead.
 - **You can't see a page, or you are sent back to the home page**: you don't have that page. Ask an admin (Users → Access).
+- **A page shows "View only" and has no add or edit buttons**: your role can look at that page but not change it. Ask an admin if you need more.
+- **"Your role is not allowed to..."**: the action needs a duty your role doesn't have. An admin sets duties under Users → Access.

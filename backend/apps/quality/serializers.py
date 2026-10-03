@@ -3,7 +3,7 @@ from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
-from apps.core.permissions import is_admin
+from apps.core.permissions import has_duty
 from . import services
 from .models import CorrectiveAction, Inspection, InspectionResult, QualityStandard, StandardCheck
 
@@ -156,8 +156,8 @@ class InspectionSerializer(serializers.ModelSerializer):
         if current is not None:
             if current.released_at:
                 raise serializers.ValidationError({'result': ["A released inspection can't be changed."]})
-            if current.result == 'Fail' and not is_admin(user):
-                raise PermissionDenied('Only an admin can change a failed inspection.')
+            if current.result == 'Fail' and not has_duty(user, 'release_quarantine'):
+                raise PermissionDenied('Only someone who may release quarantine can change a failed inspection.')
 
         stage = value('stage')
         services.check_may_inspect(user, stage)

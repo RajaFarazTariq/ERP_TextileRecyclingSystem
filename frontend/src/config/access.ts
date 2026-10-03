@@ -1,15 +1,10 @@
 // How the sidebar is grouped, and the check for "may this user open that page".
 // Which pages a user has is decided in Django (Users → Access) and enforced on
 // every API call; the web app reads the list from the session.
-import type { Role } from "@/types/api"
 
-export const ROLE_LABELS: Record<Role, string> = {
-  admin: "Admin",
-  warehouse_supervisor: "Warehouse Supervisor",
-  sorting_supervisor: "Sorting Supervisor",
-  decolorization_supervisor: "Decolorization Supervisor",
-  drying_supervisor: "Drying Supervisor",
-}
+/** A role's name when the server didn't send one: "store_keeper" reads "Store Keeper". */
+export const roleName = (key: string | undefined) =>
+  (key ?? "").split("_").filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join(" ")
 
 /**
  * May a user with these pages open this path? A page's key is the first part
@@ -20,6 +15,10 @@ export function canAccess(pages: readonly string[] | undefined, pathname: string
   const key = pathname.split("/")[1] ?? ""
   return !PAGE_KEYS.has(key) || (pages ?? []).includes(key)
 }
+
+/** A user's pages, levels and duties as one string, to tell when they have changed. */
+export const accessKey = (user: { pages: string[]; levels: Record<string, string>; duties?: string[]; role_label?: string }) =>
+  [...user.pages.map((page) => `${page}:${user.levels[page] ?? "full"}`), ...(user.duties ?? []), user.role_label ?? ""].join()
 
 export type NavIcon =
   | "dashboard" | "warehouse" | "sorting" | "decolorization" | "drying" | "procurement" | "quality" | "production" | "sales" | "reports" | "users"

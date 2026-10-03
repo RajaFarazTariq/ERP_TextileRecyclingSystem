@@ -13,9 +13,13 @@ STAGE_ROLES = {
 }
 
 
+# The duty that lets a role inspect each stage (admins carry every duty)
+STAGE_DUTIES = {'Incoming': 'inspect_incoming', 'In-process': 'inspect_in_process', 'Finished': 'inspect_finished'}
+
+
 def check_may_inspect(user, stage):
-    role = getattr(user, 'role', None)
-    if role != 'admin' and role not in STAGE_ROLES.get(stage, set()):
+    from apps.core.permissions import has_duty
+    if not has_duty(user, STAGE_DUTIES.get(stage, '')):
         raise PermissionDenied(f"Your role can't record {stage.lower()} inspections.")
 
 

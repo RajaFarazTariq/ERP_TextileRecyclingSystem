@@ -48,12 +48,12 @@ export function useAttention(role: Role | undefined) {
   const chemicals = useQuery<Chemical[]>({
     queryKey: ["decolorization/chemicals", {}],
     queryFn: () => api("decolorization/chemicals"),
-    enabled: canAccess(pages, "/decolorization"),
+    enabled: canAccess(pages, "/decolorization") || canAccess(pages, "/dashboard"),
   })
   const lots = useQuery<LotStock[]>({
     queryKey: ["inventory/movements/stock", {}],
     queryFn: () => api("inventory/movements/stock"),
-    enabled: canAccess(pages, "/sales"),
+    enabled: canAccess(pages, "/sales") || canAccess(pages, "/dashboard"),
   })
 
   const items: AttentionItem[] = (alerts.data ?? []).map((a) => ({

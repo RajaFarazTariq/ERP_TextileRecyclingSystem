@@ -5,6 +5,7 @@ import "server-only"
 
 import type { NextResponse } from "next/server"
 
+import { roleName } from "@/config/access"
 import type { SessionUser } from "@/types/api"
 
 export const DJANGO_API_URL = (process.env.DJANGO_API_URL ?? "http://127.0.0.1:8000/api/v1/").replace(/\/?$/, "/")
@@ -54,7 +55,13 @@ export function parseUserCookie(value: string | undefined): SessionUser | null {
     const user = JSON.parse(value)
     if (!user || typeof user.role !== "string") return null
     // Sessions from before page access was configurable have no list yet; it is filled in on the next request
-    return { ...user, pages: Array.isArray(user.pages) ? user.pages : [] } as SessionUser
+    return {
+      ...user,
+      pages: Array.isArray(user.pages) ? user.pages : [],
+      levels: user.levels && typeof user.levels === "object" ? user.levels : {},
+      duties: Array.isArray(user.duties) ? user.duties : [],
+      role_label: typeof user.role_label === "string" ? user.role_label : roleName(user.role),
+    } as SessionUser
   } catch {
     return null
   }

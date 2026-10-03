@@ -1,5 +1,7 @@
 # Going live
 
+This is the short version. The full guide, with every setting, is in [the system manual](manual/README.md) ([Deployment](manual/12-deployment.md), [Configuration](manual/11-configuration.md), [Security](manual/13-security.md)).
+
 How to put the ERP on a server, keep it safe, back it up and update it. It assumes the Docker setup in this repository (`docker-compose.yml`).
 
 ## 1. What runs
@@ -42,9 +44,9 @@ Once HTTPS works, switch these on:
 | File | Setting |
 |---|---|
 | `.env` | `SECURE_COOKIES=true` |
-| `backend/.env` | `SECURE_COOKIES=True`, `SECURE_SSL_REDIRECT=True`, `SECURE_HSTS_SECONDS=31536000` |
+| `backend/.env` | `SECURE_COOKIES=True` |
 
-Set `SECURE_HSTS_SECONDS` only when you are sure the site will stay on HTTPS: browsers remember it.
+Do the redirect from HTTP to HTTPS, and HSTS, on the HTTPS server in front. Leave `SECURE_SSL_REDIRECT` and `SECURE_HSTS_SECONDS` off: inside Docker the app talks to the API over plain HTTP, so the API's own redirect would get in the way. The full explanation is in [the manual](manual/12-deployment.md).
 
 ## 4. Checklist before real use
 

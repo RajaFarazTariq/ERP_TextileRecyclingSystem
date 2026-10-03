@@ -1,6 +1,12 @@
+"use client"
+
+import { Eye } from "lucide-react"
+
 import { NavIcon } from "@/components/layout/nav-icon"
+import { Badge } from "@/components/ui/badge"
 import type { NavIcon as NavIconName } from "@/config/access"
 import { NAV_TONES } from "@/config/nav-tones"
+import { usePageAccess } from "@/features/auth/use-page-access"
 import { TONE } from "@/lib/tones"
 import { cn } from "@/lib/utils"
 
@@ -20,6 +26,8 @@ export function PageHeader({
   meta?: React.ReactNode
 }) {
   const tone = icon ? NAV_TONES[icon] : undefined
+  // Held to "view": the page's add buttons go, and a badge says why
+  const { readOnly } = usePageAccess()
   return (
     <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
       <div className="flex min-w-0 items-start gap-3.5">
@@ -34,7 +42,11 @@ export function PageHeader({
           {meta && <div className="mt-1.5 text-xs text-muted-foreground">{meta}</div>}
         </div>
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {readOnly ? (
+        <Badge variant="outline" className="h-7 gap-1.5 px-2.5 text-xs" title="You can look at this page but not change anything. Ask an admin if you need more.">
+          <Eye aria-hidden /> View only
+        </Badge>
+      ) : actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
   )
 }

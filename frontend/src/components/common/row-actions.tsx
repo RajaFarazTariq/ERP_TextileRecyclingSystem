@@ -3,6 +3,7 @@
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { usePageAccess } from "@/features/auth/use-page-access"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +16,8 @@ export interface ExtraAction {
   label: string
   icon?: React.ReactNode
   onSelect: () => void
+  /** Only shows something (a statement, a print-out): stays available on a view-only page */
+  view?: boolean
 }
 
 /** The "⋯" menu at the end of a table row: optional extra actions, Edit, Delete. */
@@ -27,6 +30,13 @@ export function RowActions({
   onDelete?: () => void
   extra?: ExtraAction[]
 }) {
+  // On a view-only page the menu keeps only what shows something
+  const { readOnly } = usePageAccess()
+  if (readOnly) {
+    extra = extra.filter((a) => a.view)
+    onEdit = onDelete = undefined
+    if (!extra.length) return null
+  }
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

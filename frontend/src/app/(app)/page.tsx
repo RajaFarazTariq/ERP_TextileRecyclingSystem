@@ -3,7 +3,7 @@ import { cookies } from "next/headers"
 import Link from "next/link"
 
 import { NavIcon } from "@/components/layout/nav-icon"
-import { ROLE_LABELS, type NavIcon as NavIconName, navFor } from "@/config/access"
+import { type NavIcon as NavIconName, navFor } from "@/config/access"
 import { NAV_TONES } from "@/config/nav-tones"
 import { displayName } from "@/lib/format"
 import { COOKIE, parseUserCookie } from "@/lib/server/session"
@@ -46,7 +46,7 @@ export default async function HomePage() {
       <section className="surface relative animate-rise overflow-hidden rounded-2xl p-6 sm:p-8">
         <div aria-hidden className="absolute -top-24 -right-16 size-72 rounded-full bg-brand/15 blur-3xl" />
         <div aria-hidden className="absolute -bottom-28 left-1/3 size-64 rounded-full bg-brand-2/10 blur-3xl" />
-        <p className="relative text-xs font-semibold tracking-widest text-brand-text uppercase">{ROLE_LABELS[user.role]}</p>
+        <p className="relative text-xs font-semibold tracking-widest text-brand-text uppercase">{user.role_label}</p>
         <h1 className="relative mt-2 font-heading text-3xl font-bold tracking-tight">
           {greeting(hour)}, {displayName(user.username)}
         </h1>

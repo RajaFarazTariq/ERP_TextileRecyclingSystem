@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
-import { ROLE_LABELS } from "@/config/access"
+import { type RoleName, useRoles } from "@/features/auth/use-roles"
 import { ApiError, api } from "@/lib/api"
 import { useSave } from "@/lib/crud"
 import { downloadFile } from "@/lib/download"
@@ -23,7 +23,7 @@ import { date, displayName } from "@/lib/format"
 import { applyServerErrors } from "@/lib/forms"
 import type { DocumentCategory, DocumentRecord, DocumentVersion } from "@/types/documents"
 import {
-  CATEGORY_ROLES, type CategoryForm, type DocumentForm, LINK_TYPES, type UploadRules,
+  type CategoryForm, type DocumentForm, LINK_TYPES, type UploadRules,
   categorySchema, documentSchema, fileProblem, fileSize, upload,
 } from "./schemas"
 
@@ -300,23 +300,22 @@ export function VersionsSheet({ document, onOpenChange }: { document: DocumentRe
 const YES_NO = [{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]
 
 export function CategoryDialog(props: DialogProps<DocumentCategory>) {
-  return props.open ? <CategoryDialogBody key={props.record?.id ?? "new"} {...props} /> : null
+  // Admins always see everything, so the choice is about the other roles
+  const { roles, isPending } = useRoles()
+  if (!props.open || isPending) return null
+  return <CategoryDialogBody key={props.record?.id ?? "new"} {...props} roles={roles.filter((r) => r.key !== "admin")} />
 }
 
-function CategoryDialogBody({ open, onOpenChange, record }: DialogProps<DocumentCategory>) {
+function CategoryDialogBody({ open, onOpenChange, record, roles }: DialogProps<DocumentCategory> & { roles: RoleName[] }) {
   const save = useSave<DocumentCategory>("documents/categories", { noun: "Category", invalidate: DOCUMENT_LISTS })
   const [formError, setFormError] = useState("")
-  const may = (role: (typeof CATEGORY_ROLES)[number]) => (record?.allowed_roles.includes(role) ? "yes" as const : "no" as const)
   const form = useForm<CategoryForm>({
     resolver: zodResolver(categorySchema),
     defaultValues: {
       name: record?.name ?? "",
       description: record?.description ?? "",
       is_active: record?.is_active === false ? "no" : "yes",
-      warehouse_supervisor: may("warehouse_supervisor"),
-      sorting_supervisor: may("sorting_supervisor"),
-      decolorization_supervisor: may("decolorization_supervisor"),
-      drying_supervisor: may("drying_supervisor"),
+      roles: Object.fromEntries(roles.map((r) => [r.key, record?.allowed_roles.includes(r.key) ? "yes" : "no"])),
     },
   })
   const { errors, isSubmitting } = form.formState
@@ -330,7 +329,7 @@ function CategoryDialogBody({ open, onOpenChange, record }: DialogProps<Document
           name: values.name,
           description: values.description,
           is_active: values.is_active === "yes",
-          allowed_roles: CATEGORY_ROLES.filter((role) => values[role] === "yes"),
+          allowed_roles: roles.filter((r) => values.roles[r.key] === "yes").map((r) => r.key),
         },
       })
       onOpenChange(false)
@@ -351,10 +350,10 @@ function CategoryDialogBody({ open, onOpenChange, record }: DialogProps<Document
       </Field>
       <FieldGroup title="Who can see it">
         <div className="grid gap-4 sm:grid-cols-2">
-          {CATEGORY_ROLES.map((role) => (
-            <Field key={role} id={`category-${role}`} label={ROLE_LABELS[role]}>
-              <Controller control={form.control} name={role} render={({ field }) => (
-                <SelectField id={`category-${role}`} value={field.value} onChange={field.onChange} placeholder="Select" options={YES_NO} />
+          {roles.map((r) => (
+            <Field key={r.key} id={`category-${r.key}`} label={r.name}>
+              <Controller control={form.control} name={`roles.${r.key}`} render={({ field }) => (
+                <SelectField id={`category-${r.key}`} value={field.value} onChange={field.onChange} placeholder="Select" options={YES_NO} />
               )} />
             </Field>
           ))}

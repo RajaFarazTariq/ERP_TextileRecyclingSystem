@@ -13,7 +13,7 @@ import { DataTable, type TableColumn } from "@/components/common/data-table"
 import { NameWithAvatar } from "@/components/common/identity"
 import { ProgressBar } from "@/components/common/meters"
 import { PageHeader } from "@/components/common/page-header"
-import { RowActions } from "@/components/common/row-actions"
+import { type ExtraAction, RowActions } from "@/components/common/row-actions"
 import { CardsSkeleton, EmptyState, ErrorState, TableSkeleton } from "@/components/common/states"
 import { StatCard } from "@/components/common/stat-card"
 import { StatusBadge } from "@/components/common/status-badge"
@@ -22,6 +22,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useDuties } from "@/features/auth/use-duty"
 import { useSession } from "@/features/auth/use-session"
 import { api } from "@/lib/api"
 import { useAction, useDelete, useList } from "@/lib/crud"
@@ -150,7 +151,9 @@ function InspectionDetails({ inspection, onOpenChange }: { inspection: Inspectio
 export function QualityPage() {
   const role = useSession().data?.role
   const admin = role === "admin"
-  const stages = useMemo(() => stagesFor(role), [role])
+  const can = useDuties()
+  const releaser = can("release_quarantine")
+  const stages = useMemo(() => stagesFor(can), [can])
   const [tab, setTab] = useState<Tab>("dashboard")
   const [resultFilter, setResultFilter] = useState(ALL)
   const [stageFilter, setStageFilter] = useState(ALL)
@@ -202,16 +205,16 @@ export function QualityPage() {
       cell: ({ row }) => {
         const i = row.original
         const mine = stages.includes(i.stage)
-        const extra = [{ label: "View details", icon: <Eye className="size-4" />, onSelect: () => setViewing(i) }]
-        if (i.quarantined && admin) extra.push({ label: "Release from quarantine", icon: <LockOpen className="size-4" />, onSelect: () => setReleasing(i) })
+        const extra: ExtraAction[] = [{ label: "View details", view: true, icon: <Eye className="size-4" />, onSelect: () => setViewing(i) }]
+        if (i.quarantined && releaser) extra.push({ label: "Release from quarantine", icon: <LockOpen className="size-4" />, onSelect: () => setReleasing(i) })
         if (mine) extra.push({ label: "Add action", icon: <Wrench className="size-4" />, onSelect: () => setEditing({ kind: "action", record: null, inspection: i }) })
-        // Released inspections are final; failed ones are changed by an admin only
-        const editable = mine && !i.released_at && (i.result !== "Fail" || admin)
+        // Released inspections are final; failed ones are changed by whoever may release quarantine
+        const editable = mine && !i.released_at && (i.result !== "Fail" || releaser)
         return <RowActions extra={extra}
           onEdit={editable ? () => setEditing({ kind: "inspection", record: i }) : undefined}
           onDelete={admin ? () => setDeleting({ kind: "inspection", id: i.id, label: i.number }) : undefined} />
       } },
-  ], [admin, stages])
+  ], [admin, releaser, stages])
 
   const actionColumns = useMemo<TableColumn<CorrectiveAction>[]>(() => [
     { accessorKey: "inspection_number", header: "Inspection", cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span> },
@@ -310,7 +313,7 @@ export function QualityPage() {
                   <Card className="animate-rise lg:col-span-2">
                     <CardHeader>
                       <CardTitle>In quarantine</CardTitle>
-                      <CardDescription className="mt-0.5">{admin ? "Release material once the problem is solved" : "An admin releases material"}</CardDescription>
+                      <CardDescription className="mt-0.5">{releaser ? "Release material once the problem is solved" : "Your role can't release material"}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-2">
                       {quarantined.length ? quarantined.map((i) => (
@@ -319,7 +322,7 @@ export function QualityPage() {
                             <p className="text-sm font-medium">{i.material} <span className="font-normal text-muted-foreground">{i.target} · {i.vendor_name}</span></p>
                             <p className="truncate text-xs text-muted-foreground" title={i.rejection_reason}>{i.number}: {i.rejection_reason}</p>
                           </div>
-                          {admin
+                          {releaser
                             ? <Button size="sm" variant="outline" onClick={() => setReleasing(i)}><LockOpen className="size-3.5" /> Release</Button>
                             : <StatusBadge status="Quarantined" />}
                         </div>

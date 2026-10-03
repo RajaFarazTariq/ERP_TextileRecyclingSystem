@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect } from "react"
 
-import { canAccess } from "@/config/access"
+import { accessKey, canAccess } from "@/config/access"
 import { useSession } from "@/features/auth/use-session"
 
 /**
@@ -12,16 +12,18 @@ import { useSession } from "@/features/auth/use-session"
  * the user's pages, the menu is redrawn, and a page the user may no longer
  * open is left for the home page.
  */
-export function AccessSync({ pages }: { pages: string[] }) {
+export function AccessSync({ access }: { access: string }) {
   const router = useRouter()
   const pathname = usePathname()
-  const current = useSession().data?.pages
+  const session = useSession().data
+  const current = session ? accessKey(session) : undefined
+  const pages = session?.pages
 
   useEffect(() => {
-    if (!current) return
-    if (!canAccess(current, pathname)) router.replace("/")
-    else if (current.join() !== pages.join()) router.refresh()
-  }, [current, pages, pathname, router])
+    if (!current || !pages) return
+    if (!canAccess(pages, pathname)) router.replace("/")
+    else if (current !== access) router.refresh()
+  }, [current, pages, access, pathname, router])
 
   return null
 }

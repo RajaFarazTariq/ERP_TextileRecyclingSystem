@@ -13,7 +13,7 @@ import { ConfirmDialog } from "@/components/common/confirm-dialog"
 import { DataTable, type TableColumn } from "@/components/common/data-table"
 import { ProgressBar } from "@/components/common/meters"
 import { PageHeader } from "@/components/common/page-header"
-import { RowActions } from "@/components/common/row-actions"
+import { type ExtraAction, RowActions } from "@/components/common/row-actions"
 import { CardsSkeleton, EmptyState, ErrorState, TableSkeleton } from "@/components/common/states"
 import { StatCard } from "@/components/common/stat-card"
 import { StatusBadge } from "@/components/common/status-badge"
@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useSession } from "@/features/auth/use-session"
+import { useDuties } from "@/features/auth/use-duty"
 import { api } from "@/lib/api"
 import { useAction, useDelete, useList } from "@/lib/crud"
 import { date, kg, percent, plural, rupees } from "@/lib/format"
@@ -35,7 +35,7 @@ import {
   AssignStepDialog, BomDialog, CompleteStepDialog, MaterialUseDialog, OrderDialog, PRODUCTION_LISTS, RoutingDialog,
   StageDialog,
 } from "./production-forms"
-import { ORDER_STATUSES, STAGE_MODULES, isFloorUser } from "./schemas"
+import { ORDER_STATUSES, STAGE_MODULES } from "./schemas"
 
 type Tab = "dashboard" | "orders" | "schedule" | "materials" | "setup"
 type Editing =
@@ -130,9 +130,9 @@ function Schedule({ orders, onOpen }: { orders: ProductionOrder[]; onOpen: (o: P
 }
 
 /** One order: its stages, materials, costs and the lot's sessions. */
-function OrderDetail({ order, admin, floor, users, onBack, onEdit, onConfirm }: {
+function OrderDetail({ order, planner, floor, users, onBack, onEdit, onConfirm }: {
   order: ProductionOrder
-  admin: boolean
+  planner: boolean
   floor: boolean
   users: UserSummary[]
   onBack: () => void
@@ -159,11 +159,11 @@ function OrderDetail({ order, admin, floor, users, onBack, onEdit, onConfirm }: 
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="size-4" /> All orders</Button>
         <div className="ml-auto flex flex-wrap gap-2">
-          {order.status === "Draft" && admin && <Button size="sm" onClick={() => onConfirm({ action: "release", order })}><Send className="size-4" /> Release</Button>}
+          {order.status === "Draft" && planner && <Button size="sm" onClick={() => onConfirm({ action: "release", order })}><Send className="size-4" /> Release</Button>}
           {order.status === "In Progress" && floor && allClosed && (
             <Button size="sm" onClick={() => onConfirm({ action: "complete", order })}><PackageCheck className="size-4" /> Complete order</Button>
           )}
-          {admin && order.status !== "Completed" && order.status !== "Cancelled" && (
+          {planner && order.status !== "Completed" && order.status !== "Cancelled" && (
             <>
               <Button size="sm" variant="outline" onClick={onEdit}><Pencil className="size-4" /> Edit</Button>
               <Button size="sm" variant="outline" onClick={() => onConfirm({ action: "cancel", order })}><Ban className="size-4" /> Cancel order</Button>
@@ -237,12 +237,12 @@ function OrderDetail({ order, admin, floor, users, onBack, onEdit, onConfirm }: 
                       {open && floor && s.status === "In Progress" && (
                         <Button size="sm" onClick={() => setCompleting(s)}><CheckCircle2 className="size-3.5" /> Complete</Button>
                       )}
-                      {admin && open && (s.status === "Pending" || s.status === "In Progress") && (
+                      {planner && open && (s.status === "Pending" || s.status === "In Progress") && (
                         <Button size="sm" variant="outline" aria-label={`Skip ${s.stage_name}`} title="Skip this stage" onClick={() => skipStep({ id: s.id })}>
                           <SkipForward className="size-3.5" />
                         </Button>
                       )}
-                      {admin && order.status !== "Completed" && order.status !== "Cancelled" && (
+                      {planner && order.status !== "Completed" && order.status !== "Cancelled" && (
                         <Button size="sm" variant="outline" aria-label={`Plan ${s.stage_name}`} title="Operator, machine, hours and cost" onClick={() => setAssigning(s)}>
                           <Pencil className="size-3.5" />
                         </Button>
@@ -317,9 +317,10 @@ function OrderDetail({ order, admin, floor, users, onBack, onEdit, onConfirm }: 
 }
 
 export function ProductionPage() {
-  const role = useSession().data?.role
-  const admin = role === "admin"
-  const floor = isFloorUser(role)
+  // Planners create, release and cancel orders; the floor starts and completes stages
+  const can = useDuties()
+  const planner = can("plan_production")
+  const floor = planner || can("run_production")
   const [tab, setTab] = useState<Tab>("dashboard")
   const [statusFilter, setStatusFilter] = useState(ALL)
   const [selected, setSelected] = useState<number | null>(null)
@@ -384,14 +385,14 @@ export function ProductionPage() {
     { id: "actions", header: "", enableSorting: false, enableHiding: false,
       cell: ({ row }) => {
         const o = row.original
-        const extra = [{ label: "Open", icon: <Eye className="size-4" />, onSelect: () => setSelected(o.id) }]
-        if (o.status === "Draft" && admin) extra.push({ label: "Release", icon: <Send className="size-4" />, onSelect: () => setConfirming({ action: "release", order: o }) })
-        if (admin && ["Draft", "Released", "In Progress"].includes(o.status)) extra.push({ label: "Cancel order", icon: <Ban className="size-4" />, onSelect: () => setConfirming({ action: "cancel", order: o }) })
+        const extra: ExtraAction[] = [{ label: "Open", view: true, icon: <Eye className="size-4" />, onSelect: () => setSelected(o.id) }]
+        if (o.status === "Draft" && planner) extra.push({ label: "Release", icon: <Send className="size-4" />, onSelect: () => setConfirming({ action: "release", order: o }) })
+        if (planner && ["Draft", "Released", "In Progress"].includes(o.status)) extra.push({ label: "Cancel order", icon: <Ban className="size-4" />, onSelect: () => setConfirming({ action: "cancel", order: o }) })
         return <RowActions extra={extra}
-          onEdit={admin && o.status !== "Completed" && o.status !== "Cancelled" ? () => setEditing({ kind: "order", record: o }) : undefined}
-          onDelete={admin && (o.status === "Draft" || o.status === "Cancelled") ? () => setDeleting({ kind: "order", id: o.id, label: o.number }) : undefined} />
+          onEdit={planner && o.status !== "Completed" && o.status !== "Cancelled" ? () => setEditing({ kind: "order", record: o }) : undefined}
+          onDelete={planner && (o.status === "Draft" || o.status === "Cancelled") ? () => setDeleting({ kind: "order", id: o.id, label: o.number }) : undefined} />
       } },
-  ], [admin])
+  ], [planner])
 
   const requirementColumns = useMemo<TableColumn<MaterialRequirement>[]>(() => [
     { accessorKey: "material", header: "Material", cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span> },
@@ -415,9 +416,9 @@ export function ProductionPage() {
     { id: "is_active", header: "Status", accessorFn: (r) => (r.is_active ? "In use" : "Not in use"),
       cell: ({ row }) => <StatusBadge status={row.original.is_active ? "In use" : "Not in use"} tone={row.original.is_active ? "success" : "neutral"} /> },
     { id: "actions", header: "", enableSorting: false, enableHiding: false,
-      cell: ({ row }) => admin ? <RowActions onEdit={() => setEditing({ kind: "routing", record: row.original })}
+      cell: ({ row }) => planner ? <RowActions onEdit={() => setEditing({ kind: "routing", record: row.original })}
         onDelete={() => setDeleting({ kind: "routing", id: row.original.id, label: row.original.name })} /> : null },
-  ], [admin])
+  ], [planner])
 
   const bomColumns = useMemo<TableColumn<Bom>[]>(() => [
     { accessorKey: "name", header: "Bill of materials", cell: ({ row }) => (
@@ -433,9 +434,9 @@ export function ProductionPage() {
     { id: "is_active", header: "Status", accessorFn: (r) => (r.is_active ? "In use" : "Not in use"),
       cell: ({ row }) => <StatusBadge status={row.original.is_active ? "In use" : "Not in use"} tone={row.original.is_active ? "success" : "neutral"} /> },
     { id: "actions", header: "", enableSorting: false, enableHiding: false,
-      cell: ({ row }) => admin ? <RowActions onEdit={() => setEditing({ kind: "bom", record: row.original })}
+      cell: ({ row }) => planner ? <RowActions onEdit={() => setEditing({ kind: "bom", record: row.original })}
         onDelete={() => setDeleting({ kind: "bom", id: row.original.id, label: row.original.name })} /> : null },
-  ], [admin])
+  ], [planner])
 
   const stageColumns = useMemo<TableColumn<ProcessStage>[]>(() => [
     { accessorKey: "sequence", header: "Position", sortFn: "basic" },
@@ -445,9 +446,9 @@ export function ProductionPage() {
     { id: "is_active", header: "Status", accessorFn: (r) => (r.is_active ? "In use" : "Not in use"),
       cell: ({ row }) => <StatusBadge status={row.original.is_active ? "In use" : "Not in use"} tone={row.original.is_active ? "success" : "neutral"} /> },
     { id: "actions", header: "", enableSorting: false, enableHiding: false,
-      cell: ({ row }) => admin ? <RowActions onEdit={() => setEditing({ kind: "stage", record: row.original })}
+      cell: ({ row }) => planner ? <RowActions onEdit={() => setEditing({ kind: "stage", record: row.original })}
         onDelete={() => setDeleting({ kind: "stage", id: row.original.id, label: row.original.name })} /> : null },
-  ], [admin])
+  ], [planner])
 
   const core = [orders, summary]
   const loadError = core.find((q) => q.isError)
@@ -466,7 +467,7 @@ export function ProductionPage() {
     <div className="mx-auto max-w-[1440px]">
       <PageHeader title="Production" icon="production"
         description="Production orders with planned against actual output, time, materials and cost."
-        actions={admin && (tab === "setup"
+        actions={planner && (tab === "setup"
           ? <Button onClick={() => setEditing({ kind: "routing", record: null })}><Plus className="size-4" /> New routing</Button>
           : <Button onClick={() => setEditing({ kind: "order", record: null })}><Plus className="size-4" /> New order</Button>)} />
 
@@ -549,13 +550,13 @@ export function ProductionPage() {
 
           <TabsContent value="orders" className="mt-4">
             {orders.isPending ? <TableSkeleton columns={7} /> : current ? (
-              <OrderDetail order={current} admin={admin} floor={floor} users={users.data ?? []}
+              <OrderDetail order={current} planner={planner} floor={floor} users={users.data ?? []}
                 onBack={() => setSelected(null)} onEdit={() => setEditing({ kind: "order", record: current })} onConfirm={setConfirming} />
             ) : (
               <DataTable columns={orderColumns} exportName="production-orders"
                 data={(orders.data ?? []).filter((o) => statusFilter === ALL || o.status === statusFilter)}
                 searchPlaceholder="Search order, product, material…" emptyTitle="No production orders"
-                emptyDescription={admin ? "Plan one with “New order”." : "Orders planned by an admin show here."}
+                emptyDescription={planner ? "Plan one with “New order”." : "Planned orders show here."}
                 filters={statusFilter !== ALL ? [{ label: `Status: ${statusFilter}`, onClear: () => setStatusFilter(ALL) }] : []}
                 toolbar={
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -594,7 +595,7 @@ export function ProductionPage() {
             <section className="space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <h2 className="font-heading text-base font-semibold">Bills of materials</h2>
-                {admin && <Button variant="outline" size="sm" onClick={() => setEditing({ kind: "bom", record: null })}><Plus className="size-4" /> New bill of materials</Button>}
+                {planner && <Button variant="outline" size="sm" onClick={() => setEditing({ kind: "bom", record: null })}><Plus className="size-4" /> New bill of materials</Button>}
               </div>
               {boms.isPending ? <TableSkeleton columns={4} /> : (
                 <DataTable columns={bomColumns} data={boms.data ?? []} pageSize={10} emptyTitle="No bills of materials"
@@ -604,7 +605,7 @@ export function ProductionPage() {
             <section className="space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <h2 className="font-heading text-base font-semibold">Process stages</h2>
-                {admin && <Button variant="outline" size="sm" onClick={() => setEditing({ kind: "stage", record: null })}><Plus className="size-4" /> New stage</Button>}
+                {planner && <Button variant="outline" size="sm" onClick={() => setEditing({ kind: "stage", record: null })}><Plus className="size-4" /> New stage</Button>}
               </div>
               {stages.isPending ? <TableSkeleton columns={4} /> : (
                 <DataTable columns={stageColumns} data={stages.data ?? []} pageSize={10} emptyTitle="No stages" initialSorting={[{ id: "sequence", desc: false }]} />

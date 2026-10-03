@@ -2,7 +2,7 @@ from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
-from apps.core.permissions import is_admin
+from apps.core.permissions import has_duty
 from . import services
 from .models import Machine, MaintenanceSchedule, PartUse, SparePart, WorkOrder
 
@@ -126,12 +126,12 @@ class WorkOrderSerializer(serializers.ModelSerializer):
         order = self.instance
         if order is not None:
             services.check_open(order)
-            if not is_admin(user):
+            if not has_duty(user, 'manage_maintenance'):
                 if order.reported_by_id != user.pk or order.status != 'Open':
                     raise PermissionDenied('Only an admin can change this work order.')
                 if 'machine' in data and data['machine'] != order.machine:
                     raise PermissionDenied('Only an admin can move a work order to another machine.')
-        if not is_admin(user):
+        if not has_duty(user, 'manage_maintenance'):
             # Other roles report problems; an admin plans preventive work and assigns people
             if data.get('kind', 'Corrective') != 'Corrective':
                 raise PermissionDenied('Only an admin can create preventive work orders.')

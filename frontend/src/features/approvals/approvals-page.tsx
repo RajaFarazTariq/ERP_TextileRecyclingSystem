@@ -14,7 +14,8 @@ import { StatCard } from "@/components/common/stat-card"
 import { StatusBadge } from "@/components/common/status-badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ROLE_LABELS } from "@/config/access"
+import { useRoles } from "@/features/auth/use-roles"
+import { useSession } from "@/features/auth/use-session"
 import { api } from "@/lib/api"
 import { useList, useSave } from "@/lib/crud"
 import { date, kg, plural, rupees } from "@/lib/format"
@@ -93,7 +94,10 @@ export function ApprovalsPage() {
   const inbox = useQuery<ApprovalsInbox>({
     queryKey: ["alerts/approvals"], queryFn: () => api("alerts/approvals"), refetchInterval: 60_000, refetchOnWindowFocus: true,
   })
-  const rules = useList<NotificationRule>("alerts/rules")
+  // The rules behind the bell are the admins' to set; others with this page decide approvals only
+  const isAdmin = useSession().data?.role === "admin"
+  const rules = useList<NotificationRule>("alerts/rules", undefined, { enabled: isAdmin })
+  const { label: roleLabel } = useRoles()
   // `mutate` is stable, so the rule columns can depend on it
   const { mutate: saveRule } = useSave<NotificationRule>("alerts/rules", { noun: "Rule", invalidate: [["alerts/notifications"]] })
 
@@ -114,7 +118,7 @@ export function ApprovalsPage() {
           <span className="block max-w-56 truncate text-xs text-muted-foreground" title={row.original.threshold_label}>{row.original.threshold_label}</span>
         </span>
       ) },
-    { id: "roles", header: "Sent to", accessorFn: (r) => ["Admin", ...r.roles.map((role) => ROLE_LABELS[role])].join(", "),
+    { id: "roles", header: "Sent to", accessorFn: (r) => ["Admin", ...r.roles.map(roleLabel)].join(", "),
       cell: ({ getValue }) => <span className="block max-w-64 truncate" title={getValue<string>()}>{getValue<string>()}</span> },
     { id: "send_email", header: "E-mail", accessorFn: (r) => (r.send_email ? "Yes" : "No"),
       cell: ({ row }) => row.original.send_email ? <StatusBadge status="Yes" tone="info" /> : <span className="text-muted-foreground">No</span> },
@@ -129,7 +133,7 @@ export function ApprovalsPage() {
           ? { label: "Switch off", icon: <PowerOff className="size-4" />, onSelect: () => saveRule({ id: rule.id, body: { is_enabled: false } }) }
           : { label: "Switch on", icon: <Power className="size-4" />, onSelect: () => saveRule({ id: rule.id, body: { is_enabled: true } }) }]} />
       } },
-  ], [saveRule])
+  ], [saveRule, roleLabel])
 
   const data = inbox.data
   const groups = data?.groups ?? []
@@ -171,7 +175,7 @@ export function ApprovalsPage() {
                   </span>
                 </TabsTrigger>
               ))}
-              <TabsTrigger value={RULES}><Layers className="size-3.5" /> Rules</TabsTrigger>
+              {isAdmin && <TabsTrigger value={RULES}><Layers className="size-3.5" /> Rules</TabsTrigger>}
             </TabsList>
 
             {groups.map((g) => (

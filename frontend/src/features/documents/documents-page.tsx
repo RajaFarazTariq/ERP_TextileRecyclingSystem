@@ -9,7 +9,7 @@ import { DataTable, type TableColumn } from "@/components/common/data-table"
 import { NameWithAvatar } from "@/components/common/identity"
 import { ProgressBar } from "@/components/common/meters"
 import { PageHeader } from "@/components/common/page-header"
-import { RowActions } from "@/components/common/row-actions"
+import { type ExtraAction, RowActions } from "@/components/common/row-actions"
 import { CardsSkeleton, EmptyState, ErrorState, TableSkeleton } from "@/components/common/states"
 import { StatCard } from "@/components/common/stat-card"
 import { StatusBadge } from "@/components/common/status-badge"
@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ROLE_LABELS } from "@/config/access"
+import { useRoles } from "@/features/auth/use-roles"
 import { useSession } from "@/features/auth/use-session"
 import { api } from "@/lib/api"
 import { useDelete, useList } from "@/lib/crud"
@@ -53,6 +53,8 @@ function ExpiryCell({ document }: { document: DocumentRecord }) {
 export function DocumentsPage() {
   const role = useSession().data?.role
   const admin = role === "admin"
+  const { roles, label: roleLabel } = useRoles()
+  const otherRoles = roles.length - 1          // every role but Admin
   const [tab, setTab] = useState<Tab>("dashboard")
   const [categoryFilter, setCategoryFilter] = useState(ALL)
   const [statusFilter, setStatusFilter] = useState(ALL)
@@ -111,9 +113,9 @@ export function DocumentsPage() {
     { id: "actions", header: "", enableSorting: false, enableHiding: false,
       cell: ({ row }) => {
         const d = row.original
-        const extra = [{ label: "Download", icon: <Download className="size-4" />, onSelect: () => { void downloadDocument(d) } }]
+        const extra: ExtraAction[] = [{ label: "Download", view: true, icon: <Download className="size-4" />, onSelect: () => { void downloadDocument(d) } }]
         if (d.can_change) extra.push({ label: "New version", icon: <FilePlus2 className="size-4" />, onSelect: () => setAdding(d) })
-        extra.push({ label: "Versions", icon: <History className="size-4" />, onSelect: () => setViewing(d) })
+        extra.push({ label: "Versions", view: true, icon: <History className="size-4" />, onSelect: () => setViewing(d) })
         if (d.can_change) extra.push({ label: "Edit details", icon: <Pencil className="size-4" />, onSelect: () => setEditing({ kind: "document", record: d }) })
         return <RowActions extra={extra}
           onDelete={admin ? () => setDeleting({ kind: "document", id: d.id, label: `${d.number} ${d.title}` }) : undefined} />
@@ -128,12 +130,12 @@ export function DocumentsPage() {
           {row.original.description && <span className="block truncate text-xs text-muted-foreground" title={row.original.description}>{row.original.description}</span>}
         </span>
       ) },
-    { id: "roles", header: "Who can see it", accessorFn: (r) => ["Admin", ...r.allowed_roles.map((x) => ROLE_LABELS[x])].join(", "),
+    { id: "roles", header: "Who can see it", accessorFn: (r) => ["Admin", ...r.allowed_roles.map(roleLabel)].join(", "),
       cell: ({ row }) => row.original.allowed_roles.length === 0
         ? <span className="text-muted-foreground">Admin only</span>
-        : row.original.allowed_roles.length === 4 ? "All roles"
-          : <span className="block max-w-80 truncate" title={row.original.allowed_roles.map((x) => ROLE_LABELS[x]).join(", ")}>
-              Admin, {row.original.allowed_roles.map((x) => ROLE_LABELS[x]).join(", ")}
+        : otherRoles > 0 && row.original.allowed_roles.length >= otherRoles ? "All roles"
+          : <span className="block max-w-80 truncate" title={row.original.allowed_roles.map(roleLabel).join(", ")}>
+              Admin, {row.original.allowed_roles.map(roleLabel).join(", ")}
             </span> },
     { accessorKey: "documents", header: "Documents", sortFn: "basic", cell: ({ getValue }) => plural(getValue<number>(), "document") },
     { id: "is_active", header: "Status", accessorFn: (r) => (r.is_active ? "In use" : "Not in use"),
@@ -141,7 +143,7 @@ export function DocumentsPage() {
     { id: "actions", header: "", enableSorting: false, enableHiding: false,
       cell: ({ row }) => admin ? <RowActions onEdit={() => setEditing({ kind: "category", record: row.original })}
         onDelete={() => setDeleting({ kind: "category", id: row.original.id, label: row.original.name })} /> : null },
-  ], [admin])
+  ], [admin, roleLabel, otherRoles])
 
   const canUpload = (categories.data ?? []).some((c) => c.is_active)
   const uploadAction = canUpload ? { label: "Upload document", icon: Upload, open: () => setEditing({ kind: "document", record: null }) } : null

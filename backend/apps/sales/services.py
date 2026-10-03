@@ -16,7 +16,7 @@ from django.db.models import Sum
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from apps.core.permissions import is_admin
+from apps.core.permissions import has_duty
 from apps.inventory import services as inventory
 
 ZERO = Decimal('0')
@@ -233,8 +233,8 @@ def check_return(order, weight, exclude_id=None):
 
 
 def _decide(sales_return, user, status):
-    if not is_admin(user):
-        raise PermissionDenied('Only an admin can approve or reject a return.')
+    if not has_duty(user, 'approve_sales_returns'):
+        raise PermissionDenied('Your role is not allowed to approve or reject a return.')
     if sales_return.status != 'Requested':
         raise ValidationError(f'This return is already {sales_return.status.lower()}.')
     sales_return.status = status

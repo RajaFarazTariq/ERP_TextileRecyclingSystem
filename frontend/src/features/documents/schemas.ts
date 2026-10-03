@@ -3,7 +3,6 @@ import { z } from "zod"
 import { ApiError, errorMessage } from "@/lib/api"
 import { requiredId } from "@/lib/forms"
 import type { StatusTone } from "@/lib/tones"
-import type { Role } from "@/types/api"
 import type { DocumentStatus } from "@/types/documents"
 
 export const STATUSES: DocumentStatus[] = ["Valid", "Expiring soon", "Expired", "No expiry"]
@@ -18,11 +17,6 @@ export const LINK_TYPES = [
   "Supplier", "Purchase order", "Customer", "Sales order", "Invoice", "Fabric lot",
   "Production order", "Inspection", "Chemical", "Employee", "Machine", "Other",
 ] as const
-
-// Roles a category can be opened to (admins always see everything)
-export const CATEGORY_ROLES = [
-  "warehouse_supervisor", "sorting_supervisor", "decolorization_supervisor", "drying_supervisor",
-] as const satisfies readonly Role[]
 
 // Used until the server's own limits arrive with the summary
 export const DEFAULT_RULES = {
@@ -55,10 +49,8 @@ export const categorySchema = z.object({
   name: z.string().trim().min(1, "Enter a name.").max(100),
   description: z.string().trim().max(255),
   is_active: yesNo,
-  warehouse_supervisor: yesNo,
-  sorting_supervisor: yesNo,
-  decolorization_supervisor: yesNo,
-  drying_supervisor: yesNo,
+  /** Role key → whether that role sees the category (admins always do) */
+  roles: z.record(z.string(), yesNo),
 })
 export type CategoryForm = z.infer<typeof categorySchema>
 

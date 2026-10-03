@@ -15,7 +15,7 @@ from rest_framework.views import APIView
 from apps.audit.middleware import AuditedModelMixin
 from apps.audit.models import AuditLog, log_action
 from apps.core.filters import filter_by_date_params
-from apps.core.permissions import SAFE_METHODS, get_role, has_page, is_admin
+from apps.core.permissions import SAFE_METHODS, get_role, has_duty, has_page, is_admin, page_allows
 from apps.warehouse.models import Stock, Vendor
 from . import services
 from .models import (
@@ -36,23 +36,24 @@ class IsProcurementUser(permissions.BasePermission):
 
     def has_permission(self, request, view):
         # Purchasing itself, or a page that reads from it (deliveries are booked against orders)
-        pages = ('procurement', 'warehouse') if request.method in SAFE_METHODS else ('procurement',)
-        return bool(request.user and request.user.is_authenticated and has_page(request.user, *pages))
+        if request.method in SAFE_METHODS:
+            return bool(request.user and request.user.is_authenticated and has_page(request.user, 'procurement', 'warehouse'))
+        return page_allows(request, 'procurement')
 
 
 class IsAdminForWrites(permissions.BasePermission):
     """Supplier payments: everyone in procurement can see them, only admins record them."""
-    message = 'Only an admin can record supplier payments.'
+    message = 'Your role is not allowed to record supplier payments.'
 
     def has_permission(self, request, view):
-        return request.method in SAFE_METHODS or is_admin(request.user)
+        return request.method in SAFE_METHODS or has_duty(request.user, 'pay_suppliers')
 
 
 class IsAdminAction(permissions.BasePermission):
-    message = 'Only an admin can approve or reject.'
+    message = 'Your role is not allowed to approve or reject purchases.'
 
     def has_permission(self, request, view):
-        return is_admin(request.user)
+        return has_duty(request.user, 'approve_purchases')
 
 
 reason_request = inline_serializer('DecisionRequest', {'reason': serializers.CharField(required=False)})

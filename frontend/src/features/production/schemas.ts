@@ -1,7 +1,6 @@
 import { z } from "zod"
 
 import { decimalString, requiredId } from "@/lib/forms"
-import type { Role } from "@/types/api"
 
 export const ORDER_STATUSES = ["Draft", "Released", "In Progress", "Completed", "Cancelled"] as const
 export const PRIORITIES = ["Low", "Normal", "High"] as const
@@ -11,10 +10,6 @@ export const STAGE_MODULES = [
   { value: "decolorization", label: "Decolorization" },
   { value: "drying", label: "Drying" },
 ] as const
-
-// Who runs steps and records material use (same rule as the server; admins always can)
-const FLOOR_ROLES: Role[] = ["sorting_supervisor", "decolorization_supervisor", "drying_supervisor"]
-export const isFloorUser = (role: Role | undefined) => role === "admin" || (!!role && FLOOR_ROLES.includes(role))
 
 const optionalAmount = z.string().trim().refine((v) => !v || /^\d+(\.\d{1,2})?$/.test(v), "Enter a number with up to 2 decimals.")
 const activeFlag = z.enum(["yes", "no"])

@@ -16,9 +16,9 @@ FLOOR_ROLES = {'sorting_supervisor', 'decolorization_supervisor', 'drying_superv
 
 
 def check_floor_user(user):
-    role = getattr(user, 'role', None)
-    if role != 'admin' and role not in FLOOR_ROLES:
-        raise PermissionDenied('Only production supervisors and admins can update production steps.')
+    from apps.core.permissions import has_duty
+    if not has_duty(user, 'run_production', 'plan_production'):
+        raise PermissionDenied('Your role is not allowed to update production steps.')
 
 
 def _require(order, allowed, verb):

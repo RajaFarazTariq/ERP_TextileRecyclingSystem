@@ -14,7 +14,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.access.services import PAGE_KEYS, pages_for
+from apps.access.services import _ordered, duties_for, levels_for, role_label
 from apps.audit.models import AuditLog, log_action
 from apps.core.permissions import IsUsersOrAdmin
 from .models import CustomUser
@@ -121,7 +121,10 @@ class LoginView(APIView):
                 'username': user.username,
                 'email':    user.email,
                 'role':     user.role,
-                'pages':    sorted(pages_for(user), key=PAGE_KEYS.index),
+                'role_label': role_label(user.role),
+                'duties':   sorted(duties_for(user)),
+                'pages':    list(_ordered(levels_for(user))),
+                'levels':   _ordered(levels_for(user)),
             },
         }, status=status.HTTP_200_OK)
 

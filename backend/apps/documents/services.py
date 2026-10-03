@@ -17,7 +17,12 @@ EXPIRING_DAYS = 30
 STATUSES = ['Valid', 'Expiring soon', 'Expired', 'No expiry']
 
 # Roles a category can be opened to (admins always see everything)
-ROLE_KEYS = sorted(ALL_ROLES - {'admin'})
+ROLE_KEYS = ['warehouse_supervisor', 'sorting_supervisor', 'decolorization_supervisor', 'drying_supervisor']
+
+
+def role_keys():
+    """Every role a category can be opened to (admins always have access, so they are not listed)."""
+    return sorted(ALL_ROLES - {'admin'})
 
 DEFAULT_CATEGORIES = [
     ('Supplier documents', 'Registrations, agreements and other supplier papers', ['warehouse_supervisor']),

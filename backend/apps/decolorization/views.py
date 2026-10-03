@@ -21,7 +21,7 @@ from .serializers import (
     ChemicalLotSerializer, RecipeSerializer,
 )
 from apps.core.filters import filter_by_date_params
-from apps.core.permissions import IsDecolorizationOrAdmin, is_admin
+from apps.core.permissions import has_duty, IsDecolorizationOrAdmin
 from apps.core.quantities import parse_kg, check_not_more_than_input
 from apps.notifications.tasks import alert_if_chemical_became_low
 
@@ -186,8 +186,8 @@ class DecolorizationSessionViewSet(AuditedModelMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
         """An admin signs off the batch record. It doesn't block or change anything else."""
-        if not is_admin(request.user):
-            raise PermissionDenied('Only an admin can approve a batch.')
+        if not has_duty(request.user, 'approve_batches'):
+            raise PermissionDenied('Your role is not allowed to approve a batch.')
         session = self.get_object()
         if session.approved_at:
             return Response({'message': 'This batch is already approved.'}, status=status.HTTP_400_BAD_REQUEST)

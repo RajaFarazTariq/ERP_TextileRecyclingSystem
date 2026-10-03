@@ -4,7 +4,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
-from apps.core.permissions import is_admin
+from apps.core.permissions import has_duty
 from .models import (
     ChemicalIssuance, ChemicalLot, ChemicalStock, DecolorizationSession, Recipe, RecipeLine, RecipeVersion, Tank,
 )
@@ -93,8 +93,8 @@ class ChemicalIssuanceSerializer(serializers.ModelSerializer):
         if chemical is None or quantity is None:
             return data
         request = self.context.get('request')
-        if chemical.is_restricted and request is not None and not is_admin(request.user):
-            raise PermissionDenied(f'{chemical.chemical_name} is restricted: only an admin can issue it.')
+        if chemical.is_restricted and request is not None and not has_duty(request.user, 'issue_restricted_chemicals'):
+            raise PermissionDenied(f'{chemical.chemical_name} is restricted: your role is not allowed to issue it.')
         session = data.get('session')
         tank = data.get('tank', getattr(self.instance, 'tank', None))
         if session is not None and tank is not None and session.tank_id != tank.pk:
